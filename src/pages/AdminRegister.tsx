@@ -106,8 +106,8 @@ export default function AdminRegister() {
   };
 
   return (
-    <div className="flex-1 bg-background bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] min-h-screen pt-24 pb-16 flex items-center justify-center px-4">
-      <div className="w-full max-w-xl bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-6 md:p-8 relative mt-16">
+    <div className="flex-1 bg-background bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] min-h-screen pt-24 pb-16 flex items-start justify-center px-4">
+      <div className="w-full max-w-xl bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-6 md:p-8 relative mt-4">
         <div className="absolute -top-4 -right-4 bg-destructive text-destructive-foreground px-3 py-1 font-mono text-[10px] font-black uppercase tracking-widest border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
           RESTRICTED AREA
         </div>

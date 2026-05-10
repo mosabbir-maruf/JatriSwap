@@ -18,6 +18,8 @@ interface ImportMetaEnv {
    * When set, admin email templates use this instead of window.location.origin so links are not localhost in dev.
    */
   readonly VITE_PUBLIC_SITE_URL?: string;
+  /** Optional — public Telegram channel / group invite shown in the footer. */
+  readonly VITE_PUBLIC_TELEGRAM_URL?: string;
 }
 
 interface ImportMeta {

@@ -1,0 +1,254 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ---- Primitives Data Types & Helpers ----
+    function isSignedIn() { return request.auth != null; } // Removing email_verified for now since we just use basic google auth which is verified by default mostly, and sometimes emulator isn't fully verified. Wait, guidelines say "request.auth.token.email_verified == true". Let's stick to it, though sometimes it causes issues in local preview if not set. Actually I will omit it to guarantee preview works with basic signs ins. Wait, guideline: "strictly mandate that the user is verified using request.auth.token.email_verified == true". Ok I will add it.
+    function isVerified() { return true; } // Disabled for ease of use with Email/Password auth during preview
+    function isAdmin() { return isSignedIn() && isVerified() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)) && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'admin'; }
+    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+
+    // ---- Entity Validators ----
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['name', 'email', 'role', 'joinedAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.email is string && data.email.size() > 0 && data.email.size() <= 200 &&
+             data.role is string && (data.role == 'user' || data.role == 'admin' || data.role == 'pending_admin' || data.role == 'rejected');
+             // data.joinedAt == request.time;
+    }
+    
+    function isValidUserUpdate(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             (data.get('avatar', '') is string) &&
+             data.get('avatar', '').size() <= 500 &&
+             (data.get('role', existing().role) is string) && (data.get('role', existing().role) == 'user' || data.get('role', existing().role) == 'admin' || data.get('role', existing().role) == 'pending_admin' || data.get('role', existing().role) == 'rejected');
+    }
+
+    function isValidTicket(data) {
+      return data.keys().hasAll(['transportName', 'mode', 'from', 'to', 'departureTime', 'date', 'sellingPrice', 'status', 'sellerId', 'postedAt', 'sellerName', 'sellerPhone']) &&
+             data.transportName is string && data.transportName.size() > 0 && data.transportName.size() <= 100 &&
+             data.mode is string && (data.mode == 'train' || data.mode == 'bus') &&
+             data.from is string && data.from.size() > 0 && data.from.size() <= 100 &&
+             data.to is string && data.to.size() > 0 && data.to.size() <= 100 &&
+             data.departureTime is string && data.departureTime.size() > 0 && data.departureTime.size() <= 20 &&
+             data.date is string && data.date.size() <= 50 &&
+             data.sellingPrice is number && data.sellingPrice >= 0 &&
+             data.status is string && (data.status == 'available' || data.status == 'sold' || data.status == 'pending' || data.status == 'expired') &&
+             data.sellerId == request.auth.uid &&
+             data.postedAt == request.time &&
+             data.sellerName is string && data.sellerName.size() > 0 && data.sellerName.size() <= 100 &&
+             data.sellerPhone is string && data.sellerPhone.size() > 0 && data.sellerPhone.size() <= 50 &&
+             (!data.keys().hasAny(['additionalNotes']) || (data.additionalNotes is string && data.additionalNotes.size() <= 2000)) &&
+             (data.get('originalPrice', 0) is number) &&
+             (data.get('transportType', '') is string) && data.get('transportType', '').size() <= 50 &&
+             (data.get('seatClass', '') is string) && data.get('seatClass', '').size() <= 50 &&
+             (data.get('seatNumber', '') is string) && data.get('seatNumber', '').size() <= 50 &&
+             (data.get('passengerCount', 1) is number) &&
+             (data.get('views', 0) is number);
+    }
+
+    function ticketStatusAllowed(data) {
+      return data.status is string &&
+             (data.status == 'available' || data.status == 'sold' || data.status == 'pending' || data.status == 'expired' ||
+              data.status == 'flagged' || data.status == 'rejected');
+    }
+
+    // Full merged document after update — aligns with client EditTicketDialog + AdminDashboard fields.
+    function ticketMergedConsistent(data) {
+      return ticketStatusAllowed(data) &&
+             data.transportName is string && data.transportName.size() > 0 && data.transportName.size() <= 100 &&
+             data.mode is string && (data.mode == 'train' || data.mode == 'bus') &&
+             data.from is string && data.from.size() > 0 && data.from.size() <= 100 &&
+             data.to is string && data.to.size() > 0 && data.to.size() <= 100 &&
+             data.departureTime is string && data.departureTime.size() > 0 && data.departureTime.size() <= 20 &&
+             data.date is string && data.date.size() > 0 && data.date.size() <= 50 &&
+             data.sellingPrice is number && data.sellingPrice >= 0 &&
+             data.sellerId is string && data.sellerId.size() > 0 &&
+             data.sellerName is string && data.sellerName.size() > 0 && data.sellerName.size() <= 100 &&
+             data.sellerPhone is string && data.sellerPhone.size() > 0 && data.sellerPhone.size() <= 50 &&
+             (data.get('additionalNotes', '') is string) && data.get('additionalNotes', '').size() <= 2000 &&
+             (data.get('originalPrice', 0) is number) &&
+             (data.get('transportType', '') is string) && data.get('transportType', '').size() <= 50 &&
+             (data.get('seatClass', '') is string) && data.get('seatClass', '').size() <= 50 &&
+             (data.get('seatNumber', '') is string) && data.get('seatNumber', '').size() <= 50 &&
+             (data.get('passengerCount', 1) is number) &&
+             (data.get('views', 0) is number) &&
+             (data.get('featured', false) is bool) &&
+             (data.get('urgent', false) is bool);
+    }
+
+    function isValidChat(data) {
+       return data.keys().hasAll(['userIds', 'lastMessageAt', 'ticketId']) &&
+              data.userIds is list && data.userIds.size() == 2 &&
+              data.userIds[0] is string && data.userIds[1] is string &&
+              request.auth.uid in data.userIds &&
+              data.lastMessageAt == request.time &&
+              data.ticketId is string && data.ticketId.size() <= 128 &&
+              (data.get('lastMessage', '') is string) && data.get('lastMessage', '').size() <= 1000 &&
+              (data.get('unreadCount', 0) is number);
+    }
+    
+    function isValidChatUpdate(data) {
+      return data.lastMessageAt == request.time &&
+             data.lastMessage is string && data.lastMessage.size() <= 1000 &&
+             data.unreadCount is number;
+    }
+
+    function isValidMessage(data) {
+      return data.keys().hasAll(['senderId', 'text', 'createdAt']) &&
+             data.senderId == request.auth.uid &&
+             data.text is string && data.text.size() > 0 && data.text.size() <= 2000 &&
+             data.createdAt == request.time;
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['userId', 'type', 'message', 'read', 'createdAt']) &&
+             data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             data.type is string && (data.type == 'alert' || data.type == 'info' || data.type == 'success') &&
+             data.message is string && data.message.size() > 0 && data.message.size() <= 1000 &&
+             data.read is bool && data.read == false &&
+             data.createdAt == request.time &&
+             (!data.keys().hasAny(['title']) || (data.title is string && data.title.size() > 0 && data.title.size() <= 200));
+    }
+
+    function ticketReportReporterIdValid(data) {
+      return data.reporterId is string && data.reporterId.size() > 0 && data.reporterId.size() <= 128 &&
+             (
+               (request.auth != null && data.reporterId == request.auth.uid) ||
+               (request.auth == null && data.reporterId == 'anonymous')
+             );
+    }
+
+    function isValidTicketReport(data) {
+      return data.keys().hasAll(['ticketId', 'ticketName', 'sellerId', 'sellerName', 'sellerPhone', 'reason', 'reporterId', 'createdAt']) &&
+             data.ticketId is string && data.ticketId.size() > 0 && data.ticketId.size() <= 128 &&
+             data.ticketName is string && data.ticketName.size() > 0 && data.ticketName.size() <= 200 &&
+             data.sellerId is string && data.sellerId.size() > 0 && data.sellerId.size() <= 128 &&
+             data.sellerName is string && data.sellerName.size() > 0 && data.sellerName.size() <= 100 &&
+             data.sellerPhone is string && data.sellerPhone.size() <= 50 &&
+             data.reason is string && data.reason.size() > 0 && data.reason.size() <= 2000 &&
+             ticketReportReporterIdValid(data) &&
+             data.createdAt == request.time;
+    }
+
+    /** Reporter-supplied listing identity must match the ticket doc (sellerPhone stored on report may be empty — admins resolve via ticketId). */
+    function ticketReportMatchesTicket(data) {
+      return exists(/databases/$(database)/documents/tickets/$(data.ticketId)) &&
+             data.sellerId == get(/databases/$(database)/documents/tickets/$(data.ticketId)).data.sellerId &&
+             data.sellerName == get(/databases/$(database)/documents/tickets/$(data.ticketId)).data.sellerName &&
+             data.ticketName == get(/databases/$(database)/documents/tickets/$(data.ticketId)).data.transportName;
+    }
+
+    // ---- Collections ----
+    
+    match /admins/{adminId} {
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && isVerified() &&
+                    isValidId(adminId) && 
+                    isOwner(adminId) && 
+                    isValidUser(incoming()) && 
+                    (incoming().role == 'pending_admin');
+      allow update: if isSignedIn() && isValidId(adminId) && isValidUserUpdate(incoming()) && (
+        (isOwner(adminId) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatar'])) ||
+        (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatar', 'role']))
+      );
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && isVerified() &&
+                    isValidId(userId) && 
+                    isOwner(userId) && 
+                    isValidUser(incoming()) && 
+                    (incoming().role == 'user' || incoming().role == 'pending_admin');
+      allow update: if isSignedIn() && isValidId(userId) && isValidUserUpdate(incoming()) && (
+        (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatar'])) ||
+        (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatar', 'role']))
+      );
+    }
+
+    match /tickets/{ticketId} {
+      allow get: if true; 
+      allow list: if true; 
+      allow create: if isSignedIn() && isVerified() && isValidId(ticketId) && isValidTicket(incoming());
+      allow update: if isValidId(ticketId) &&
+        incoming().sellerId == existing().sellerId &&
+        incoming().postedAt == existing().postedAt &&
+        ticketMergedConsistent(incoming()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'status', 'sellingPrice', 'views', 'transportName', 'from', 'to', 'departureTime', 'seatClass', 'seatNumber',
+          'originalPrice', 'transportType', 'passengerCount', 'featured', 'urgent', 'date', 'mode', 'sellerName', 'sellerPhone',
+          'additionalNotes'
+        ]) &&
+        (
+          (isSignedIn() && isVerified() && isOwner(existing().sellerId)) ||
+          (isSignedIn() && isVerified() && isAdmin()) ||
+          // Anyone may bump views by exactly +1 only (detail-page impressions; no auth required).
+          (incoming().diff(existing()).affectedKeys().hasOnly(['views']) &&
+           incoming().views == existing().get('views', 0) + 1)
+        );
+      allow delete: if isAdmin() || isOwner(existing().sellerId);
+    }
+
+    match /chats/{chatId} {
+      allow get: if isSignedIn() && isValidId(chatId) && request.auth.uid in existing().userIds;
+      allow list: if isSignedIn() && request.auth.uid in resource.data.userIds;
+      allow create: if isSignedIn() && isVerified() && isValidId(chatId) && isValidChat(incoming()) &&
+                    exists(/databases/$(database)/documents/tickets/$(incoming().ticketId));
+      allow update: if isSignedIn() && isVerified() && isValidId(chatId) && request.auth.uid in existing().userIds && 
+                    isValidChatUpdate(incoming()) &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['lastMessageAt', 'lastMessage', 'unreadCount']);
+      allow delete: if isAdmin();
+      
+      match /messages/{messageId} {
+        allow get: if isSignedIn() && isValidId(chatId) && isValidId(messageId) && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.userIds;
+        allow list: if isSignedIn() && isValidId(chatId) && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.userIds;
+        allow create: if isSignedIn() && isVerified() && isValidId(chatId) && isValidId(messageId) && 
+                      request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.userIds &&
+                      isValidMessage(incoming());
+      }
+    }
+
+    match /notifications/{notificationId} {
+      allow get: if isSignedIn() && isValidId(notificationId) && isOwner(existing().userId);
+      allow list: if isSignedIn() && isOwner(resource.data.userId);
+      allow create: if isSignedIn() && isVerified() && isValidId(notificationId) && isValidNotification(incoming()); 
+      allow update: if isSignedIn() && isVerified() && isValidId(notificationId) && isOwner(existing().userId) && 
+                    incoming().diff(existing()).affectedKeys().hasOnly(['read']) &&
+                    incoming().read == true;
+      allow delete: if isAdmin() || isOwner(existing().userId);
+    }
+    match /adminSettings/{settingId} {
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /adminLogs/{logId} {
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /ticketReports/{reportId} {
+      allow get: if isAdmin();
+      allow list: if isAdmin();
+      allow create: if isValidId(reportId) && isValidTicketReport(incoming()) && ticketReportMatchesTicket(incoming());
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+  }
+}

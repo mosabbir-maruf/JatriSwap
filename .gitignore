@@ -1,0 +1,17 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+# Local agent / IDE tooling (whole tree under .agents/)
+.agents/
+
+AGENTS.md
+agent.md
+MEMORY.md
+memory.md
+skills-lock.json

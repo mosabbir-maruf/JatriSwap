@@ -8,10 +8,14 @@ Marketplace web app for **buying and selling unused train and bus tickets**. Sel
 
 - Public browse/home feeds with filters and ticket detail pages  
 - Seller dashboard: listings, drafts, edit profile, alerts (notifications + purchase/admin signals)  
-- Admin dashboard for tickets, users, reports, and logs  
+- Admin dashboard for tickets, users, reports, logs, and roles — **active tab is stored in the URL** (`/admin?tab=…`) so refresh and deep links keep context  
+- Admin view of a user profile (`/admin/users/:id`) with **Back to dashboard** respecting the prior tab via query params  
 - Firebase Auth with email verification flow  
 - Firestore-backed tickets, users, notifications, ticket reports  
+- Navbar waits on auth initialization (no flash of **Log In / Register** while the session restores); admins see a slimmer account menu (no Alerts / edit-profile shortcuts in the dropdown)  
+- Footer **Stay in the loop**: optional **Join Telegram** button when `VITE_PUBLIC_TELEGRAM_URL` is set  
 - Optional public contact fields: platform WhatsApp and support phone via environment variables  
+- Heading font (**Space Grotesk**) bundled locally for smoother first paint on the home hero  
 
 ## Tech stack
 
@@ -20,6 +24,7 @@ Marketplace web app for **buying and selling unused train and bus tickets**. Sel
 | UI | React 19, React Router 7, shadcn-style UI components |
 | Build | Vite 6 |
 | Styling | Tailwind CSS 4 |
+| Fonts | Inter + JetBrains Mono (Google Fonts CSS); Space Grotesk (`@fontsource/space-grotesk`) for headings |
 | Backend | Firebase Auth, Firestore |
 | Hosting | Static deploy of `dist/` (Firebase Hosting or any CDN-friendly host) |
 
@@ -57,8 +62,12 @@ All **`VITE_*`** keys are inlined at **build time** by Vite. Set them in the env
 | `VITE_FIREBASE_MEASUREMENT_ID` | No | Google Analytics measurement ID (if enabled) |
 | `VITE_PUBLIC_WHATSAPP_NUMBER` | Recommended | Platform WhatsApp (any formatting); used on Contact and **Request to buy** prefilled messages |
 | `VITE_PUBLIC_SUPPORT_PHONE` | No | Optional phone line shown on Contact |
+| `VITE_PUBLIC_SITE_URL` | No | Production site origin (no trailing slash); admin mailto helpers use this instead of `localhost` when set |
+| `VITE_PUBLIC_TELEGRAM_URL` | No | Full Telegram invite URL (e.g. `https://t.me/your_channel`); powers the footer **Join Telegram** button |
 
 If `VITE_PUBLIC_WHATSAPP_NUMBER` is empty, **Request to buy** still opens WhatsApp only after you configure this value.
+
+This app does **not** use Google Gemini or `GEMINI_API_KEY`; no AI SDK is required for the shipped UI.
 
 ### 3. Install and run
 
@@ -143,6 +152,7 @@ TransitSwap/
     │   ├── ErrorBoundary.tsx
     │   └── common/           # TicketCard, EditTicketDialog, EditProfileDialog, TimePicker
     ├── lib/
+    │   ├── adminDashboardTab.ts   # Admin URL tab ids + path helpers (?tab=, ?returnTab=)
     │   ├── env/
     │   │   └── publicContact.ts   # WhatsApp / support phone from env
     │   ├── firebase/         # Auth, Firestore services (tickets, users, notifications, …)
@@ -155,6 +165,7 @@ TransitSwap/
     │   ├── Sell.tsx
     │   ├── TicketDetails.tsx
     │   ├── Dashboard.tsx
+    │   ├── Alerts.tsx
     │   ├── Contact.tsx
     │   ├── Login.tsx
     │   ├── Register.tsx
@@ -163,6 +174,7 @@ TransitSwap/
     │   ├── AdminLogin.tsx
     │   ├── AdminRegister.tsx
     │   ├── AdminDashboard.tsx
+    │   ├── AdminUserProfile.tsx
     │   ├── FAQ.tsx
     │   ├── TermsOfService.tsx
     │   ├── PrivacyPolicy.tsx

@@ -7,6 +7,7 @@ Concise long-term reference for **TransitSwap** (transit ticket marketplace). Fu
 - **Client**: React 19 + Vite 6 SPA (`src/main.tsx` → `AuthProvider` → `App` with `react-router-dom` v7).
 - **UI**: Tailwind CSS v4 (`@tailwindcss/vite`), shadcn-style primitives under `components/ui/` (Base UI–based where applicable), `@/` alias resolves to **repository root** (not `src/`).
 - **Motion / UX**: `motion`, `sonner`, lucide icons; route transitions and scroll-to-top in `App.tsx`.
+- **Fonts**: **Space Grotesk** (headings / `font-heading`) ships via **`@fontsource/space-grotesk/latin.css`** imported in [`src/main.tsx`](src/main.tsx) **before** [`src/index.css`](src/index.css). **Inter** and **JetBrains Mono** still load from the Google Fonts **`@import`** in `index.css` only — avoids late swap/reflow on the home hero. **`@fontsource-variable/geist`** remains in `package.json` but is not required for the shipped heading stack.
 - **Backend**: Firebase **client SDK only** in-repo — Auth, Firestore, Storage (`src/lib/firebase/firebase.ts`). No Firebase Cloud Functions (or other server) source tree in this project; `express` / `dotenv` are dependencies but unused under `src/` today.
 
 ## Backend structure (Firestore)
@@ -37,7 +38,8 @@ Concise long-term reference for **TransitSwap** (transit ticket marketplace). Fu
   - **`incrementTicketViews`**: Invoked from **`useTicketDetailListing`** after **`auth.authStateReady()`**, only when the viewer is **not** the seller; **`sessionStorage`** dedupes one bump per browser session per ticket (falls back to attempting bump if storage is unavailable). Anonymous viewers may still bump because rules allow unauthenticated **`views`** increments.
 - **`deleteTicket`**: Deletes **`ticketAdminNotes/{id}`** best-effort **before** the ticket doc (ordering matters for seller-driven cleanup vs rules).
 - **Public contact env**: [`src/lib/env/publicContact.ts`](src/lib/env/publicContact.ts) — **`getPublicWhatsAppLink`**, **`getPublicSupportPhone`**, **`phoneDisplayToTelHref`** / **`supportPhoneTelHref`** (`tel:` normalization for admin/contact links). **`VITE_PUBLIC_WHATSAPP_NUMBER`**, **`VITE_PUBLIC_SUPPORT_PHONE`** in `.env.example`.
-- **Vite**: [`vite.config.ts`](vite.config.ts) uses modular plugins only; **`DISABLE_HMR`** may disable HMR when set. **No** env injection for Gemini or third-party API keys in Vite config.
+- **Public site / footer**: **`VITE_PUBLIC_SITE_URL`** — optional production origin for admin mailto listing links (avoids localhost in emails during dev). **`VITE_PUBLIC_TELEGRAM_URL`** — optional full Telegram invite URL; footer **Stay in the loop** shows **Join Telegram** when set (see [`src/App.tsx`](src/App.tsx) `Footer`).
+- **Vite**: [`vite.config.ts`](vite.config.ts) uses modular plugins only; **`DISABLE_HMR`** may disable HMR when set.
 
 ## Reusable systems
 
@@ -45,17 +47,20 @@ Concise long-term reference for **TransitSwap** (transit ticket marketplace). Fu
 - **`src/types/index.ts`**: Shared domain types (`User`, **`AdminUserRow`**, **`PendingAdminRow`**, `Ticket`, `Notification`, etc.) and `OperationType` / legacy **`FirestoreErrorInfo`**.
 - **`src/constants.ts`**: Bangladesh-focused `STATIONS`, `TRANSPORTS`, `SEAT_CLASSES` for forms/filters.
 - **`ErrorBoundary`**: Class boundary around routes with fallback UI.
+- **`src/lib/adminDashboardTab.ts`**: Single source for admin UI tab ids (`overview`, `tickets`, `users`, `reports`, `logs`, `admins`), URL helpers **`adminDashboardPath`**, **`adminUserProfilePath`**, and query params **`tab`** (on `/admin`) / **`returnTab`** (on `/admin/users/:id` for **Back to dashboard**).
 
 ## Admin dashboard (high level)
 
 - Large single page [`src/pages/AdminDashboard.tsx`](src/pages/AdminDashboard.tsx): typed **`Ticket`**, **`AdminUserRow`**, **`PendingAdminRow`**, **`AdminLog`**; manage-tickets **Listing detail** shows posted time, views, trip line, **`tel:`** seller links via **`phoneDisplayToTelHref`**, staff notes in **`ticketAdminNotes`**, and ticket ID in the first column links to the public listing (fetch keyed by ticket id set; merge preserves unsaved drafts).
 - **Recent Ticket Posts** (overview): latest three listings by **`postedAt`**, seller phone when present.
+- **Tab persistence**: Active tab is driven by **`useSearchParams`** — e.g. **`/admin?tab=tickets`**; **`overview`** omits **`tab`**. Survives refresh and external navigation. **`BuyerPurchaseRequestCard`** (admin) and in-dashboard profile links use **`adminUserProfilePath`** / paths with **`returnTab`** instead of React Router **`location.state`**. Non–Super Admin users hitting **`?tab=admins`** fall back to overview and the param is cleared.
+- **Admin user profile**: [`src/pages/AdminUserProfile.tsx`](src/pages/AdminUserProfile.tsx) — **Back to dashboard** uses **`adminDashboardPath`** from **`returnTab`** query.
 
 ## Constraints
 
 - **No mock/fake data** for product behavior; production-minded code (per `AGENTS.md`).
 - **Firestore**: Minimize reads/writes and avoid gratuitous listeners; composite indexes may be required for filtered + ordered queries — notably **`notifications`** (`where('userId')` + `orderBy('createdAt')`), **`tickets`** (`sellerId` / `mode` / `from` / `to` + **`orderBy('postedAt')`**).
-- **Secrets**: Never expose keys or embed them in docs; **`.env.example`** documents **`VITE_FIREBASE_*`** and public contact **`VITE_PUBLIC_*`** vars only (no Gemini/app URL placeholders).
+- **Secrets**: Never expose keys or embed them in docs; **`.env.example`** documents **`VITE_FIREBASE_*`** and public **`VITE_PUBLIC_*`** vars only.
 - **Types/rules vs code**: Extend Firestore usage and rules together; unused rule surfaces (chat) drift from shipped features.
 
 ## Optimization notes
@@ -71,10 +76,24 @@ Concise long-term reference for **TransitSwap** (transit ticket marketplace). Fu
 - **`.agents/`**: Rules (`typescript`, `react`, `codequality`) and skills (`firebase`, `firebase-basics`, `api-design`, `debugging-strategies`, `performance-investigation`) live **in-repo**; **`performance-investigation`** SKILL text references generic bench scripts — adapt to this stack (Firestore reads, bundle, React Profiler) when doing perf work.
 - **`.cursorignore`** (optional): Typically excludes `node_modules/`, `dist/`, logs, `.env.local` from Cursor indexing — **does not** exclude `.agents/`.
 
+## App shell (`App.tsx`)
+
+- **Navbar auth**: Uses **`loading`** from **`AuthContext`** — while **`authLoading`**, shows a neo-brutalist **session placeholder** (equalizer bars + optional **`Ticket`** glyph on mobile) instead of **Log In / Register**, so logged-in users do not flash guest CTAs on refresh. After resolve: dropdown for signed-in users; **admins** do **not** see **Alerts** or **Edit profile** in desktop dropdown or mobile sheet (sellers keep both).
+- **Footer**: Brand column + **Stay in the loop** Telegram block (no email capture). Neutral fallback copy when **`VITE_PUBLIC_TELEGRAM_URL`** is unset.
+
+## Dashboard / profile UI
+
+- **[`src/pages/Dashboard.tsx`](src/pages/Dashboard.tsx)** + **[`EditProfileDialog`](src/components/common/EditProfileDialog.tsx)**: Optional **`dialogTitle`** — **`Profile`** vs **`Edit Profile`** label when **`currentUser.role === 'admin'`** vs seller (navbar no longer exposes profile entry for admins).
+
+## Global CSS notes
+
+- **`index.css`**: **`html { scrollbar-gutter: stable }`** reduces horizontal reflow when scrollbars appear (helps hero typography stability).
+- **`Home.tsx`**: Hero **`h1`** uses **`text-balance`** alongside bundled Space Grotesk.
+
 ## Current project state
 
 - **Maturity**: Single frontend app with Firebase backend; admin flows and marketplace pages under `src/pages/`.
 - **Tooling**: `npm run lint` → `tsc --noEmit` only (no ESLint script in `package.json`).
 - **Product naming**: UI branding **TransitSwap**; [`index.html`](index.html) title **TransitSwap**.
-- **`package.json`**: **`@google/genai`** remains a dependency but **is not used under `src/`** and is **not** configured via Vite env injection.
+- **Dependencies**: **No** Google Gemini SDK — **`@google/genai`** was removed; no **`GEMINI_*`** env for this app.
 - **Gaps**: Chat/messaging in rules but not in client; optional server deps unused; App Check not enabled; admin screen is a candidate for hook/component splits per `.agents/rules/react.mdc`.

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { Ticket, type TicketStatus } from "@/src/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -7,6 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { updateTicket } from "@/src/lib/firebase/tickets";
+import { ListingWriteBlockedError } from "@/src/lib/listingWriteGuard";
+import { normalizeUserAccountStatus, sellListingBlockedMessage } from "@/src/lib/userAccountStatus";
+import { useAuth } from "@/src/contexts/AuthContext";
 import { toast } from "sonner";
 import { STATIONS, TRANSPORTS, SEAT_CLASSES } from "@/src/constants";
 import { Train, BusFront } from "lucide-react";
@@ -85,8 +89,15 @@ export function EditTicketDialog({
   onSuccess,
   showListingStatus = false,
 }: EditTicketDialogProps) {
+  const { currentUser } = useAuth();
   const [formData, setFormData] = useState<Partial<Ticket>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [listingGuardMessage, setListingGuardMessage] = useState("");
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setListingGuardMessage("");
+  }, [isOpen, ticket?.id]);
 
   useEffect(() => {
     if (!ticket || !isOpen) return;
@@ -199,6 +210,12 @@ export function EditTicketDialog({
       onSuccess?.(ticket.id);
       onClose();
     } catch (error) {
+      if (error instanceof ListingWriteBlockedError) {
+        setListingGuardMessage(
+          sellListingBlockedMessage(normalizeUserAccountStatus(currentUser?.status)),
+        );
+        return;
+      }
       toast.error("Failed to update ticket.");
     } finally {
       setIsSubmitting(false);
@@ -216,10 +233,26 @@ export function EditTicketDialog({
       modal="trap-focus"
       onOpenChange={(open) => !open && onClose()}
     >
-      <DialogContent className="sm:max-w-[480px] border-4 border-foreground rounded-none shadow-[8px_8px_0_0_rgba(0,0,0,1)] bg-background max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100%-2rem)] sm:max-w-[720px] border-4 border-foreground rounded-none shadow-[8px_8px_0_0_rgba(0,0,0,1)] bg-background max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-heading font-black text-2xl uppercase tracking-tighter">Edit Ticket</DialogTitle>
         </DialogHeader>
+        {listingGuardMessage ? (
+          <div className="rounded-none border-2 border-destructive bg-destructive/10 p-4 space-y-3">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-foreground leading-relaxed">
+              {listingGuardMessage}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              render={<Link to="/contact" className="inline-flex items-center justify-center" />}
+              className="rounded-none border-2 border-foreground font-mono text-[10px] uppercase font-bold w-full sm:w-auto"
+            >
+              Contact support
+            </Button>
+          </div>
+        ) : null}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-4">
             <div className="grid gap-2">

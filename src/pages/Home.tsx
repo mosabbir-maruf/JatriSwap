@@ -17,7 +17,6 @@ import { subscribeToTickets } from "@/src/lib/firebase/tickets";
 import { Ticket as TicketType } from "@/src/types";
 import { useTicketSellerPrivacy } from "@/src/hooks/useTicketSellerPrivacy";
 import { redactSellerPhonesForViewer } from "@/src/lib/ticketPrivacy";
-
 const Home = () => {
   const navigate = useNavigate();
   const listingViewer = useTicketSellerPrivacy();
@@ -65,7 +64,7 @@ const Home = () => {
            initial={{ opacity: 0, y: 20 }}
            animate={{ opacity: 1, y: 0 }}
            transition={{ duration: 0.8 }}
-           className="text-center z-10 max-w-5xl mx-auto flex flex-col items-center w-full"
+           className="text-center z-10 max-w-6xl mx-auto flex flex-col items-center w-full"
         >
           <div className="mb-8">
             <span className="px-5 py-2.5 font-mono text-xs md:text-sm uppercase tracking-widest font-black border-4 border-foreground bg-primary text-primary-foreground rounded-none shadow-[4px_4px_0_0_rgba(0,0,0,1)] transform -rotate-2 inline-block">
@@ -85,7 +84,7 @@ const Home = () => {
                initial={{ opacity: 0, y: 20 }}
                animate={{ opacity: 1, y: 0 }}
                transition={{ duration: 0.8, delay: 0.2 }}
-               className="w-full bg-muted p-6 sm:p-8 border-4 border-foreground shadow-[12px_12px_0_0_rgba(0,0,0,1)] lg:shadow-[16px_16px_0_0_rgba(0,0,0,1)] relative rotate-0 mx-auto max-w-5xl"
+               className="w-full bg-muted p-6 sm:p-8 border-4 border-foreground shadow-[12px_12px_0_0_rgba(0,0,0,1)] lg:shadow-[16px_16px_0_0_rgba(0,0,0,1)] relative rotate-0 mx-auto max-w-6xl"
              >
                <form onSubmit={handleSearch} className="flex flex-col gap-6 w-full text-left">
                 <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-end justify-between w-full">
@@ -191,7 +190,7 @@ const Home = () => {
 
       {/* Latest listings preview */}
       <section className="py-24 bg-background border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="page-shell">
           <div className="flex justify-between items-end mb-16 border-b border-border pb-6">
             <div>
               <h2 className="font-heading text-4xl md:text-5xl font-black uppercase tracking-tighter mb-2">Latest <span className="text-primary">Listings</span></h2>
@@ -246,7 +245,7 @@ const Home = () => {
 
       {/* Trust & Safety */}
       <section className="py-24 relative border-b border-border overflow-hidden bg-background">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="page-shell relative z-10">
            <div className="text-center max-w-2xl mx-auto mb-20">
             <h2 className="font-heading text-4xl md:text-5xl font-black uppercase tracking-tighter mb-4">Why connect with <span className="text-primary">TransitSwap?</span></h2>
              <p className="font-mono text-muted-foreground text-sm uppercase tracking-widest font-bold leading-relaxed">We've built a secure environment where your money and tickets are protected.</p>
@@ -282,7 +281,7 @@ const Home = () => {
 
       {/* CTA Section */}
       <section className="py-32 flex justify-center items-center bg-primary text-primary-foreground border-b border-foreground border-t-[8px]">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <h2 className="font-heading text-5xl md:text-7xl font-black uppercase tracking-tighter mb-6">Have an unused ticket?</h2>
           <p className="text-xl text-primary-foreground/80 mb-12 max-w-2xl mx-auto font-mono text-sm uppercase tracking-widest font-bold leading-relaxed">
             Don't let it go to waste. Help another traveler and get your money back in minutes.
@@ -297,7 +296,6 @@ const Home = () => {
           </div>
         </div>
       </section>
-
     </div>
   );
 };

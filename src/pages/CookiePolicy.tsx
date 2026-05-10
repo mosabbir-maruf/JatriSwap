@@ -5,21 +5,27 @@ import { Button } from "@/components/ui/button";
 
 export default function CookiePolicy() {
   return (
-    <div className="flex-1 bg-background bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] min-h-screen pt-32 pb-24 relative">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        
+    <div className="flex-1 bg-background bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] min-h-screen pt-24 pb-24">
+      <div className="page-shell">
         <Button variant="ghost" render={<Link to="/" />} className="mb-8 h-12 rounded-none border-2 border-foreground bg-background shadow-[4px_4px_0_0_rgba(0,0,0,1)] font-mono text-xs uppercase tracking-widest font-bold hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all">
-             <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
+          <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
         </Button>
 
-        <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 md:p-16">
-            <div className="flex items-center gap-4 mb-6">
-               <Cookie className="w-12 h-12 text-primary" />
-               <h1 className="font-heading text-4xl md:text-5xl font-black tracking-tighter uppercase bg-primary inline-block px-4 py-2 text-primary-foreground border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)]">Cookie Policy</h1>
+        <div className="mb-12 border-b-4 border-foreground pb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+          <div className="flex items-start gap-4">
+            <Cookie className="w-10 h-10 md:w-14 md:h-14 text-primary shrink-0 mt-1" aria-hidden />
+            <div>
+              <h1 className="font-heading text-5xl md:text-7xl font-black uppercase tracking-tighter text-foreground mb-4 drop-shadow-[4px_4px_0_rgba(0,0,0,1)]">
+                Cookie <span className="text-primary">Policy</span>
+              </h1>
+              <p className="font-mono text-sm uppercase font-bold tracking-widest text-muted-foreground">
+                Last updated: October 24, 2023
+              </p>
             </div>
-            
-            <p className="font-mono text-muted-foreground uppercase tracking-widest text-xs font-bold mb-10 border-b-4 border-foreground pb-8">Last Updated: October 24, 2023</p>
-            
+          </div>
+        </div>
+
+        <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 md:p-16">
             <div className="space-y-8">
               <section>
                 <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">1. What are cookies?</h2>

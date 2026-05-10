@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { BuyerPurchaseRequestCard } from "@/src/components/common/BuyerPurchaseRequestCard";
 import { TicketCard } from "@/src/components/common/TicketCard";
-import { Ticket, Activity, Bell, LogOut, User as UserIcon, Loader2, FileText, MessageCircle } from "lucide-react";
+import {
+  Ticket,
+  Activity,
+  Bell,
+  LogOut,
+  User as UserIcon,
+  Loader2,
+  FileText,
+  ArrowRight,
+  MessageCircle,
+} from "lucide-react";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { needsEmailVerification } from "@/src/lib/firebase/authVerification";
 import { Ticket as TicketType, Notification as NotificationType, BuyerPurchaseRequest } from "@/src/types";
@@ -19,7 +29,7 @@ import {
   canSellerEditListingFields,
   canSellerMarkSold,
 } from "@/src/lib/sellerListingControls";
-import { subscribeToNotifications, markNotificationRead } from "@/src/lib/firebase/notifications";
+import { markNotificationReadIfUnread } from "@/src/lib/firebase/notifications";
 import { signOut } from "firebase/auth";
 import { auth } from "@/src/lib/firebase/firebase";
 import Unauthorized from "./Unauthorized";
@@ -36,16 +46,24 @@ import {
 import { subscribeToSellerPurchaseRequests } from "@/src/lib/firebase/purchaseRequests";
 import { isSellerPurchaseRequestNotification } from "@/src/lib/firebase/sellerTicketNotifications";
 import { formatPurchaseLeadTapSummaryLine } from "@/src/lib/formatPurchaseRequest";
-import { formatMediumDateTimeAmPm } from "@/src/lib/formatLocaleDateTime";
+import {
+  alertsSortedForAccountStatus,
+  unreadNotificationsCount,
+} from "@/src/lib/moderationNotifications";
+import { DashboardAlertRow } from "@/src/components/common/DashboardAlertRow";
+import { MarkAllNotificationsReadButton } from "@/src/components/common/MarkAllNotificationsReadButton";
+import { AuthLoadingPlaceholder } from "@/src/components/common/AuthLoadingPlaceholder";
+import { useSellerNotificationsSubscription } from "@/src/hooks/useSellerNotificationsSubscription";
+
+/** Sidebar shows newest subset; full history on `/alerts`. */
+const ALERTS_SIDEBAR_PREVIEW_LIMIT = 4;
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { currentUser, firebaseUser, loading: authLoading } = useAuth();
   const [tickets, setTickets] = useState<TicketType[]>([]);
-  const [notifications, setNotifications] = useState<NotificationType[]>([]);
   /** First Firestore snapshot not received yet for this user session. */
   const [sellerTicketsReady, setSellerTicketsReady] = useState(false);
-  const [notificationsReady, setNotificationsReady] = useState(false);
   const [inboundPurchaseRequests, setInboundPurchaseRequests] = useState<BuyerPurchaseRequest[]>([]);
   const [inboundPurchaseRequestsReady, setInboundPurchaseRequestsReady] = useState(false);
   const [editingTicket, setEditingTicket] = useState<TicketType | null>(null);
@@ -84,6 +102,12 @@ const Dashboard = () => {
       ? summarizeSellDraft(sellDraftSnapshot)
       : null;
 
+  const { notifications, notificationsReady } = useSellerNotificationsSubscription(
+    authLoading,
+    currentUser,
+    firebaseUser?.uid,
+  );
+
   const { purchaseLeadCount, purchaseTapTotal } = useMemo(() => {
     let taps = 0;
     for (const r of inboundPurchaseRequests) {
@@ -92,10 +116,20 @@ const Dashboard = () => {
     return { purchaseLeadCount: inboundPurchaseRequests.length, purchaseTapTotal: taps };
   }, [inboundPurchaseRequests]);
 
-  const unreadNotificationCount = useMemo(
-    () => notifications.reduce((acc, n) => acc + (n.read ? 0 : 1), 0),
-    [notifications],
+  const unreadNotificationCount = useMemo(() => unreadNotificationsCount(notifications), [notifications]);
+
+  const sortedNotifications = useMemo(
+    () => alertsSortedForAccountStatus(notifications, currentUser?.status),
+    [notifications, currentUser?.status],
   );
+  const sidebarAlertPreview = useMemo(
+    () => sortedNotifications.slice(0, ALERTS_SIDEBAR_PREVIEW_LIMIT),
+    [sortedNotifications],
+  );
+
+  const handleNotificationClick = useCallback(async (notif: NotificationType) => {
+    await markNotificationReadIfUnread(notif);
+  }, []);
 
   const handleDelete = (id: string) => {
     const row = tickets.find((t) => t.id === id);
@@ -135,34 +169,21 @@ const Dashboard = () => {
     setEditingTicket(ticketToEdit);
   };
 
-  const handleNotificationClick = async (notif: NotificationType) => {
-    if (!notif.read) {
-      await markNotificationRead(notif.id);
-    }
-  };
-
   useEffect(() => {
     if (authLoading) return;
     if (!currentUser) {
       setSellerTicketsReady(false);
-      setNotificationsReady(false);
       setInboundPurchaseRequestsReady(false);
       setTickets([]);
-      setNotifications([]);
       setInboundPurchaseRequests([]);
       return;
     }
     setSellerTicketsReady(false);
-    setNotificationsReady(false);
     setInboundPurchaseRequestsReady(false);
     const sellerUid = firebaseUser?.uid ?? currentUser.id;
     const unsubscribeTickets = subscribeToSellerTickets(sellerUid, (sellerTickets) => {
       setTickets(sellerTickets);
       setSellerTicketsReady(true);
-    });
-    const unsubscribeNotifications = subscribeToNotifications(sellerUid, (allNotifs) => {
-      setNotifications(allNotifs);
-      setNotificationsReady(true);
     });
     const unsubscribePurchaseRequests = subscribeToSellerPurchaseRequests(sellerUid, (rows) => {
       setInboundPurchaseRequests(rows);
@@ -170,19 +191,12 @@ const Dashboard = () => {
     });
     return () => {
       unsubscribeTickets();
-      unsubscribeNotifications();
       unsubscribePurchaseRequests();
     };
   }, [currentUser, firebaseUser?.uid, authLoading]);
 
   if (authLoading) {
-    return (
-      <div className="flex-1 bg-background min-h-screen pt-32 flex flex-col items-center justify-center gap-3 text-muted-foreground">
-        <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
-        <p className="font-mono text-[10px] uppercase tracking-widest font-bold">Loading session…</p>
-        <span className="sr-only">Loading account session</span>
-      </div>
-    );
+    return <AuthLoadingPlaceholder />;
   }
 
   if (firebaseUser && needsEmailVerification(firebaseUser)) {
@@ -220,7 +234,7 @@ const Dashboard = () => {
 
   return (
     <div className="flex-1 bg-background min-h-screen pt-32 pb-24 relative">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      <div className="page-shell relative z-10">
         
         {/* Profile Header */}
         <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 md:p-10 mb-16 flex flex-col md:flex-row items-center gap-8 relative">
@@ -299,10 +313,10 @@ const Dashboard = () => {
            </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 lg:items-start">
           
-          {/* Sidebar */}
-          <div className="lg:col-span-1 space-y-8">
+          {/* Sidebar: sticky below site header while main tabs scroll (profile above scrolls away). */}
+          <div className="lg:col-span-1 lg:sticky lg:top-24 lg:z-10 lg:self-start space-y-8">
              {/* Stats */}
              <Card className="rounded-none border-2 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] bg-background">
                <CardHeader className="pb-4 border-b-2 border-border">
@@ -352,16 +366,28 @@ const Dashboard = () => {
              {/* Notifications Mini */}
              <Card className="rounded-none border-2 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] bg-background">
                <CardHeader className="pb-4 border-b-2 border-border">
-                 <div className="flex justify-between items-center">
-                   <CardTitle className="font-mono text-[10px] uppercase tracking-widest text-foreground flex items-center gap-2 font-black relative z-10"><Bell className="w-4 h-4" /> Alerts</CardTitle>
-                   {notificationsReady && unreadNotificationCount > 0 && (
-                     <Badge variant="default" className="rounded-none px-2 min-w-[20px] justify-center text-[10px] font-mono font-bold bg-primary text-primary-foreground border border-primary shadow-[2px_2px_0_0_rgba(var(--primary-color),1)]">
-                       {unreadNotificationCount}
-                     </Badge>
-                   )}
+                 <div className="flex justify-between items-center gap-2 flex-wrap">
+                   <div className="flex items-center gap-2 min-w-0">
+                     <CardTitle className="font-mono text-[10px] uppercase tracking-widest text-foreground flex items-center gap-2 font-black relative z-10"><Bell className="w-4 h-4" /> Alerts</CardTitle>
+                     {notificationsReady && unreadNotificationCount > 0 ? (
+                       <Badge variant="default" className="rounded-none px-2 min-w-[20px] justify-center text-[10px] font-mono font-bold bg-primary text-primary-foreground border border-primary shadow-[2px_2px_0_0_rgba(var(--primary-color),1)] shrink-0">
+                         {unreadNotificationCount}
+                       </Badge>
+                     ) : null}
+                   </div>
+                   {notificationsReady && unreadNotificationCount > 0 ? (
+                     <div className="shrink-0 ml-auto">
+                       <MarkAllNotificationsReadButton
+                         userId={sellerUid}
+                         unreadCount={unreadNotificationCount}
+                         compact
+                       />
+                     </div>
+                   ) : null}
                  </div>
                </CardHeader>
-               <CardContent className="pt-4 max-h-96 overflow-y-auto">
+               <CardContent className="flex flex-col gap-0 pt-4">
+                 {/* Preview list (max 4) — no inner scroll; full list on `/alerts`. */}
                  <div className="space-y-4">
                     {!notificationsReady ? (
                       <div className="space-y-3" aria-busy="true">
@@ -372,52 +398,23 @@ const Dashboard = () => {
                     ) : notifications.length === 0 ? (
                       <p className="text-muted-foreground font-mono text-[10px] uppercase tracking-widest font-bold">No alerts yet.</p>
                     ) : (
-                      notifications.map((n) => {
-                        const purchaseLead = isSellerPurchaseRequestNotification(n);
-                        return (
-                          <div
-                            key={n.id}
-                            onClick={() => handleNotificationClick(n)}
-                            className={`relative pl-4 border-l-4 bg-transparent py-2 transition-colors cursor-pointer ${
-                              purchaseLead
-                                ? n.read
-                                  ? "border-emerald-600/40"
-                                  : "border-emerald-600 bg-emerald-500/10 hover:bg-emerald-500/15"
-                                : n.read
-                                  ? "border-border"
-                                  : "border-primary bg-primary/5 hover:bg-muted"
-                            }`}
-                          >
-                            {n.type === "alert" && !purchaseLead && (
-                              <div className="absolute -left-[6px] top-4 w-2 h-2 bg-destructive border-[1px] border-background" />
-                            )}
-                            {purchaseLead && (
-                              <div className="absolute -left-[6px] top-4 flex items-center justify-center" aria-hidden>
-                                <MessageCircle className="w-3 h-3 text-emerald-700" />
-                              </div>
-                            )}
-                            <p
-                              className={`font-mono text-[10px] uppercase tracking-widest font-bold ${
-                                n.read ? "text-muted-foreground" : purchaseLead ? "text-emerald-800 dark:text-emerald-200" : "text-foreground"
-                              }`}
-                            >
-                              {n.title || n.type.toUpperCase()}
-                            </p>
-                            <p
-                              className={`font-mono text-xs tracking-wide mt-1 ${
-                                !n.read ? "font-bold text-foreground" : "font-medium text-muted-foreground"
-                              }`}
-                            >
-                              {n.message}
-                            </p>
-                            <p className="font-mono text-[8px] uppercase tracking-widest text-muted-foreground mt-2 font-bold">
-                              {n.createdAt ? formatMediumDateTimeAmPm(n.createdAt) : "Just now"}
-                            </p>
-                          </div>
-                        );
-                      })
+                      sidebarAlertPreview.map((n) => (
+                        <DashboardAlertRow key={n.id} notification={n} onInteract={handleNotificationClick} />
+                      ))
                     )}
                  </div>
+                 {notificationsReady ? (
+                   <div className="mt-4 shrink-0 border-t-2 border-border pt-4 bg-background">
+                     <Button
+                       render={<Link to="/alerts" />}
+                       variant="outline"
+                       className="w-full rounded-none font-mono text-[10px] uppercase tracking-widest font-bold border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-0.5 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] gap-2"
+                     >
+                       View all alerts
+                       <ArrowRight className="w-4 h-4" aria-hidden />
+                     </Button>
+                   </div>
+                 ) : null}
                </CardContent>
              </Card>
           </div>
@@ -473,7 +470,9 @@ const Dashboard = () => {
                            <Ticket className="w-12 h-12 text-muted-foreground mb-6" strokeWidth={1} />
                            <h4 className="font-heading font-black uppercase text-2xl tracking-tighter mb-4 text-foreground">No Active Listings</h4>
                            <p className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground mb-8">You don&apos;t have any tickets currently listed for sale.</p>
-                           <Button render={<Link to="/sell" />} className="rounded-none px-8 h-12 font-mono text-[10px] border-2 border-foreground bg-primary text-primary-foreground uppercase tracking-widest font-bold shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all">Sell a Ticket</Button>
+                           <Button render={<Link to="/sell" />} className="rounded-none px-8 h-12 font-mono text-[10px] border-2 border-foreground bg-primary text-primary-foreground uppercase tracking-widest font-bold shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all">
+                             Sell a Ticket
+                           </Button>
                          </div>
                        )}
                      </>

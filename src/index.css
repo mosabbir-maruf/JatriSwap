@@ -68,8 +68,55 @@
   }
 }
 
+@layer utilities {
+  .max-w-page {
+    max-width: var(--page-max-width);
+  }
+
+  /** Centered column + responsive gutters — default for most routes (replaces repeated max-w + px-* chains). */
+  .page-shell {
+    width: 100%;
+    max-width: var(--page-max-width);
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  @media (min-width: 640px) {
+    .page-shell {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  }
+  @media (min-width: 1024px) {
+    .page-shell {
+      padding-left: 2rem;
+      padding-right: 2rem;
+    }
+  }
+
+  /** Navbar / footer / FAQ: align with `App` header (`md` padding jump). */
+  .page-shell-md {
+    width: 100%;
+    max-width: var(--page-max-width);
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  @media (min-width: 768px) {
+    .page-shell-md {
+      padding-left: 2rem;
+      padding-right: 2rem;
+    }
+  }
+}
+
 /* Minimal Modern Utility Theme in Light Mode */
 :root {
+    /** Main layout max width — drives `.max-w-page` / `.page-shell*` (one knob for site column). */
+    --page-max-width: 85rem;
+
     --background: oklch(0.99 0 0); /* Pure clean white */
     --foreground: oklch(0.15 0 0); /* Very dark gray, almost black */
     

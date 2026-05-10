@@ -31,6 +31,17 @@ service cloud.firestore {
              (data.get('role', existing().role) is string) && (data.get('role', existing().role) == 'user' || data.get('role', existing().role) == 'admin' || data.get('role', existing().role) == 'pending_admin' || data.get('role', existing().role) == 'rejected');
     }
 
+    function isValidUserModerationStatus(s) {
+      return s == 'active' || s == 'warned' || s == 'suspended' || s == 'banned';
+    }
+
+    /** Seller listing writes blocked while suspended or banned (`users.status`). */
+    function sellerMayMutateListings(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid)) &&
+             get(/databases/$(database)/documents/users/$(uid)).data.get('status', 'active') != 'suspended' &&
+             get(/databases/$(database)/documents/users/$(uid)).data.get('status', 'active') != 'banned';
+    }
+
     function isValidTicket(data) {
       return data.keys().hasAll(['transportName', 'mode', 'from', 'to', 'departureTime', 'date', 'sellingPrice', 'status', 'sellerId', 'postedAt', 'sellerName', 'sellerPhone']) &&
              data.transportName is string && data.transportName.size() > 0 && data.transportName.size() <= 100 &&
@@ -260,14 +271,18 @@ service cloud.firestore {
                     (incoming().role == 'user' || incoming().role == 'pending_admin');
       allow update: if isSignedIn() && isValidId(userId) && isValidUserUpdate(incoming()) && (
         (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatar'])) ||
-        (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatar', 'role']))
+        (
+          isAdmin() &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatar', 'role', 'status']) &&
+          isValidUserModerationStatus(incoming().get('status', existing().get('status', 'active')))
+        )
       );
     }
 
     match /tickets/{ticketId} {
       allow get: if true; 
       allow list: if true; 
-      allow create: if isSignedIn() && isVerified() && isValidId(ticketId) && isValidTicket(incoming());
+      allow create: if isSignedIn() && isVerified() && isValidId(ticketId) && isValidTicket(incoming()) && sellerMayMutateListings(request.auth.uid);
       allow update: if isValidId(ticketId) &&
         incoming().sellerId == existing().sellerId &&
         incoming().postedAt == existing().postedAt &&
@@ -279,6 +294,7 @@ service cloud.firestore {
               (isSignedIn() && isVerified() && isAdmin()) ||
               (
                 isSignedIn() && isVerified() && isOwner(existing().sellerId) &&
+                sellerMayMutateListings(existing().sellerId) &&
                 !ticketSellerModerationFrozen(existing().status) &&
                 existing().status == 'available'
               )

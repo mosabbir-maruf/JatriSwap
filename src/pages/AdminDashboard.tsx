@@ -16,7 +16,14 @@ import { BuyerPurchaseRequestCard } from "@/src/components/common/BuyerPurchaseR
 import { Navigate, Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { needsEmailVerification } from "@/src/lib/firebase/authVerification";
-import type { TicketReport, Ticket, AdminUserRow, PendingAdminRow, BuyerPurchaseRequest } from "@/src/types";
+import type {
+  TicketReport,
+  Ticket,
+  AdminUserRow,
+  PendingAdminRow,
+  BuyerPurchaseRequest,
+  UserAccountStatus,
+} from "@/src/types";
 import { signOut } from "firebase/auth";
 import { auth, db } from "@/src/lib/firebase/firebase";
 import {
@@ -30,6 +37,7 @@ import {
   fetchTicketsPostedAtAdminPage,
   fetchTicketsRecentOverview,
 } from "@/src/lib/firebase/tickets";
+import { aggregateSellerTicketStatsFromTickets } from "@/src/lib/aggregateSellerTicketStats";
 import { scheduleTicketDeleteWithUndo } from "@/src/lib/ticketDeleteUndo";
 import {
   fetchTicketAdminNotesForIds,
@@ -39,6 +47,13 @@ import {
 import { enqueueSellerAdminTicketNotification } from "@/src/lib/firebase/sellerTicketNotifications";
 import { phoneDisplayToTelHref } from "@/src/lib/env/publicContact";
 import { getAllUsers, deleteUserData } from "@/src/lib/firebase/users";
+import { updateUserModerationStatus } from "@/src/lib/firebase/userModeration";
+import { createNotification } from "@/src/lib/firebase/notifications";
+import {
+  moderationAlertPayload,
+  normalizeUserAccountStatus,
+  type ModerationAlertKind,
+} from "@/src/lib/userAccountStatus";
 import {
   getAdminNotes,
   getAdminLogs,
@@ -64,7 +79,7 @@ import {
 } from "firebase/firestore";
 import { format, isValid, parseISO } from "date-fns";
 import { EditTicketDialog } from "@/src/components/common/EditTicketDialog";
-import { formatTicketPostedAtAmPm } from "@/src/lib/formatLocaleDateTime";
+import { formatJoinedAtDisplay, formatTicketPostedAtAmPm } from "@/src/lib/formatLocaleDateTime";
 import { formatDepartureTimeDisplay } from "@/src/lib/formatDepartureTime";
 
 const AVAILABLE_PERMISSIONS = [
@@ -516,6 +531,12 @@ export default function AdminDashboard() {
     return m;
   }, [users]);
 
+  /** User docs do not store rollups; derive from the same ticket batch loaded for this dashboard. */
+  const sellerTicketStatsByUserId = useMemo(
+    () => aggregateSellerTicketStatsFromTickets(tickets),
+    [tickets],
+  );
+
   const syncBuyerPurchaseOverviewFromServer = useCallback(() => {
     void fetchBuyerPurchaseRequestsOverview().then(({ items, hasMore }) => {
       setBuyerPurchaseOverview(items);
@@ -587,7 +608,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (currentUser?.role !== 'admin') return;
 
-    getTickets({ maxResults: TICKETS_ADMIN_QUERY_LIMIT }).then((t) => setTickets(t));
+    getTickets({ maxResults: TICKETS_ADMIN_QUERY_LIMIT }).then((t) => setTickets(t ?? []));
     getAllUsers().then((u) => setUsers(u as AdminUserRow[]));
     getAdminNotes().then((notes) => setAdminNotes(notes ?? ""));
     getAdminLogs().then((loadedLogs) => setLogs(loadedLogs));
@@ -827,7 +848,7 @@ export default function AdminDashboard() {
   };
 
   const handleActionClick = (actionName: string) => {
-    if (adminRole === "Support Agent" && ["Ban User", "Delete Ticket"].includes(actionName)) {
+    if (adminRole === "Support Agent" && ["Ban User", "Delete Ticket", "Suspend User"].includes(actionName)) {
       toast.error("Permission Denied", { description: "Support Agents cannot perform this action." });
       return false;
     }
@@ -891,11 +912,62 @@ export default function AdminDashboard() {
     });
   };
 
-  const handleToggleUserStatus = (id: string, newStatus: string) => {
-    if (!handleActionClick("Ban User") && newStatus === "banned") return;
-    setUsers(users.map((u) => (u.id === id ? { ...u, status: newStatus } : u)));
-    addLog("User Status Updated", `User ${id} is now ${newStatus}`);
-    toast.success(`User marked as ${newStatus}`);
+  const applyUserModeration = async (
+    userId: string,
+    nextStatus: UserAccountStatus,
+    alertKind: ModerationAlertKind | null,
+    successMessage: string,
+  ) => {
+    const prevRow = users.find((u) => u.id === userId);
+    const rollbackStatus: UserAccountStatus | undefined = prevRow
+      ? normalizeUserAccountStatus(prevRow.status)
+      : undefined;
+    try {
+      await updateUserModerationStatus(userId, nextStatus);
+      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, status: nextStatus } : u)));
+      addLog("User Status Updated", `User ${userId} is now ${nextStatus}`);
+      toast.success(successMessage);
+      if (alertKind) {
+        try {
+          const { title, message } = moderationAlertPayload(alertKind);
+          await createNotification(userId, "alert", title, message);
+        } catch (notifyErr: unknown) {
+          console.error(notifyErr);
+          toast.error("Account updated, but the in-app alert failed to send.");
+        }
+      }
+    } catch (err: unknown) {
+      console.error(err);
+      toast.error("Failed to update account status.");
+      if (rollbackStatus !== undefined) {
+        setUsers((prev) =>
+          prev.map((u) => (u.id === userId ? { ...u, status: rollbackStatus } : u)),
+        );
+      }
+    }
+  };
+
+  /** Toggle suspend ↔ active (blocked while banned). */
+  const handleSuspendToggle = (userId: string) => {
+    if (!handleActionClick("Suspend User")) return;
+    const row = userById.get(userId);
+    if (!row) {
+      toast.error("User is not in the loaded directory. Open Manage Users or refresh the dashboard.");
+      return;
+    }
+    const cur = normalizeUserAccountStatus(row.status);
+    if (cur === "banned") {
+      toast.error("Lift the ban before changing suspension.");
+      return;
+    }
+    const next: UserAccountStatus = cur === "suspended" ? "active" : "suspended";
+    const alertKind: ModerationAlertKind = next === "suspended" ? "suspended" : "unsuspended";
+    void applyUserModeration(
+      userId,
+      next,
+      alertKind,
+      next === "suspended" ? "User suspended from posting listings." : "Suspension lifted.",
+    );
   };
 
   /** Ban ↔ active on one control; unban does not require the Ban User permission gate. */
@@ -905,14 +977,15 @@ export default function AdminDashboard() {
       toast.error("User is not in the loaded directory. Open Manage Users or refresh the dashboard.");
       return;
     }
-    const currentlyBanned = row.status === "banned";
-    const next = currentlyBanned ? "active" : "banned";
+    const currentlyBanned = normalizeUserAccountStatus(row.status) === "banned";
+    const next: UserAccountStatus = currentlyBanned ? "active" : "banned";
     if (!currentlyBanned && !handleActionClick("Ban User")) return;
-    setUsers((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, status: next } : u)),
+    void applyUserModeration(
+      userId,
+      next,
+      currentlyBanned ? "unbanned" : "banned",
+      currentlyBanned ? "Ban removed — user is active again." : "User banned.",
     );
-    addLog("User Status Updated", `User ${userId} is now ${next}`);
-    toast.success(currentlyBanned ? "User unbanned (active)" : "User banned");
   };
 
   const handleHardDeleteUser = async (id: string) => {
@@ -961,7 +1034,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="flex-1 bg-background bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] min-h-screen pt-24 pb-24 relative">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      <div className="page-shell relative z-10">
         
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
           <div className="flex items-center gap-4">
@@ -1414,7 +1487,14 @@ export default function AdminDashboard() {
           <TabsContent value="users" className="mt-10 animate-in fade-in zoom-in-95 duration-200">
             <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 flex flex-col min-h-[600px]">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-                <h3 className="font-heading text-3xl font-black uppercase tracking-tighter bg-foreground text-background px-3 py-1 border-2 border-foreground inline-block">User Management</h3>
+                <div className="space-y-1">
+                  <h3 className="font-heading text-3xl font-black uppercase tracking-tighter bg-foreground text-background px-3 py-1 border-2 border-foreground inline-block">
+                    User Management
+                  </h3>
+                  <p className="font-mono text-[9px] text-muted-foreground font-bold uppercase tracking-wider max-w-xl leading-relaxed">
+                    Post and sold counts use listings in this session (newest {TICKETS_ADMIN_QUERY_LIMIT} by post date).
+                  </p>
+                </div>
               </div>
 
                <div className="overflow-x-auto flex-1">
@@ -1429,11 +1509,20 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map((user, i) => (
+                    {users.map((user, i) => {
+                      const ticketRollup = sellerTicketStatsByUserId.get(user.id);
+                      const postsCount = ticketRollup?.ticketsPosted ?? user.ticketsPosted ?? 0;
+                      const activeCount =
+                        ticketRollup?.activeAvailable ?? user.performance?.active ?? 0;
+                      const soldCount = ticketRollup?.sold ?? user.performance?.sold ?? 0;
+                      const accountRowStatus = normalizeUserAccountStatus(user.status);
+                      return (
                       <tr key={user.id} className={`border-2 border-t-0 border-foreground ${i % 2 === 0 ? "bg-muted/10" : "bg-background"} hover:bg-muted/50 transition-colors`}>
                         <td className="p-3 font-bold border-r-2 border-foreground">
                            <p>{user.id}</p>
-                           <p className="text-[9px] text-muted-foreground font-normal">Joined: {user.joinedAt}</p>
+                           <p className="text-[9px] text-muted-foreground font-normal">
+                             Joined: {formatJoinedAtDisplay(user.joinedAt)}
+                           </p>
                         </td>
                         <td className="p-3 border-r-2 border-foreground">
                           <p className="font-heading font-bold text-sm uppercase">
@@ -1470,17 +1559,24 @@ export default function AdminDashboard() {
                           ) : null}
                         </td>
                         <td className="p-3 font-bold border-r-2 border-foreground">
-                           <p>Posts: <span className="text-foreground">{user.ticketsPosted || 0}</span></p>
-                           <p>Active Layout: <span className="text-foreground">{user.performance?.active || 0}</span></p>
-                           <p>Sold Tickets: <span className="text-foreground">{user.performance?.sold || 0}</span></p>
+                           <p>Posts: <span className="text-foreground">{postsCount}</span></p>
+                           <p>Active Layout: <span className="text-foreground">{activeCount}</span></p>
+                           <p>Sold Tickets: <span className="text-foreground">{soldCount}</span></p>
                         </td>
                         <td className="p-3 border-r-2 border-foreground">
-                           <Badge className={`rounded-none border-2 border-foreground font-black text-[10px] uppercase shadow-[2px_2px_0_0_rgba(0,0,0,1)] ${
-                            user.status === 'active' ? 'bg-emerald-400 text-emerald-950' : 
-                            user.status === 'warned' ? 'bg-amber-400 text-amber-950' : 'bg-destructive text-destructive-foreground'
-                          }`}>
-                            {user.status}
-                          </Badge>
+                           <Badge
+                             className={`rounded-none border-2 border-foreground font-black text-[10px] uppercase shadow-[2px_2px_0_0_rgba(0,0,0,1)] ${
+                               accountRowStatus === "active"
+                                 ? "bg-emerald-400 text-emerald-950"
+                                 : accountRowStatus === "warned"
+                                   ? "bg-amber-400 text-amber-950"
+                                   : accountRowStatus === "suspended"
+                                     ? "bg-orange-400 text-orange-950"
+                                     : "bg-destructive text-destructive-foreground"
+                             }`}
+                           >
+                             {accountRowStatus}
+                           </Badge>
                           <p className="mt-1 font-bold text-muted-foreground uppercase">{user.role}</p>
                         </td>
                         <td className="p-3">
@@ -1490,21 +1586,27 @@ export default function AdminDashboard() {
                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-circle"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
                                </Button>
                              )}
-                             <Button onClick={() => handleToggleUserStatus(user.id, 'suspended')} size="icon" variant="outline" className="w-8 h-8 rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none transition-all text-amber-600" title="Suspend User">
-                                <AlertCircle className="w-4 h-4" />
+                             <Button
+                               onClick={() => handleSuspendToggle(user.id)}
+                               size="icon"
+                               variant="outline"
+                               className="w-8 h-8 rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none transition-all text-amber-600"
+                               title={accountRowStatus === "suspended" ? "Lift suspension" : "Suspend user"}
+                             >
+                               <AlertCircle className="w-4 h-4" />
                              </Button>
                              <Button
                                onClick={() => handleToggleBanUser(user.id)}
                                size="icon"
                                variant="outline"
                                className={`w-8 h-8 rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none transition-all ${
-                                 user.status === "banned"
+                                 accountRowStatus === "banned"
                                    ? "text-emerald-600 hover:bg-emerald-500 hover:text-white"
                                    : "text-destructive hover:bg-destructive hover:text-destructive-foreground"
                                }`}
-                               title={user.status === "banned" ? "Unban user" : "Ban user"}
+                               title={accountRowStatus === "banned" ? "Unban user" : "Ban user"}
                              >
-                               {user.status === "banned" ? <CheckCircle2 className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
+                               {accountRowStatus === "banned" ? <CheckCircle2 className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
                              </Button>
                              <Button onClick={() => handleHardDeleteUser(user.id)} size="icon" variant="outline" className="w-8 h-8 rounded-none border-2 border-destructive bg-destructive/10 shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none transition-all text-destructive hover:bg-destructive hover:text-destructive-foreground" title="Hard Delete User">
                                 <Trash2 className="w-4 h-4" />
@@ -1512,7 +1614,8 @@ export default function AdminDashboard() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1527,7 +1630,7 @@ export default function AdminDashboard() {
                    const reporterUser = userById.get(report.reporterId);
                    const reporterIsAnon = report.reporterId === ANONYMOUS_REPORTER_ID;
                    const sellerRow = userById.get(report.sellerId);
-                   const sellerBanned = sellerRow?.status === "banned";
+                   const sellerBanned = normalizeUserAccountStatus(sellerRow?.status) === "banned";
                    return (
                    <div key={report.id} className="border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] p-6 bg-red-50 relative overflow-hidden flex flex-col justify-between">
                      <div className="absolute top-0 right-0 p-4">

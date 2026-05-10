@@ -4,13 +4,38 @@ import { Train, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth, db } from "@/src/lib/firebase/firebase";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { toast } from "sonner";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { getAuthErrorMessage } from "@/src/lib/firebase/authErrors";
 import { needsEmailVerification } from "@/src/lib/firebase/authVerification";
+import { accountIsBanned, normalizeUserAccountStatus } from "@/src/lib/userAccountStatus";
+
+/**
+ * Blocks navigation after sign-in when the profile is banned.
+ * Ban toast + sign-out are handled in AuthContext (user snapshot). If that runs first,
+ * our `getDoc` can hit permission-denied once auth is cleared — treat as blocked login, no extra toast.
+ */
+async function blockLoginIfUserBanned(uid: string): Promise<boolean> {
+  try {
+    const userRef = doc(db, "users", uid);
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists()) return false;
+    const st = normalizeUserAccountStatus(userSnap.data().status);
+    if (!accountIsBanned(st)) return false;
+    await signOut(auth);
+    return true;
+  } catch (e: unknown) {
+    const code =
+      typeof e === "object" && e !== null && "code" in e ? String((e as { code?: string }).code) : "";
+    if (code === "permission-denied") {
+      return true;
+    }
+    throw e;
+  }
+}
 
 export default function Login() {
   const navigate = useNavigate();
@@ -54,8 +79,11 @@ export default function Login() {
           email: result.user.email,
           avatar: result.user.photoURL || "",
           role: "user",
+          status: "active",
           joinedAt: serverTimestamp()
         });
+      } else if (await blockLoginIfUserBanned(result.user.uid)) {
+        return;
       }
       toast.success("Successfully logged in");
       navigate("/dashboard");
@@ -78,6 +106,9 @@ export default function Login() {
     try {
       setLoading(true);
       const cred = await signInWithEmailAndPassword(auth, email, password);
+      if (await blockLoginIfUserBanned(cred.user.uid)) {
+        return;
+      }
       if (needsEmailVerification(cred.user)) {
         toast.success("Sign-in OK — verify your email to continue.", {
           description: "Check inbox and spam folder for the link.",

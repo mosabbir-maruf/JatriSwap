@@ -1,7 +1,20 @@
 import { BrowserRouter as Router, Routes, Route, Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { lazy, Suspense, useState, useEffect, useRef, type ReactNode } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Ticket, Menu, X, MessageSquare, ArrowRight, Shield, CreditCard, HelpCircle, Search, User, LogOut } from "lucide-react";
+import {
+  Ticket,
+  Menu,
+  X,
+  MessageSquare,
+  ArrowRight,
+  Shield,
+  CreditCard,
+  HelpCircle,
+  Search,
+  User,
+  LogOut,
+  Bell,
+} from "lucide-react";
 import { signOut } from "firebase/auth";
 import { auth } from "./lib/firebase/firebase";
 
@@ -20,6 +33,7 @@ import Home from "./pages/Home";
 import Browse from "./pages/Browse";
 import Sell from "./pages/Sell";
 import Dashboard from "./pages/Dashboard";
+import Alerts from "./pages/Alerts";
 import TicketDetails from "./pages/TicketDetails";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
@@ -52,7 +66,6 @@ import FAQ from "./pages/FAQ";
 import NotFound from "./pages/NotFound";
 import Unauthorized from "./pages/Unauthorized";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
@@ -80,8 +93,9 @@ const Navbar = () => {
   }, []);
 
   return (
+    <>
     <header className="fixed top-0 w-full z-50 bg-background border-b border-border">
-      <div className="max-w-7xl mx-auto px-4 md:px-8">
+      <div className="page-shell-md">
         <div className="flex justify-between items-center h-16">
           
           {/* Logo */}
@@ -135,6 +149,10 @@ const Navbar = () => {
                            {currentUser?.role === 'admin' ? <Shield className="w-4 h-4 mr-2" /> : <Menu className="w-4 h-4 mr-2" />} 
                            {currentUser?.role === 'admin' ? 'Admin Panel' : 'Dashboard'}
                          </DropdownMenuItem>
+                         <DropdownMenuSeparator className="m-0 bg-foreground/20" />
+                         <DropdownMenuItem onClick={() => navigate('/alerts')} className="rounded-none px-4 py-3 font-mono text-[10px] xl:text-xs uppercase font-bold tracking-widest cursor-pointer hover:bg-muted focus:bg-muted focus:text-foreground">
+                           <Bell className="w-4 h-4 mr-2" aria-hidden /> Alerts
+                         </DropdownMenuItem>
                          {currentUser?.role !== 'admin' && (
                            <>
                              <DropdownMenuSeparator className="m-0 bg-foreground/20" />
@@ -182,13 +200,20 @@ const Navbar = () => {
               <Link to="/browse" onClick={() => setMobileMenuOpen(false)} className="p-6 flex justify-between items-center hover:bg-muted">
                  Browse Tickets <ArrowRight className="w-4 h-4" />
               </Link>
-              <Link to="/sell" onClick={() => setMobileMenuOpen(false)} className="p-6 flex justify-between items-center hover:bg-muted">
-                 Sell Ticket <ArrowRight className="w-4 h-4" />
+              <Link
+                to="/sell"
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-6 flex justify-between items-center hover:bg-muted font-mono text-xs uppercase tracking-widest font-bold text-foreground"
+              >
+                Sell Ticket <ArrowRight className="w-4 h-4" aria-hidden />
               </Link>
               {isLoggedIn ? (
                 <>
                   <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)} className="p-6 flex justify-between items-center hover:bg-muted">
                      Dashboard <ArrowRight className="w-4 h-4" />
+                  </Link>
+                  <Link to="/alerts" onClick={() => setMobileMenuOpen(false)} className="p-6 flex justify-between items-center hover:bg-muted">
+                     Alerts <ArrowRight className="w-4 h-4" aria-hidden />
                   </Link>
                   <div className="p-6 flex flex-col gap-4 bg-muted/30">
                      <Button variant="outline" className="w-full rounded-none border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] font-mono text-xs font-bold uppercase tracking-widest h-12" onClick={handleLogout}>Log Out</Button>
@@ -205,14 +230,16 @@ const Navbar = () => {
         )}
       </AnimatePresence>
     </header>
+    </>
   );
 };
 
 const Footer = () => {
   const { currentUser } = useAuth();
+
   return (
   <footer className="bg-foreground text-background mt-auto relative pt-16 pb-8 border-t border-border">
-    <div className="max-w-7xl mx-auto px-4 md:px-8 relative z-10">
+    <div className="page-shell-md relative z-10">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-12 lg:gap-8 mb-16">
         
         {/* Brand & Newsletter Column */}
@@ -339,6 +366,7 @@ export default function App() {
             <Route path="ticket/:id" element={<TicketDetails />} />
             <Route path="sell" element={<Sell />} />
             <Route path="dashboard" element={<Dashboard />} />
+            <Route path="alerts" element={<Alerts />} />
             <Route path="terms" element={<TermsOfService />} />
             <Route path="privacy" element={<PrivacyPolicy />} />
             <Route path="cookie" element={<CookiePolicy />} />

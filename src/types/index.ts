@@ -1,5 +1,8 @@
 export type Role = 'user' | 'admin' | 'pending_admin';
 
+/** Stored on Firestore `users/{uid}` for moderation (defaults to effective `active` when missing). */
+export type UserAccountStatus = "active" | "warned" | "suspended" | "banned";
+
 export interface User {
   id: string;
   name: string;
@@ -9,11 +12,12 @@ export interface User {
   joinedAt: string;
   /** Profile phone (shown in admin; optional if not collected). */
   phone?: string;
+  /** Moderation flag — persisted by admins (`users.status`). */
+  status?: UserAccountStatus;
 }
 
 /** Firestore `users` rows may include moderation/analytics fields surfaced in admin UI. */
 export interface AdminUserRow extends User {
-  status?: string;
   ticketsPosted?: number;
   performance?: { active?: number; sold?: number };
 }

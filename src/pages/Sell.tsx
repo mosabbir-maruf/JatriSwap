@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, CheckCircle2, ChevronRight, ChevronLeft, FileText, X, Save, CalendarIcon, Train, BusFront, AlertCircle, Loader2 } from "lucide-react";
+import { Upload, CheckCircle2, ChevronRight, ChevronLeft, FileText, X, Save, CalendarIcon, Train, BusFront, Loader2 } from "lucide-react";
 import Unauthorized from "./Unauthorized";
 import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -21,6 +21,11 @@ import { createTicket } from "@/src/lib/firebase/tickets";
 import { SELL_DRAFT_STORAGE_KEY } from "@/src/lib/sellDraft";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { needsEmailVerification } from "@/src/lib/firebase/authVerification";
+import {
+  accountMaySellTickets,
+  normalizeUserAccountStatus,
+  sellListingBlockedMessage,
+} from "@/src/lib/userAccountStatus";
 
 const steps = [
   "Route & Transport",
@@ -34,6 +39,8 @@ const Sell = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const { currentUser, firebaseUser, loading: authLoading } = useAuth();
+  const accountStatus = normalizeUserAccountStatus(currentUser?.status);
+  const listingBlocked = Boolean(currentUser) && !accountMaySellTickets(accountStatus);
 
   const [formData, setFormData] = useState({
     from: "",
@@ -229,6 +236,40 @@ const Sell = () => {
     return <Navigate to="/verify-email" replace />;
   }
 
+  if (listingBlocked) {
+    return (
+      <div className="flex-1 bg-background min-h-screen pt-28 pb-24 px-4">
+        <div className="max-w-lg mx-auto space-y-8">
+          <div className="border-4 border-destructive bg-destructive/10 p-8 shadow-[8px_8px_0_0_rgba(0,0,0,1)] text-center space-y-4">
+            <h1 className="font-heading text-2xl md:text-3xl font-black uppercase tracking-tighter text-destructive">
+              Listing unavailable
+            </h1>
+            <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-foreground/90 leading-relaxed">
+              {sellListingBlockedMessage(accountStatus)}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center items-stretch sm:items-center pt-2">
+              <Button
+                type="button"
+                className="rounded-none border-2 border-foreground font-mono text-[10px] uppercase font-black tracking-widest shadow-[4px_4px_0_0_rgba(0,0,0,1)]"
+                onClick={() => navigate("/dashboard")}
+              >
+                Back to dashboard
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                render={<Link to="/contact" className="flex items-center justify-center" />}
+                className="rounded-none border-2 border-foreground font-mono text-[10px] uppercase font-black tracking-widest shadow-[4px_4px_0_0_rgba(0,0,0,1)] bg-background"
+              >
+                Contact support
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const transportsForSellStep = TRANSPORTS.filter(
     (t) => t.mode === formData.transportMode,
   );
@@ -262,7 +303,7 @@ const Sell = () => {
 
   return (
     <div className="flex-1 bg-background min-h-screen pt-32 pb-24 relative">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
           <div className="flex justify-between items-end border-b-4 border-foreground pb-6 mb-16">
             <div>
@@ -577,6 +618,7 @@ const Sell = () => {
                     <Button 
                       type="button" 
                       onClick={(e) => { e.preventDefault(); nextStep(); }}
+                      disabled={isSubmitting}
                       className="rounded-none h-14 px-10 font-mono text-xs font-bold uppercase tracking-widest shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all bg-foreground text-background"
                     >
                       Next <ChevronRight className="w-4 h-4 ml-2" />

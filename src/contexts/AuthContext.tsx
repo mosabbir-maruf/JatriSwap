@@ -1,8 +1,14 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { User as FirebaseUser, onAuthStateChanged, onIdTokenChanged } from 'firebase/auth';
+import { User as FirebaseUser, onAuthStateChanged, onIdTokenChanged, signOut } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
+import { toast } from 'sonner';
 import { auth, db } from '../lib/firebase/firebase';
 import { User } from '../types';
+import {
+  accountIsBanned,
+  normalizeUserAccountStatus,
+  sessionBannedToastMessage,
+} from '../lib/userAccountStatus';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -67,8 +73,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         unsubscribeUser = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
           initialUserLoadDone = true;
           if (docSnap.exists()) {
+            const data = docSnap.data();
+            const st = normalizeUserAccountStatus(data.status);
+            if (accountIsBanned(st) && auth.currentUser?.uid === user.uid) {
+              void signOut(auth).then(() => {
+                toast.error(sessionBannedToastMessage());
+              });
+              maybeSetLoadingFalse();
+              return;
+            }
             userDocExists = true;
-            setCurrentUser({ ...docSnap.data(), id: docSnap.id } as User);
+            setCurrentUser({ ...data, id: docSnap.id } as User);
           } else {
             userDocExists = false;
             if (!adminDocExists && initialAdminLoadDone) {

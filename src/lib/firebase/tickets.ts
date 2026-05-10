@@ -19,8 +19,10 @@ import {
   type DocumentData,
   type QueryConstraint,
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { auth, db } from './firebase';
 import { handleFirestoreError } from './errors';
+import { getUser } from './users';
+import { ListingWriteBlockedError, throwIfSellerListingWriteBlocked } from '../listingWriteGuard';
 import { sliceQueryDocsPage } from './queryPageSlice';
 import { OperationType, Ticket } from '../../types';
 
@@ -171,6 +173,8 @@ export const createTicket = async (
 ): Promise<string> => {
   const path = 'tickets';
   try {
+    const profile = await getUser(userId);
+    throwIfSellerListingWriteBlocked(profile);
     const docRef = await addDoc(collection(db, 'tickets'), {
       ...data,
       sellerId: userId,
@@ -179,6 +183,7 @@ export const createTicket = async (
     });
     return docRef.id;
   } catch (error) {
+    if (error instanceof ListingWriteBlockedError) throw error;
     handleFirestoreError(error, OperationType.CREATE, path);
   }
 };
@@ -199,9 +204,21 @@ export const updateTicket = async (
 ): Promise<void> => {
   const path = `tickets/${ticketId}`;
   try {
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      const snap = await getDoc(doc(db, 'tickets', ticketId));
+      if (snap.exists()) {
+        const sellerId = snap.data().sellerId as string | undefined;
+        if (sellerId === uid) {
+          const profile = await getUser(uid);
+          throwIfSellerListingWriteBlocked(profile);
+        }
+      }
+    }
     const docRef = doc(db, 'tickets', ticketId);
     await updateDoc(docRef, data);
   } catch (error) {
+    if (error instanceof ListingWriteBlockedError) throw error;
     handleFirestoreError(error, OperationType.UPDATE, path);
   }
 };

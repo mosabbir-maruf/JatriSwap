@@ -77,6 +77,7 @@ export default function Register() {
           email: result.user.email,
           avatar: result.user.photoURL || "",
           role: "user",
+          status: "active",
           joinedAt: serverTimestamp()
         });
       }
@@ -115,6 +116,7 @@ export default function Register() {
         email: result.user.email,
         avatar: "",
         role: "user",
+        status: "active",
         joinedAt: serverTimestamp()
       });
 

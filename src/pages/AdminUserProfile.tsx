@@ -9,25 +9,7 @@ import { getUser } from "@/src/lib/firebase/users";
 import { fetchTicketsBySellerIdForAdmin } from "@/src/lib/firebase/tickets";
 import { phoneDisplayToTelHref } from "@/src/lib/env/publicContact";
 import type { AdminUserRow, Ticket, TicketStatus } from "@/src/types";
-import { format, isValid, parseISO } from "date-fns";
-import { formatMediumDateTimeAmPm, formatTicketPostedAtAmPm } from "@/src/lib/formatLocaleDateTime";
-
-function formatUnknownJoinedAt(raw: unknown): string {
-  if (raw == null || raw === "") return "—";
-  if (typeof raw === "object" && raw !== null && typeof (raw as { toDate?: () => Date }).toDate === "function") {
-    try {
-      const d = (raw as { toDate: () => Date }).toDate();
-      return isValid(d) ? formatMediumDateTimeAmPm(d) : "—";
-    } catch {
-      /* fall through */
-    }
-  }
-  if (typeof raw === "string") {
-    const p = parseISO(raw.includes("T") ? raw : `${raw}T00:00:00`);
-    return isValid(p) ? format(p, "MMM d, yyyy") : raw;
-  }
-  return String(raw);
-}
+import { formatJoinedAtDisplay, formatTicketPostedAtAmPm } from "@/src/lib/formatLocaleDateTime";
 
 const adminTelLinkClass =
   "underline-offset-4 hover:underline hover:text-foreground text-primary inline-flex items-center gap-1 max-w-full min-w-0 break-all";
@@ -210,7 +192,7 @@ export default function AdminUserProfile() {
 
   return (
     <div className="flex-1 bg-background bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] min-h-screen pt-24 pb-24 relative px-4 sm:px-6 lg:px-8">
-      <div className="max-w-5xl mx-auto space-y-8 relative z-10">
+      <div className="max-w-6xl mx-auto space-y-8 relative z-10">
         <div className="flex flex-wrap items-center gap-4 justify-between">
           <Button
             variant="outline"
@@ -294,7 +276,7 @@ export default function AdminUserProfile() {
                 </p>
                 <p className="font-mono text-[10px] text-muted-foreground">
                   <span className="font-black uppercase text-foreground/80">Joined · </span>
-                  {formatUnknownJoinedAt(profile.joinedAt)}
+                  {formatJoinedAtDisplay(profile.joinedAt)}
                 </p>
                 <div className="space-y-2 pt-2">
                   <a href={`mailto:${profile.email.trim()}`} className={`${adminTelLinkClass} font-mono text-xs font-bold`}>

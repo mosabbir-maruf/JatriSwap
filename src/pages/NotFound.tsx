@@ -31,7 +31,7 @@ export default function NotFound() {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-3xl bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 md:p-12 lg:p-16 relative"
+        className="w-full max-w-4xl bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 md:p-12 lg:p-16 relative"
       >
         {/* Decorative Badge */}
         <div className="absolute -top-4 -right-4 md:-top-5 md:-right-5 bg-primary text-primary-foreground px-4 py-2 font-mono text-xs font-black uppercase tracking-widest border-4 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] rotate-3">

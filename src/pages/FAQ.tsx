@@ -34,7 +34,7 @@ const faqs = [
 const FAQ = () => {
   return (
     <div className="flex-1 bg-background bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] min-h-screen pt-24 pb-24">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="page-shell-md relative z-10">
         
         <div className="mb-12 text-center md:text-left flex flex-col md:flex-row items-center md:items-end justify-between gap-6 border-b-4 border-foreground pb-8">
            <div>

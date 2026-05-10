@@ -1,6 +1,7 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import { motion } from "motion/react";
-import { Mail, MessageCircle, MessageSquare, Phone, Send } from "lucide-react";
+import { ArrowLeft, Mail, MessageCircle, MessageSquare, Phone, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   getPublicSupportPhone,
@@ -60,8 +61,16 @@ const Contact = () => {
 
   return (
     <div className="flex-1 bg-background bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] min-h-screen pt-24 pb-24">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
+      <div className="page-shell">
+        <Button
+          variant="ghost"
+          render={<Link to="/" />}
+          className="mb-8 h-12 rounded-none border-2 border-foreground bg-background shadow-[4px_4px_0_0_rgba(0,0,0,1)] font-mono text-xs uppercase tracking-widest font-bold hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" aria-hidden />
+          Back to Home
+        </Button>
+
         <div className="mb-12 border-b-4 border-foreground pb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
            <div>
              <h1 className="font-heading text-5xl md:text-7xl font-black uppercase tracking-tighter text-foreground mb-4 drop-shadow-[4px_4px_0_rgba(0,0,0,1)]">Contact <span className="text-primary">Us</span></h1>

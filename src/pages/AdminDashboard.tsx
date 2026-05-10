@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { BuyerPurchaseRequestCard } from "@/src/components/common/BuyerPurchaseRequestCard";
-import { Navigate, Link, useNavigate, useLocation } from "react-router-dom";
+import { Navigate, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { needsEmailVerification } from "@/src/lib/firebase/authVerification";
 import type {
@@ -81,6 +81,13 @@ import { format, isValid, parseISO } from "date-fns";
 import { EditTicketDialog } from "@/src/components/common/EditTicketDialog";
 import { formatJoinedAtDisplay, formatTicketPostedAtAmPm } from "@/src/lib/formatLocaleDateTime";
 import { formatDepartureTimeDisplay } from "@/src/lib/formatDepartureTime";
+import {
+  ADMIN_DASHBOARD_TAB_QUERY,
+  ADMIN_DASHBOARD_TAB_SET,
+  adminUserProfilePath,
+  normalizeAdminDashboardTab,
+  type AdminDashboardTab,
+} from "@/src/lib/adminDashboardTab";
 
 const AVAILABLE_PERMISSIONS = [
   { id: "manage_users", label: "Manage users", category: "User Management" },
@@ -364,8 +371,7 @@ function AdminSellerProfileLink({
   }
   return (
     <Link
-      to={`/admin/users/${ticket.sellerId}`}
-      state={{ tab: profileTab }}
+      to={adminUserProfilePath(ticket.sellerId, profileTab)}
       className={linkClassName}
       title="Open seller profile (admin)"
     >
@@ -492,10 +498,32 @@ function buyerRequestCardElements(items: BuyerPurchaseRequest[], userById: Map<s
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { currentUser, firebaseUser, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState("overview");
   const [adminRole, setAdminRole] = useState("Super Admin"); // Super Admin, Moderator, Support Agent
+  const tabParam = searchParams.get(ADMIN_DASHBOARD_TAB_QUERY) ?? "";
+  const normalizedFromUrl = normalizeAdminDashboardTab(tabParam || undefined);
+  const activeTab: AdminDashboardTab =
+    normalizedFromUrl === "admins" && adminRole !== "Super Admin" ? "overview" : normalizedFromUrl;
+
+  const handleAdminTabChange = useCallback(
+    (value: string) => {
+      if (!ADMIN_DASHBOARD_TAB_SET.has(value)) return;
+      const tab = value as AdminDashboardTab;
+      if (tab === "admins" && adminRole !== "Super Admin") return;
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (tab === "overview") next.delete(ADMIN_DASHBOARD_TAB_QUERY);
+          else next.set(ADMIN_DASHBOARD_TAB_QUERY, tab);
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [adminRole, setSearchParams],
+  );
+
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [ticketAdminNotes, setTicketAdminNotes] = useState<Record<string, string>>({});
   const [users, setUsers] = useState<AdminUserRow[]>([]);
@@ -672,10 +700,24 @@ export default function AdminDashboard() {
   }, [recentTicketsListOpen, currentUser?.role, applyRecentTicketsListPage]);
 
   useEffect(() => {
-    const tab = (location.state as { tab?: string } | null)?.tab;
-    const allowed = new Set(["overview", "tickets", "users", "reports", "logs", "admins"]);
-    if (tab && allowed.has(tab)) setActiveTab(tab);
-  }, [location.state, location.key]);
+    if (tabParam !== "" && !ADMIN_DASHBOARD_TAB_SET.has(tabParam)) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete(ADMIN_DASHBOARD_TAB_QUERY);
+        return next;
+      }, { replace: true });
+    }
+  }, [tabParam, setSearchParams]);
+
+  useEffect(() => {
+    if (tabParam !== "admins") return;
+    if (adminRole === "Super Admin") return;
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete(ADMIN_DASHBOARD_TAB_QUERY);
+      return next;
+    }, { replace: true });
+  }, [tabParam, adminRole, setSearchParams]);
 
   const ticketIdsKey = tickets.map((t) => t.id).sort().join("|");
 
@@ -1055,7 +1097,7 @@ export default function AdminDashboard() {
           </Button>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-12">
+        <Tabs value={activeTab} onValueChange={handleAdminTabChange} className="mb-12">
           <TabsList className="bg-muted p-2 rounded-none border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] h-auto overflow-x-auto justify-start w-full gap-2 relative">
             <TabsTrigger value="overview" className="data-[state=active]:bg-foreground data-[state=active]:text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold">
               Analytics & Overview
@@ -1527,8 +1569,7 @@ export default function AdminDashboard() {
                         <td className="p-3 border-r-2 border-foreground">
                           <p className="font-heading font-bold text-sm uppercase">
                             <Link
-                              to={`/admin/users/${user.id}`}
-                              state={{ tab: "users" }}
+                              to={adminUserProfilePath(user.id, "users")}
                               className="text-primary underline-offset-2 hover:underline"
                             >
                               {user.name}
@@ -1656,8 +1697,7 @@ export default function AdminDashboard() {
                            <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Reported seller</p>
                            <p className="font-mono text-xs font-bold leading-tight">
                              <Link
-                               to={`/admin/users/${report.sellerId}`}
-                               state={{ tab: "reports" }}
+                               to={adminUserProfilePath(report.sellerId, "reports")}
                                className="text-primary underline-offset-2 hover:underline font-bold"
                                title="Open seller profile (admin)"
                              >
@@ -1710,8 +1750,7 @@ export default function AdminDashboard() {
                          ) : (
                            <span className="normal-case tracking-normal block">
                              <Link
-                               to={`/admin/users/${report.reporterId}`}
-                               state={{ tab: "reports" }}
+                               to={adminUserProfilePath(report.reporterId, "reports")}
                                className="font-bold text-primary underline-offset-2 hover:underline"
                                title="Open reporter profile (admin)"
                              >

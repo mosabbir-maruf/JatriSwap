@@ -13,9 +13,11 @@ import { Loader2, Key, User, Mail, ShieldAlert, Trash2 } from "lucide-react";
 interface EditProfileDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Header shown above the account form (defaults to seller-facing copy). */
+  dialogTitle?: string;
 }
 
-export function EditProfileDialog({ open, onOpenChange }: EditProfileDialogProps) {
+export function EditProfileDialog({ open, onOpenChange, dialogTitle = "Edit Profile" }: EditProfileDialogProps) {
   const user = auth.currentUser;
   
   const [name, setName] = useState("");
@@ -149,7 +151,7 @@ export function EditProfileDialog({ open, onOpenChange }: EditProfileDialogProps
         <div className="bg-foreground text-background p-6 border-b-4 border-foreground relative overflow-hidden group">
            <div className="absolute top-0 right-0 w-32 h-32 bg-background/10 rounded-full translate-x-16 -translate-y-16 blur-2xl group-hover:bg-primary/20 transition-colors duration-500"></div>
            <DialogTitle className="font-heading text-2xl uppercase font-black tracking-tight relative z-10 flex items-center gap-2">
-             Edit Profile
+             {dialogTitle}
            </DialogTitle>
         </div>
         

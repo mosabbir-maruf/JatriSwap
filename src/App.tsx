@@ -66,12 +66,30 @@ import FAQ from "./pages/FAQ";
 import NotFound from "./pages/NotFound";
 import Unauthorized from "./pages/Unauthorized";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+
+/** Matches navbar neo-brutalist styling while Firebase session restores. */
+function NavbarSessionLoadingBars({ dense }: { dense?: boolean }) {
+  const w = dense ? "w-[3px]" : "w-1";
+  const heights = dense ? ["h-2", "h-[14px]", "h-2"] : ["h-2.5", "h-4", "h-2.5"];
+  const delays = ["", "[animation-delay:120ms]", "[animation-delay:240ms]"];
+  return (
+    <span className="inline-flex gap-[3px] items-end justify-center" aria-hidden>
+      {heights.map((h, i) => (
+        <span
+          key={i}
+          className={`${w} ${h} shrink-0 bg-foreground border border-foreground shadow-[1px_1px_0_0_rgba(0,0,0,1)] animate-pulse ${delays[i] ?? ""}`}
+        />
+      ))}
+    </span>
+  );
+}
+
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const { currentUser, firebaseUser } = useAuth();
+  const { currentUser, firebaseUser, loading: authLoading } = useAuth();
   const isLoggedIn = !!firebaseUser;
 
   const handleLogout = async () => {
@@ -138,7 +156,15 @@ const Navbar = () => {
                    Sell
                  </Button>
 
-                 {isLoggedIn ? (
+                 {authLoading ? (
+                   <div
+                     className="hidden sm:flex flex-col items-center justify-center w-9 h-9 xl:w-10 xl:h-10 shrink-0 rounded-none border-2 border-foreground bg-muted shadow-[2px_2px_0_0_rgba(0,0,0,1)]"
+                     aria-busy="true"
+                     aria-label="Verifying session"
+                   >
+                     <NavbarSessionLoadingBars dense />
+                   </div>
+                 ) : isLoggedIn ? (
                    <div className="flex items-center gap-4 hidden sm:flex">
                      <DropdownMenu>
                        <DropdownMenuTrigger className="w-9 h-9 xl:w-10 xl:h-10 border-2 border-foreground bg-muted flex items-center justify-center hover:bg-foreground hover:text-background transition-colors shadow-[2px_2px_0_0_rgba(0,0,0,1)] outline-none">
@@ -150,18 +176,18 @@ const Navbar = () => {
                            {currentUser?.role === 'admin' ? 'Admin Panel' : 'Dashboard'}
                          </DropdownMenuItem>
                          <DropdownMenuSeparator className="m-0 bg-foreground/20" />
-                         <DropdownMenuItem onClick={() => navigate('/alerts')} className="rounded-none px-4 py-3 font-mono text-[10px] xl:text-xs uppercase font-bold tracking-widest cursor-pointer hover:bg-muted focus:bg-muted focus:text-foreground">
-                           <Bell className="w-4 h-4 mr-2" aria-hidden /> Alerts
-                         </DropdownMenuItem>
                          {currentUser?.role !== 'admin' && (
                            <>
+                             <DropdownMenuItem onClick={() => navigate('/alerts')} className="rounded-none px-4 py-3 font-mono text-[10px] xl:text-xs uppercase font-bold tracking-widest cursor-pointer hover:bg-muted focus:bg-muted focus:text-foreground">
+                               <Bell className="w-4 h-4 mr-2" aria-hidden /> Alerts
+                             </DropdownMenuItem>
                              <DropdownMenuSeparator className="m-0 bg-foreground/20" />
                              <DropdownMenuItem onClick={() => navigate('/dashboard?action=profile')} className="rounded-none px-4 py-3 font-mono text-[10px] xl:text-xs uppercase font-bold tracking-widest cursor-pointer hover:bg-muted focus:bg-muted focus:text-foreground">
-                               <User className="w-4 h-4 mr-2" /> Edit profile
+                               <User className="w-4 h-4 mr-2" aria-hidden /> Edit profile
                              </DropdownMenuItem>
+                             <DropdownMenuSeparator className="m-0 bg-foreground/20" />
                            </>
                          )}
-                         <DropdownMenuSeparator className="m-0 bg-foreground/20" />
                          <DropdownMenuItem onClick={handleLogout} className="rounded-none px-4 py-3 font-mono text-[10px] xl:text-xs uppercase font-bold tracking-widest cursor-pointer text-destructive hover:bg-destructive hover:text-destructive-foreground focus:bg-destructive focus:text-destructive-foreground">
                            <LogOut className="w-4 h-4 mr-2" /> Log Out
                          </DropdownMenuItem>
@@ -207,14 +233,51 @@ const Navbar = () => {
               >
                 Sell Ticket <ArrowRight className="w-4 h-4" aria-hidden />
               </Link>
-              {isLoggedIn ? (
+              {authLoading ? (
+                <div
+                  className="p-6 flex justify-between items-center bg-muted/25 font-mono text-[10px] uppercase tracking-[0.18em] font-bold text-foreground"
+                  aria-busy="true"
+                  aria-label="Verifying session"
+                >
+                  <span className="flex items-center gap-3 min-w-0">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-none border-2 border-foreground bg-background shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
+                      <Ticket className="h-4 w-4 animate-pulse text-foreground" aria-hidden />
+                    </span>
+                    <span className="truncate leading-tight">Verifying session</span>
+                  </span>
+                  <NavbarSessionLoadingBars />
+                </div>
+              ) : isLoggedIn ? (
                 <>
-                  <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)} className="p-6 flex justify-between items-center hover:bg-muted">
-                     Dashboard <ArrowRight className="w-4 h-4" />
+                  <Link
+                    to={currentUser?.role === 'admin' ? '/admin' : '/dashboard'}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="p-6 flex justify-between items-center hover:bg-muted"
+                  >
+                    {currentUser?.role === 'admin' ? (
+                      <>
+                        Admin Panel <ArrowRight className="w-4 h-4" aria-hidden />
+                      </>
+                    ) : (
+                      <>
+                        Dashboard <ArrowRight className="w-4 h-4" aria-hidden />
+                      </>
+                    )}
                   </Link>
-                  <Link to="/alerts" onClick={() => setMobileMenuOpen(false)} className="p-6 flex justify-between items-center hover:bg-muted">
-                     Alerts <ArrowRight className="w-4 h-4" aria-hidden />
-                  </Link>
+                  {currentUser?.role !== 'admin' && (
+                    <>
+                      <Link to="/alerts" onClick={() => setMobileMenuOpen(false)} className="p-6 flex justify-between items-center hover:bg-muted">
+                        Alerts <ArrowRight className="w-4 h-4" aria-hidden />
+                      </Link>
+                      <Link
+                        to="/dashboard?action=profile"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="p-6 flex justify-between items-center hover:bg-muted"
+                      >
+                        Edit profile <ArrowRight className="w-4 h-4" aria-hidden />
+                      </Link>
+                    </>
+                  )}
                   <div className="p-6 flex flex-col gap-4 bg-muted/30">
                      <Button variant="outline" className="w-full rounded-none border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] font-mono text-xs font-bold uppercase tracking-widest h-12" onClick={handleLogout}>Log Out</Button>
                   </div>

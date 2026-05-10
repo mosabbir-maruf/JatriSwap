@@ -71,7 +71,7 @@ const Home = () => {
               Trusted by 50K+ Travelers
             </span>
           </div>
-          <h1 className="font-heading text-6xl sm:text-[100px] md:text-[120px] lg:text-[150px] xl:text-[180px] font-black leading-[0.85] tracking-tighter mb-8 text-foreground uppercase drop-shadow-[4px_4px_0_rgba(0,0,0,1)] md:drop-shadow-[6px_6px_0_rgba(0,0,0,1)]">
+          <h1 className="font-heading text-6xl sm:text-[100px] md:text-[120px] lg:text-[150px] xl:text-[180px] font-black leading-[0.85] tracking-tighter mb-8 text-foreground uppercase drop-shadow-[4px_4px_0_rgba(0,0,0,1)] md:drop-shadow-[6px_6px_0_rgba(0,0,0,1)] text-balance">
             Swap <br className="md:hidden" />Tickets.<br className="md:hidden" />
             <span className="text-primary tracking-tight"> Keep Travels.</span>
           </h1>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, Navigate, useLocation, useParams } from "react-router-dom";
+import { Link, Navigate, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { Activity, ArrowLeft, Mail, Phone, Shield, User as UserIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,11 @@ import { fetchTicketsBySellerIdForAdmin } from "@/src/lib/firebase/tickets";
 import { phoneDisplayToTelHref } from "@/src/lib/env/publicContact";
 import type { AdminUserRow, Ticket, TicketStatus } from "@/src/types";
 import { formatJoinedAtDisplay, formatTicketPostedAtAmPm } from "@/src/lib/formatLocaleDateTime";
+import {
+  ADMIN_PROFILE_RETURN_TAB_QUERY,
+  adminDashboardPath,
+  resolveAdminProfileReturnTab,
+} from "@/src/lib/adminDashboardTab";
 
 const adminTelLinkClass =
   "underline-offset-4 hover:underline hover:text-foreground text-primary inline-flex items-center gap-1 max-w-full min-w-0 break-all";
@@ -129,14 +134,13 @@ function AdminUserStatsPanel({
 export default function AdminUserProfile() {
   const { userId } = useParams<{ userId: string }>();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { currentUser, firebaseUser, loading } = useAuth();
   const [profile, setProfile] = useState<AdminUserRow | null | undefined>(undefined);
   const [sellerTickets, setSellerTickets] = useState<Ticket[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const tabFromState = (location.state as { tab?: string } | null)?.tab;
-  const allowedBackTabs = new Set(["overview", "tickets", "users", "reports", "logs", "admins"]);
-  const backTab = tabFromState && allowedBackTabs.has(tabFromState) ? tabFromState : "users";
+  const backTab = resolveAdminProfileReturnTab(searchParams.get(ADMIN_PROFILE_RETURN_TAB_QUERY));
 
   useEffect(() => {
     if (!userId || currentUser?.role !== "admin") return;
@@ -196,7 +200,7 @@ export default function AdminUserProfile() {
         <div className="flex flex-wrap items-center gap-4 justify-between">
           <Button
             variant="outline"
-            render={<Link to="/admin" state={{ tab: backTab }} />}
+            render={<Link to={adminDashboardPath(backTab)} />}
             className="rounded-none border-2 border-foreground bg-background text-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all inline-flex items-center gap-2 font-mono text-xs uppercase font-bold tracking-widest h-12 px-5"
           >
             <ArrowLeft className="w-4 h-4 shrink-0" aria-hidden />

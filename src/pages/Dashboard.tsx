@@ -207,6 +207,8 @@ const Dashboard = () => {
     return <Unauthorized />;
   }
 
+  const profileUiLabel = currentUser.role === "admin" ? "Profile" : "Edit Profile";
+
   const sellerUid = firebaseUser?.uid ?? currentUser.id;
   const myListings = tickets.filter((t) => t.sellerId === sellerUid);
 
@@ -300,7 +302,7 @@ const Dashboard = () => {
               </Button>
               <div className="flex gap-4">
                 <Button variant="outline" onClick={() => setProfileDialogOpen(true)} className="flex-1 rounded-none h-12 border-2 border-foreground bg-background px-4 font-mono text-[10px] font-bold uppercase tracking-widest shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all">
-                  <UserIcon className="w-4 h-4 mr-2" /> Edit Profile
+                  <UserIcon className="w-4 h-4 mr-2" /> {profileUiLabel}
                 </Button>
                 <Button
                   onClick={() => void signOut(auth).then(() => navigate("/", { replace: true }))}
@@ -580,6 +582,7 @@ const Dashboard = () => {
       <EditProfileDialog
         open={profileDialogOpen}
         onOpenChange={setProfileDialogOpen}
+        dialogTitle={profileUiLabel}
       />
     </div>
   );

@@ -11,6 +11,7 @@ import {
   mergePurchaseRequestListingSnapshot,
   purchaseRequestNeedsListingFallback,
 } from "@/src/lib/formatPurchaseRequest";
+import { adminUserProfilePath } from "@/src/lib/adminDashboardTab";
 
 const sellerContactLinkClass =
   "font-mono text-[10px] font-bold text-primary underline-offset-2 hover:underline break-all inline-flex items-center gap-1 max-w-full min-w-0";
@@ -175,8 +176,7 @@ function BuyerPurchaseRequestCardInner(props: BuyerPurchaseRequestCardProps) {
               <p className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider font-bold">Buyer</p>
               {req.buyerUserId !== ANONYMOUS_BUYER_ID ? (
                 <Link
-                  to={`/admin/users/${req.buyerUserId}`}
-                  state={{ tab: "overview" }}
+                  to={adminUserProfilePath(req.buyerUserId, "overview")}
                   className="font-mono text-[10px] font-bold text-primary underline-offset-2 hover:underline break-all line-clamp-2"
                   title="Open buyer profile (admin)"
                 >
@@ -189,8 +189,7 @@ function BuyerPurchaseRequestCardInner(props: BuyerPurchaseRequestCardProps) {
             <div className={partiesColumnSecondClass}>
               <p className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider font-bold">Seller</p>
               <Link
-                to={`/admin/users/${req.sellerId}`}
-                state={{ tab: "tickets" }}
+                to={adminUserProfilePath(req.sellerId, "tickets")}
                 className="font-mono text-[10px] font-bold text-primary underline-offset-2 hover:underline break-all line-clamp-2 block"
                 title="Open seller profile (admin)"
               >

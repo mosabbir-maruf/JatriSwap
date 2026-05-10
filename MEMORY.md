@@ -90,6 +90,12 @@ Concise long-term reference for **TransitSwap** (transit ticket marketplace). Fu
 - **`index.css`**: **`html { scrollbar-gutter: stable }`** reduces horizontal reflow when scrollbars appear (helps hero typography stability).
 - **`Home.tsx`**: Hero **`h1`** uses **`text-balance`** alongside bundled Space Grotesk.
 
+## Hosting (Vercel)
+
+- **[`vercel.json`](vercel.json)** adds one **rewrite** so navigations that have **no matching static file** serve **`index.html`** — React Router handles the path client-side (fixes refresh **404** on `/browse`, `/admin`, etc.).
+- That logic runs **only at the edge/router** when the browser requests a document — **not** in your JS bundle. It does **not** add components, listeners, or extra React reconciliation versus any other static host SPA setup.
+- Vercel serves **existing files under `dist/` first** (e.g. **`/assets/*`** hashed chunks from Vite, files from **`public/`**). The rewrite applies when there is **no** such file; keeping a single **`/(.*)` → `/index.html`** rule is standard and avoids misrouting **`/favicon.ico`** or root **`public`** assets that a narrower regex might accidentally capture.
+
 ## Current project state
 
 - **Maturity**: Single frontend app with Firebase backend; admin flows and marketplace pages under `src/pages/`.

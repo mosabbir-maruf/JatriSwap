@@ -103,6 +103,10 @@ firebase deploy --only firestore
 
 Add a **hosting** target to `firebase.json` when you want Firebase Hosting to serve `dist/`, or deploy `dist/` elsewhere with production env vars set before `npm run build`.
 
+### Vercel
+
+Import the repo with **Vite** (build output **`dist/`**). Root [`vercel.json`](vercel.json) serves **`index.html`** when no static file matches the URL so **refresh** on client routes (e.g. `/browse`, `/admin`) does not return **404**. That happens **only on the CDN/router** for document requests — it does **not** slow down the client app or cause extra React rendering beyond a normal page load. Set the same **`VITE_*`** env vars in the Vercel project before deploy.
+
 ## Scripts
 
 | Script | Description |
@@ -123,6 +127,7 @@ TransitSwap/
 ├── .firebaserc               # Firebase CLI default project
 ├── .gitignore
 ├── README.md
+├── vercel.json               # SPA fallback rewrites for Vercel
 ├── components.json           # shadcn-style UI config
 ├── firebase.json               # Firestore rules + indexes targets
 ├── firestore.indexes.json

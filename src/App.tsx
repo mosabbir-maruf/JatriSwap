@@ -30,6 +30,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import VerifyEmail from "./pages/VerifyEmail";
 
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const AdminUserProfile = lazy(() => import("./pages/AdminUserProfile"));
 const AdminLogin = lazy(() => import("./pages/AdminLogin"));
 const AdminRegister = lazy(() => import("./pages/AdminRegister"));
 
@@ -350,6 +351,14 @@ export default function App() {
               element={
                 <AdminRouteSuspense>
                   <AdminDashboard />
+                </AdminRouteSuspense>
+              }
+            />
+            <Route
+              path="admin/users/:userId"
+              element={
+                <AdminRouteSuspense>
+                  <AdminUserProfile />
                 </AdminRouteSuspense>
               }
             />

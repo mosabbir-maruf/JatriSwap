@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Ticket } from "@/src/types";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { Ticket, type TicketStatus } from "@/src/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,11 +12,34 @@ import { STATIONS, TRANSPORTS, SEAT_CLASSES } from "@/src/constants";
 import { Train, BusFront } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const ADMIN_LISTING_STATUSES = [
+  "available",
+  "sold",
+  "pending",
+  "expired",
+  "flagged",
+  "rejected",
+] as const satisfies readonly TicketStatus[];
+
+const ADMIN_LISTING_STATUS_SET = new Set<TicketStatus>(ADMIN_LISTING_STATUSES);
+
+function normalizeAdminListingStatus(
+  formStatus: TicketStatus | undefined,
+  savedStatus: TicketStatus | undefined,
+): TicketStatus {
+  if (formStatus && ADMIN_LISTING_STATUS_SET.has(formStatus)) return formStatus;
+  if (savedStatus && ADMIN_LISTING_STATUS_SET.has(savedStatus)) return savedStatus;
+  return "available";
+}
+
 interface EditTicketDialogProps {
   ticket: Ticket | null;
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  /** Called after Firestore update succeeds; receives the edited ticket id (stable for parent callbacks). */
+  onSuccess?: (ticketId: string) => void;
+  /** Admin dashboard: same form as sellers plus listing status. */
+  showListingStatus?: boolean;
 }
 
 /** Prefer mode implied by predefined transport name so toggle matches the listing even if `mode` on the doc is stale. */
@@ -27,7 +50,41 @@ function resolveEditMode(ticket: Ticket): Ticket["mode"] {
   return "train";
 }
 
-export function EditTicketDialog({ ticket, isOpen, onClose, onSuccess }: EditTicketDialogProps) {
+const StationSelect = React.memo(function StationSelect({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string | undefined;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="grid gap-2">
+      <Label className="font-mono text-[10px] uppercase tracking-widest font-bold">{label}</Label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="rounded-none border-2 border-foreground">
+          <SelectValue placeholder={label} />
+        </SelectTrigger>
+        <SelectContent className="rounded-none border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
+          {STATIONS.map((s) => (
+            <SelectItem key={s} value={s} className="font-mono text-xs uppercase cursor-pointer hover:bg-muted">
+              {s}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+});
+
+export function EditTicketDialog({
+  ticket,
+  isOpen,
+  onClose,
+  onSuccess,
+  showListingStatus = false,
+}: EditTicketDialogProps) {
   const [formData, setFormData] = useState<Partial<Ticket>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -52,18 +109,21 @@ export function EditTicketDialog({ ticket, isOpen, onClose, onSuccess }: EditTic
     });
   }, [ticket, isOpen]);
 
-  const handleChange = (field: keyof Ticket, value: any) => {
+  const handleChange = useCallback((field: keyof Ticket, value: unknown) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-  };
+  }, []);
 
-  const handleModeChange = (mode: Ticket["mode"]) => {
+  const handleFromStationChange = useCallback((v: string) => handleChange("from", v), [handleChange]);
+  const handleToStationChange = useCallback((v: string) => handleChange("to", v), [handleChange]);
+
+  const handleModeChange = useCallback((mode: Ticket["mode"]) => {
     setFormData((prev) => ({
       ...prev,
       mode,
       transportName: "",
       transportType: "",
     }));
-  };
+  }, []);
 
   /** Toggle + list reflect saved ticket until `useEffect` writes `formData.mode`. */
   const uiMode: Ticket["mode"] =
@@ -75,17 +135,20 @@ export function EditTicketDialog({ ticket, isOpen, onClose, onSuccess }: EditTic
           ? resolveEditMode(ticket)
           : "train";
 
-  const handleTransportPick = (name: string) => {
-    const entry = TRANSPORTS.find((t) => t.name === name && t.mode === uiMode);
-    setFormData((prev) => ({
-      ...prev,
-      mode: uiMode,
-      transportName: name,
-      transportType: entry?.type ?? "",
-    }));
-  };
+  const handleTransportPick = useCallback(
+    (name: string) => {
+      const entry = TRANSPORTS.find((t) => t.name === name && t.mode === uiMode);
+      setFormData((prev) => ({
+        ...prev,
+        mode: uiMode,
+        transportName: name,
+        transportType: entry?.type ?? "",
+      }));
+    },
+    [uiMode],
+  );
 
-  const transportsForMode = TRANSPORTS.filter((t) => t.mode === uiMode);
+  const transportsForMode = useMemo(() => TRANSPORTS.filter((t) => t.mode === uiMode), [uiMode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,7 +176,7 @@ export function EditTicketDialog({ ticket, isOpen, onClose, onSuccess }: EditTic
 
     setIsSubmitting(true);
     try {
-      await updateTicket(ticket.id, {
+      const payload: Parameters<typeof updateTicket>[1] = {
         mode,
         transportName: picked.name,
         transportType: picked.type,
@@ -125,10 +188,15 @@ export function EditTicketDialog({ ticket, isOpen, onClose, onSuccess }: EditTic
         seatNumber: formData.seatNumber,
         originalPrice: formData.originalPrice ? Number(formData.originalPrice) : undefined,
         sellingPrice: formData.sellingPrice ? Number(formData.sellingPrice) : undefined,
-        additionalNotes: (formData.additionalNotes ?? '').trim(),
-      });
+        additionalNotes: (formData.additionalNotes ?? "").trim(),
+      };
+      if (showListingStatus) {
+        payload.status = normalizeAdminListingStatus(formData.status, ticket.status);
+      }
+
+      await updateTicket(ticket.id, payload);
       toast.success("Ticket updated successfully.");
-      onSuccess();
+      onSuccess?.(ticket.id);
       onClose();
     } catch (error) {
       toast.error("Failed to update ticket.");
@@ -217,32 +285,8 @@ export function EditTicketDialog({ ticket, isOpen, onClose, onSuccess }: EditTic
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label className="font-mono text-[10px] uppercase tracking-widest font-bold">From</Label>
-                <Select value={formData.from} onValueChange={(v) => handleChange("from", v)}>
-                  <SelectTrigger className="rounded-none border-2 border-foreground">
-                    <SelectValue placeholder="From" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-none border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
-                    {STATIONS.map((s) => (
-                      <SelectItem key={s} value={s} className="font-mono text-xs uppercase cursor-pointer hover:bg-muted">{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label className="font-mono text-[10px] uppercase tracking-widest font-bold">To</Label>
-                <Select value={formData.to} onValueChange={(v) => handleChange("to", v)}>
-                  <SelectTrigger className="rounded-none border-2 border-foreground">
-                    <SelectValue placeholder="To" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-none border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
-                    {STATIONS.map((s) => (
-                      <SelectItem key={s} value={s} className="font-mono text-xs uppercase cursor-pointer hover:bg-muted">{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <StationSelect label="From" value={formData.from} onChange={handleFromStationChange} />
+              <StationSelect label="To" value={formData.to} onChange={handleToStationChange} />
             </div>
             
              <div className="grid grid-cols-2 gap-4">
@@ -303,6 +347,27 @@ export function EditTicketDialog({ ticket, isOpen, onClose, onSuccess }: EditTic
                 className="min-h-[100px] rounded-none border-2 border-foreground font-mono text-xs resize-none"
               />
             </div>
+
+            {showListingStatus && ticket ? (
+              <div className="grid gap-2">
+                <Label className="font-mono text-[10px] uppercase tracking-widest font-bold">Listing status</Label>
+                <Select
+                  value={normalizeAdminListingStatus(formData.status, ticket.status)}
+                  onValueChange={(v) => handleChange("status", v as TicketStatus)}
+                >
+                  <SelectTrigger className="rounded-none border-2 border-foreground min-h-10 font-mono font-bold text-xs uppercase">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-none border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
+                    {ADMIN_LISTING_STATUSES.map((s) => (
+                      <SelectItem key={s} value={s} className="font-mono text-xs uppercase cursor-pointer hover:bg-muted">
+                        {s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">

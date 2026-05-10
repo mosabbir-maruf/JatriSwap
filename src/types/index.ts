@@ -7,6 +7,24 @@ export interface User {
   avatar: string;
   role: Role;
   joinedAt: string;
+  /** Profile phone (shown in admin; optional if not collected). */
+  phone?: string;
+}
+
+/** Firestore `users` rows may include moderation/analytics fields surfaced in admin UI. */
+export interface AdminUserRow extends User {
+  status?: string;
+  ticketsPosted?: number;
+  performance?: { active?: number; sold?: number };
+}
+
+/** Pending registration docs in `admins` with `role == "pending_admin"`. */
+export interface PendingAdminRow {
+  id: string;
+  name?: string;
+  email?: string;
+  role?: string;
+  permissions?: string[];
 }
 
 export type TicketStatus = 'available' | 'sold' | 'pending' | 'expired' | 'flagged' | 'rejected';

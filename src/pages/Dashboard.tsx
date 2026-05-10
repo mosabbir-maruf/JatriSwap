@@ -12,6 +12,12 @@ import { useAuth } from "@/src/contexts/AuthContext";
 import { needsEmailVerification } from "@/src/lib/firebase/authVerification";
 import { Ticket as TicketType, Notification as NotificationType } from "@/src/types";
 import { subscribeToSellerTickets, deleteTicket, updateTicketStatus } from "@/src/lib/firebase/tickets";
+import { scheduleTicketDeleteWithUndo } from "@/src/lib/ticketDeleteUndo";
+import {
+  canSellerDeleteListing,
+  canSellerEditListingFields,
+  canSellerMarkSold,
+} from "@/src/lib/sellerListingControls";
 import { subscribeToNotifications, markNotificationRead } from "@/src/lib/firebase/notifications";
 import { signOut } from "firebase/auth";
 import { auth } from "@/src/lib/firebase/firebase";
@@ -77,16 +83,27 @@ const Dashboard = () => {
       ? summarizeSellDraft(sellDraftSnapshot)
       : null;
 
-  const handleDelete = async (id: string) => {
-    try {
-      await deleteTicket(id);
-      toast.success("Ticket deleted successfully.");
-    } catch (e) {
-      toast.error("Failed to delete ticket.");
+  const handleDelete = (id: string) => {
+    const row = tickets.find((t) => t.id === id);
+    if (!row || !canSellerDeleteListing(row.status)) {
+      toast.error("This listing can’t be deleted while it’s under admin review.");
+      return;
     }
+    scheduleTicketDeleteWithUndo({
+      ticketId: id,
+      message: "Listing will be deleted. Undo within 10 seconds.",
+      commitDelete: () => deleteTicket(id),
+      onCommitted: () => toast.success("Listing deleted."),
+      onCommitFailed: () => toast.error("Failed to delete listing."),
+    });
   };
 
   const handleMarkSold = async (id: string) => {
+    const row = tickets.find((t) => t.id === id);
+    if (!row || !canSellerMarkSold(row.status)) {
+      toast.error("Only active listings can be marked sold.");
+      return;
+    }
     try {
       await updateTicketStatus(id, "sold");
       toast.success("Ticket marked as sold.");
@@ -95,18 +112,13 @@ const Dashboard = () => {
     }
   };
 
-  const handleRepost = async (id: string) => {
-    try {
-      await updateTicketStatus(id, "available");
-      toast.success("Ticket reposted successfully.");
-    } catch(e) {
-      toast.error("Failed to repost ticket.");
-    }
-  };
-
   const handleEdit = (id: string) => {
-     const ticketToEdit = tickets.find(t => t.id === id);
-     if (ticketToEdit) setEditingTicket(ticketToEdit);
+    const ticketToEdit = tickets.find((t) => t.id === id);
+    if (!ticketToEdit || !canSellerEditListingFields(ticketToEdit.status)) {
+      toast.error("You can’t edit this listing until an admin sets it back to Available.");
+      return;
+    }
+    setEditingTicket(ticketToEdit);
   };
 
   const handleNotificationClick = async (notif: NotificationType) => {
@@ -365,7 +377,6 @@ const Dashboard = () => {
                              onDelete={handleDelete}
                              onEdit={handleEdit}
                              onMarkSold={handleMarkSold}
-                             onRepost={handleRepost}
                            />
                          ))}
                        </div>
@@ -455,11 +466,10 @@ const Dashboard = () => {
         </div>
 
       </div>
-      <EditTicketDialog 
+      <EditTicketDialog
         ticket={editingTicket}
         isOpen={!!editingTicket}
         onClose={() => setEditingTicket(null)}
-        onSuccess={() => {}}
       />
       <EditProfileDialog
         open={profileDialogOpen}

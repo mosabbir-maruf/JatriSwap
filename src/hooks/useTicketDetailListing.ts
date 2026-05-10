@@ -52,6 +52,9 @@ export function useTicketDetailListing(ticketId: string | undefined): {
           const viewerAuthUid = auth.currentUser?.uid ?? null;
           if (viewerAuthUid && viewerAuthUid === fetched.sellerId) return;
 
+          // Only count impressions for active marketplace listings (Browse lists `available` only).
+          if (fetched.status !== "available") return;
+
           try {
             const key = ticketViewSessionKey(ticketId);
             if (sessionStorage.getItem(key)) return;

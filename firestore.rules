@@ -79,9 +79,25 @@ service cloud.firestore {
              (data.get('seatClass', '') is string) && data.get('seatClass', '').size() <= 50 &&
              (data.get('seatNumber', '') is string) && data.get('seatNumber', '').size() <= 50 &&
              (data.get('passengerCount', 1) is number) &&
-             (data.get('views', 0) is number) &&
-             (data.get('featured', false) is bool) &&
-             (data.get('urgent', false) is bool);
+             (data.get('views', 0) is number);
+    }
+
+    /** Seller cannot mutate/delete listing while admin has pending, flagged, or rejected. */
+    function ticketSellerModerationFrozen(status) {
+      return status == 'pending' || status == 'flagged' || status == 'rejected';
+    }
+
+    function ticketStandardFieldDiff() {
+      return incoming().diff(existing()).affectedKeys().hasOnly([
+        'status', 'sellingPrice', 'views', 'transportName', 'from', 'to', 'departureTime', 'seatClass', 'seatNumber',
+        'originalPrice', 'transportType', 'passengerCount', 'date', 'mode', 'sellerName', 'sellerPhone',
+        'additionalNotes'
+      ]);
+    }
+
+    function ticketAnonymousViewsBump() {
+      return incoming().diff(existing()).affectedKeys().hasOnly(['views']) &&
+             incoming().views == existing().get('views', 0) + 1;
     }
 
     function isValidChat(data) {
@@ -163,7 +179,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow get: if isSignedIn();
+      allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
       allow create: if isSignedIn() && isVerified() &&
                     isValidId(userId) && 
@@ -184,19 +200,23 @@ service cloud.firestore {
         incoming().sellerId == existing().sellerId &&
         incoming().postedAt == existing().postedAt &&
         ticketMergedConsistent(incoming()) &&
-        incoming().diff(existing()).affectedKeys().hasOnly([
-          'status', 'sellingPrice', 'views', 'transportName', 'from', 'to', 'departureTime', 'seatClass', 'seatNumber',
-          'originalPrice', 'transportType', 'passengerCount', 'featured', 'urgent', 'date', 'mode', 'sellerName', 'sellerPhone',
-          'additionalNotes'
-        ]) &&
         (
-          (isSignedIn() && isVerified() && isOwner(existing().sellerId)) ||
-          (isSignedIn() && isVerified() && isAdmin()) ||
-          // Anyone may bump views by exactly +1 only (detail-page impressions; no auth required).
-          (incoming().diff(existing()).affectedKeys().hasOnly(['views']) &&
-           incoming().views == existing().get('views', 0) + 1)
+          (
+            ticketStandardFieldDiff() &&
+            (
+              (isSignedIn() && isVerified() && isAdmin()) ||
+              (
+                isSignedIn() && isVerified() && isOwner(existing().sellerId) &&
+                !ticketSellerModerationFrozen(existing().status) &&
+                existing().status == 'available'
+              )
+            )
+          )
+          ||
+          ticketAnonymousViewsBump()
         );
-      allow delete: if isAdmin() || isOwner(existing().sellerId);
+      allow delete: if isAdmin() ||
+        (isSignedIn() && isVerified() && isOwner(existing().sellerId) && !ticketSellerModerationFrozen(existing().status));
     }
 
     match /chats/{chatId} {
@@ -249,6 +269,21 @@ service cloud.firestore {
       allow create: if isValidId(reportId) && isValidTicketReport(incoming()) && ticketReportMatchesTicket(incoming());
       allow update: if false;
       allow delete: if isAdmin();
+    }
+
+    /** Staff-only notes per listing (not readable on public ticket pages). */
+    match /ticketAdminNotes/{ticketId} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin() && isValidId(ticketId) &&
+        incoming().keys().hasOnly(['note', 'updatedAt', 'updatedByUid']) &&
+        incoming().note is string && incoming().note.size() <= 4000 &&
+        incoming().updatedByUid == request.auth.uid &&
+        incoming().updatedAt == request.time;
+      allow delete: if isAdmin() || (
+        isSignedIn() && isVerified() &&
+        exists(/databases/$(database)/documents/tickets/$(ticketId)) &&
+        get(/databases/$(database)/documents/tickets/$(ticketId)).data.sellerId == request.auth.uid
+      );
     }
   }
 }

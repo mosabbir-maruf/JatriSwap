@@ -25,7 +25,17 @@ export function getPublicWhatsAppLink(prefilledText?: string): PublicWhatsAppLin
   return { label, href };
 }
 
-/** Build `tel:` URL from a human-readable number (internal spaces stripped). */
+/** Build a `tel:` URL from any stored/display phone (punctuation stripped; leading `+` preserved when present). */
+export function phoneDisplayToTelHref(displayPhone: string): string {
+  const trimmed = displayPhone.trim();
+  if (!trimmed) return "tel:";
+  const leadingPlus = trimmed.startsWith("+");
+  const digits = trimmed.replace(/\D/g, "");
+  if (!digits) return "tel:";
+  return leadingPlus ? `tel:+${digits}` : `tel:${digits}`;
+}
+
+/** Build `tel:` URL for env support line (same normalization as {@link phoneDisplayToTelHref}). */
 export function supportPhoneTelHref(displayPhone: string): string {
-  return `tel:${displayPhone.replace(/\s/g, "")}`;
+  return phoneDisplayToTelHref(displayPhone);
 }

@@ -1,4 +1,16 @@
-import { collection, doc, getDoc, setDoc, addDoc, getDocs, query, orderBy, serverTimestamp, limit } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+  addDoc,
+  getDocs,
+  query,
+  orderBy,
+  serverTimestamp,
+  limit,
+  type Timestamp,
+} from 'firebase/firestore';
 import { db } from './firebase';
 import { handleFirestoreError } from './errors';
 import { OperationType } from '../../types';
@@ -33,7 +45,7 @@ export interface AdminLog {
   action: string;
   details: string;
   time: string;
-  createdAt: any;
+  createdAt: Timestamp | Date;
 }
 
 export const getAdminLogs = async (): Promise<AdminLog[]> => {
@@ -41,15 +53,16 @@ export const getAdminLogs = async (): Promise<AdminLog[]> => {
   try {
     const q = query(collection(db, 'adminLogs'), orderBy('createdAt', 'desc'), limit(50));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      const date = data.createdAt?.toDate() || new Date();
+    return querySnapshot.docs.map((d) => {
+      const data = d.data();
+      const ts = data.createdAt as Timestamp | undefined;
+      const date = ts?.toDate?.() ?? new Date();
       return {
-        id: doc.id,
-        action: data.action,
-        details: data.details,
+        id: d.id,
+        action: String(data.action ?? ''),
+        details: String(data.details ?? ''),
         time: date.toLocaleString(),
-        createdAt: data.createdAt
+        createdAt: ts ?? date,
       };
     });
   } catch (error) {

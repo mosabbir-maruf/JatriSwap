@@ -15,9 +15,10 @@ import { needsEmailVerification } from "@/src/lib/firebase/authVerification";
 import { enqueueSellerPurchaseRequestNotification } from "@/src/lib/firebase/sellerTicketNotifications";
 import { useTicketDetailListing } from "@/src/hooks/useTicketDetailListing";
 import { openTicketPurchaseWhatsApp } from "@/src/lib/ticketBuyRequest";
+import { isTicketDetailHiddenFromPublicBuyer } from "@/src/lib/ticketDetailVisibility";
 
 const TicketDetails = () => {
-  const { firebaseUser } = useAuth();
+  const { firebaseUser, currentUser, loading: authLoading } = useAuth();
   const { id } = useParams();
   const { ticket, isLoading, viewerUid } = useTicketDetailListing(id);
   const location = useLocation();
@@ -40,6 +41,23 @@ const TicketDetails = () => {
   }
 
   if (!ticket) {
+    return <NotFound />;
+  }
+
+  const viewerIsAdmin = currentUser?.role === "admin";
+  const detailHiddenFromBuyer = isTicketDetailHiddenFromPublicBuyer(ticket, viewerUid, viewerIsAdmin);
+
+  if (detailHiddenFromBuyer && authLoading) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 px-4 text-muted-foreground">
+        <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
+        <p className="text-center font-mono text-[10px] font-bold uppercase tracking-widest">Loading…</p>
+        <span className="sr-only">Checking access</span>
+      </div>
+    );
+  }
+
+  if (detailHiddenFromBuyer) {
     return <NotFound />;
   }
 

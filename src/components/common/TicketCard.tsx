@@ -1,22 +1,28 @@
 import * as React from "react"
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
-import { MapPin, Train, BusFront, Edit2, Trash2, CheckCircle2, RotateCcw, AlertTriangle, Eye, MessageCircle } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { MapPin, Train, BusFront, Edit2, Trash2, CheckCircle2, AlertTriangle, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { QRCodeSVG } from "qrcode.react";
+import { cn } from "@/lib/utils";
+import type { Ticket as TicketModel } from "@/src/types";
+import {
+  canSellerDeleteListing,
+  canSellerEditListingFields,
+  canSellerMarkSold,
+  isSellerListingModerationLocked,
+} from "@/src/lib/sellerListingControls";
 
 interface TicketProps {
-  ticket: any; 
+  ticket: TicketModel & { status?: string };
   mode?: "default" | "seller";
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
   onMarkSold?: (id: string) => void;
-  onRepost?: (id: string) => void;
   fromDashboard?: boolean;
 }
 
-export const TicketCard: React.FC<TicketProps> = ({ ticket, mode = "default", onEdit, onDelete, onMarkSold, onRepost, fromDashboard = false }) => {
+export const TicketCard: React.FC<TicketProps> = ({ ticket, mode = "default", onEdit, onDelete, onMarkSold, fromDashboard = false }) => {
 
   const computedExpired = new Date() > new Date(`${ticket.date}T${ticket.departureTime || '00:00'}`) || ticket.status === "expired";
   const isSold = ticket.status === "sold";
@@ -24,14 +30,38 @@ export const TicketCard: React.FC<TicketProps> = ({ ticket, mode = "default", on
   const isAvailable = (ticket.status === "available" || ticket.status === "active") && !isExpired && !isSold;
   const isPending = ticket.status === "pending" && !isExpired && !isSold;
   const isRejected = ticket.status === "rejected" && !isExpired && !isSold;
+  const isFlagged = ticket.status === "flagged" && !isExpired && !isSold;
+  const moderationLocked = isSellerListingModerationLocked(ticket.status);
+  const showSellerEdit = mode === "seller" && canSellerEditListingFields(ticket.status);
+  const showSellerMarkSold = mode === "seller" && canSellerMarkSold(ticket.status);
+  const showSellerDelete = mode === "seller" && canSellerDeleteListing(ticket.status);
+
+  /** Flagged/rejected: read-only slab — no overlay link, no pointer interaction; same dim/grayscale as expired. */
+  const sellerHardLocked = mode === "seller" && (isFlagged || isRejected);
+
+  /** Inactive marketplace rows (sold/expired) plus seller flagged/rejected — matches expired card treatment. */
+  const dimInactiveListing =
+    (!isAvailable && !isPending && !isRejected && !isFlagged) || sellerHardLocked;
+
+  const showTicketDetailLink =
+    (isAvailable || mode === "seller" || fromDashboard) && !sellerHardLocked;
 
   return (
-    <div className={`relative group w-full flex flex-col h-full transition-transform ${isAvailable ? "hover:-translate-y-1" : "opacity-60 grayscale"} mt-4 sm:mt-0 bg-background`}>
+    <div
+      className={cn(
+        "relative group mt-4 flex h-full w-full flex-col bg-background transition-transform sm:mt-0",
+        isAvailable && "hover:-translate-y-1",
+        sellerHardLocked && "pointer-events-none cursor-not-allowed select-none",
+      )}
+      aria-disabled={sellerHardLocked ? true : undefined}
+    >
       {mode === "seller" && (
           <div className="absolute -top-3 -right-3 z-40 flex items-center gap-1 font-mono text-[10px] font-bold text-foreground bg-[#FFFF00] px-2 py-1 border-2 border-foreground shadow-[2px_2px_0_0_rgb(0,0,0)]" title="Views">
             <Eye className="w-3 h-3"/> {ticket.views || 0}
           </div>
       )}
+      {/* Grayscale here only — parent filter would wash out status/red UI below (CSS limitation). */}
+      <div className={cn("flex flex-1 flex-col", dimInactiveListing && "opacity-60 grayscale")}>
       {/* Outer border container acting as the ticket clipping */}
       <div className="border border-foreground flex flex-col sm:flex-row overflow-hidden shadow-[4px_4px_0_0_rgb(0,0,0)] flex-1">
         
@@ -103,8 +133,9 @@ export const TicketCard: React.FC<TicketProps> = ({ ticket, mode = "default", on
 
         </div>
       </div>
-      
-      {/* Bottom Bar Info */}
+      </div>
+
+      {/* Bottom Bar Info — outside grayscale wrapper so badges stay red/destructive */}
       <div className="bg-foreground text-background py-2 px-4 flex justify-between items-center border-[1px] border-foreground shadow-[4px_4px_0_0_rgb(0,0,0)] mt-0 translate-y-[-1px] rounded-b-none shrink-0 min-h-[44px] relative z-30">
         <div className="font-mono text-[8px] sm:text-[10px] uppercase tracking-widest font-bold flex items-center gap-3 flex-1">
            <span className="opacity-70 break-all w-24 sm:w-auto">ID: {ticket.id}</span>
@@ -117,7 +148,16 @@ export const TicketCard: React.FC<TicketProps> = ({ ticket, mode = "default", on
           <div className="flex items-center gap-1">
             {isAvailable && <span className="bg-primary text-primary-foreground px-2 py-0.5 font-mono text-[8px] font-black uppercase tracking-widest">Active</span>}
             {isPending && <span className="bg-amber-500 text-amber-950 px-2 py-0.5 font-mono text-[8px] font-black uppercase tracking-widest">Pending</span>}
-            {isRejected && <span className="bg-destructive text-destructive-foreground px-2 py-0.5 font-mono text-[8px] font-black uppercase tracking-widest">Rejected</span>}
+            {isFlagged && (
+              <span className="bg-red-600 text-white px-2 py-0.5 font-mono text-[8px] font-black uppercase tracking-widest border border-red-900 shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
+                Flagged
+              </span>
+            )}
+            {isRejected && (
+              <span className="bg-red-600 text-white px-2 py-0.5 font-mono text-[8px] font-black uppercase tracking-widest border border-red-900 shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
+                Rejected
+              </span>
+            )}
             {isSold && <span className="bg-muted text-muted-foreground border border-muted-foreground px-2 py-0.5 font-mono text-[8px] font-black uppercase tracking-widest">Sold</span>}
             {isExpired && <span className="bg-muted text-muted-foreground border border-muted-foreground px-2 py-0.5 font-mono text-[8px] font-black uppercase tracking-widest">Expired</span>}
           </div>
@@ -142,35 +182,54 @@ export const TicketCard: React.FC<TicketProps> = ({ ticket, mode = "default", on
 
       {mode === "seller" && (
         <div className="bg-background border-[1px] border-t-0 border-foreground shadow-[4px_4px_0_0_rgb(0,0,0)] p-3 relative z-30 flex flex-col gap-3">
-           {(isPending || isRejected) && (
-             <div className="flex justify-start items-center bg-muted/30 p-2 border border-border">
-               {isPending && <p className="font-mono text-[8px] text-amber-600 font-bold uppercase tracking-widest animate-pulse">Awaiting Approval</p>}
-               {isRejected && (
-                 <p className="font-mono text-[8px] text-destructive flex items-center font-bold uppercase tracking-widest">
-                   <AlertTriangle className="w-3 h-3 mr-1"/>
-                   Rejected{ticket.rejectionReason ? `: ${ticket.rejectionReason}` : ''}
+           {(isPending || isRejected || isFlagged) && (
+             <div
+               className={
+                 (isFlagged || isRejected) && !isPending
+                   ? "flex justify-start items-center bg-red-50 dark:bg-red-950/40 p-2 border-2 border-red-700"
+                   : "flex justify-start items-center bg-muted/30 p-2 border border-border"
+               }
+             >
+               {isPending && <p className="font-mono text-[8px] text-amber-600 font-bold uppercase tracking-widest">Awaiting admin review — editing is disabled</p>}
+               {isFlagged && (
+                 <p className="font-mono text-[8px] text-red-800 dark:text-red-100 flex items-center font-bold uppercase tracking-widest">
+                   <AlertTriangle className="w-3 h-3 mr-1 shrink-0 text-red-700 dark:text-red-300"/>
+                   Flagged by moderation — editing is disabled until an admin updates the listing
                  </p>
+               )}
+               {isRejected && (
+                 <div className="space-y-1">
+                   <p className="font-mono text-[8px] text-red-800 dark:text-red-100 flex items-center font-bold uppercase tracking-widest">
+                     <AlertTriangle className="w-3 h-3 mr-1 shrink-0 text-red-700 dark:text-red-300"/>
+                     Rejected{ticket.rejectionReason ? `: ${ticket.rejectionReason}` : ''}
+                   </p>
+                   <p className="font-mono text-[8px] text-muted-foreground font-bold uppercase tracking-widest leading-relaxed">
+                     Only an admin can return this listing to Available.
+                   </p>
+                 </div>
                )}
              </div>
            )}
 
+           {!moderationLocked ? (
            <div className="flex flex-wrap gap-2">
-             <Button variant="outline" size="sm" onClick={(e) => { e.preventDefault(); onEdit?.(ticket.id); }} className="h-7 px-2 font-mono text-[8px] uppercase tracking-widest rounded-none border-foreground hover:bg-foreground hover:text-background flex-1 shadow-[2px_2px_0_0_rgba(0,0,0,1)]"><Edit2 className="w-3 h-3 mr-1"/> Edit</Button>
-             
-             {isAvailable && (
-               <Button variant="outline" size="sm" onClick={(e) => { e.preventDefault(); onMarkSold?.(ticket.id); }} className="h-7 px-2 font-mono text-[8px] uppercase tracking-widest rounded-none border-foreground hover:bg-emerald-500 hover:text-white hover:border-emerald-500 flex-1 shadow-[2px_2px_0_0_rgba(0,0,0,1)]"><CheckCircle2 className="w-3 h-3 mr-1"/> Mark Sold</Button>
-             )}
-             
-             {(isSold || isExpired || isRejected) && (
-               <Button variant="outline" size="sm" onClick={(e) => { e.preventDefault(); onRepost?.(ticket.id); }} className="h-7 px-2 font-mono text-[8px] uppercase tracking-widest rounded-none border-foreground hover:bg-blue-500 hover:text-white hover:border-blue-500 flex-1 shadow-[2px_2px_0_0_rgba(0,0,0,1)]"><RotateCcw className="w-3 h-3 mr-1"/> Repost</Button>
-             )}
+             {showSellerEdit ? (
+               <Button variant="outline" size="sm" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEdit?.(ticket.id); }} className="h-7 px-2 font-mono text-[8px] uppercase tracking-widest rounded-none border-foreground hover:bg-foreground hover:text-background flex-1 shadow-[2px_2px_0_0_rgba(0,0,0,1)]"><Edit2 className="w-3 h-3 mr-1"/> Edit</Button>
+             ) : null}
 
-             <Button variant="outline" size="sm" onClick={(e) => { e.preventDefault(); onDelete?.(ticket.id); }} className="h-7 px-2 font-mono text-[8px] uppercase tracking-widest rounded-none border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground focus:ring-destructive flex-shrink-0 shadow-[2px_2px_0_0_rgba(0,0,0,1)]"><Trash2 className="w-3 h-3"/></Button>
+             {showSellerMarkSold ? (
+               <Button variant="outline" size="sm" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onMarkSold?.(ticket.id); }} className="h-7 px-2 font-mono text-[8px] uppercase tracking-widest rounded-none border-foreground hover:bg-emerald-500 hover:text-white hover:border-emerald-500 flex-1 shadow-[2px_2px_0_0_rgba(0,0,0,1)]"><CheckCircle2 className="w-3 h-3 mr-1"/> Mark Sold</Button>
+             ) : null}
+
+             {showSellerDelete ? (
+               <Button variant="outline" size="sm" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete?.(ticket.id); }} className="h-7 px-2 font-mono text-[8px] uppercase tracking-widest rounded-none border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground focus:ring-destructive flex-shrink-0 shadow-[2px_2px_0_0_rgba(0,0,0,1)]"><Trash2 className="w-3 h-3"/></Button>
+             ) : null}
            </div>
+           ) : null}
         </div>
       )}
 
-      {(isAvailable || mode === "seller" || fromDashboard) && (
+      {showTicketDetailLink && (
         <Link to={`/ticket/${ticket.id}${mode === 'seller' || fromDashboard ? '?from=dashboard' : ''}`} className="absolute inset-0 z-20 focus:outline-none focus:ring-2 ring-primary ring-offset-2">
           <span className="sr-only">View Ticket Details</span>
         </Link>

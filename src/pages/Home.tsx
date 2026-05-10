@@ -23,8 +23,8 @@ const Home = () => {
   const listingViewer = useTicketSellerPrivacy();
   const [date, setDate] = React.useState<Date | undefined>();
   const [transportMode, setTransportMode] = React.useState<"train" | "bus">("train");
-  const [featuredFeedRaw, setFeaturedFeedRaw] = React.useState<TicketType[]>([]);
-  const [featuredFeedReady, setFeaturedFeedReady] = React.useState(false);
+  const [homePreviewRaw, setHomePreviewRaw] = React.useState<TicketType[]>([]);
+  const [homePreviewReady, setHomePreviewReady] = React.useState(false);
 
   const [origin, setOrigin] = React.useState<string>("");
   const [destination, setDestination] = React.useState<string>("");
@@ -32,8 +32,8 @@ const Home = () => {
   React.useEffect(() => {
     const unsubscribe = subscribeToTickets(
       (rows) => {
-        setFeaturedFeedRaw(rows.filter((t) => t.status === "available").slice(0, 6));
-        setFeaturedFeedReady(true);
+        setHomePreviewRaw(rows.filter((t) => t.status === "available").slice(0, 6));
+        setHomePreviewReady(true);
       },
       undefined,
       { maxDocuments: 120 },
@@ -41,9 +41,9 @@ const Home = () => {
     return () => unsubscribe();
   }, []);
 
-  const featuredTickets = React.useMemo(
-    () => redactSellerPhonesForViewer(featuredFeedRaw, listingViewer),
-    [featuredFeedRaw, listingViewer],
+  const homePreviewTickets = React.useMemo(
+    () => redactSellerPhonesForViewer(homePreviewRaw, listingViewer),
+    [homePreviewRaw, listingViewer],
   );
 
   const handleSearch = (e: React.FormEvent) => {
@@ -189,13 +189,13 @@ const Home = () => {
         </motion.div>
       </section>
 
-      {/* Featured Section */}
+      {/* Latest listings preview */}
       <section className="py-24 bg-background border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-end mb-16 border-b border-border pb-6">
             <div>
-              <h2 className="font-heading text-4xl md:text-5xl font-black uppercase tracking-tighter mb-2">Urgent <span className="text-primary">Deals</span></h2>
-              <p className="font-mono text-muted-foreground uppercase tracking-widest text-[10px] font-bold">Departing soon. Grab them before they're gone.</p>
+              <h2 className="font-heading text-4xl md:text-5xl font-black uppercase tracking-tighter mb-2">Latest <span className="text-primary">Listings</span></h2>
+              <p className="font-mono text-muted-foreground uppercase tracking-widest text-[10px] font-bold">Recently posted available tickets — browse for more.</p>
             </div>
             <Button variant="outline" render={<Link to="/browse" />} className="hidden sm:flex group rounded-none border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] font-mono text-xs uppercase font-bold px-6 h-12">
                 View all <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -203,7 +203,7 @@ const Home = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-            {!featuredFeedReady ? (
+            {!homePreviewReady ? (
               <>
                 {[1, 2, 3].map((i) => (
                   <Skeleton
@@ -214,7 +214,7 @@ const Home = () => {
                 ))}
               </>
             ) : (
-              featuredTickets.map((ticket, i) => (
+              homePreviewTickets.map((ticket, i) => (
                 <motion.div
                   key={ticket.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -228,9 +228,9 @@ const Home = () => {
               ))
             )}
           </div>
-          {featuredFeedReady && featuredTickets.length === 0 && (
+          {homePreviewReady && homePreviewTickets.length === 0 && (
             <p className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground text-center mb-8">
-              No featured listings right now.{" "}
+              No listings to show right now.{" "}
               <Link to="/browse" className="text-foreground underline underline-offset-4">
                 Browse all tickets
               </Link>

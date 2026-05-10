@@ -1,0 +1,378 @@
+import { useEffect, useState } from "react";
+import { Link, Navigate, useLocation, useParams } from "react-router-dom";
+import { Activity, ArrowLeft, Mail, Phone, Shield, User as UserIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/src/contexts/AuthContext";
+import { needsEmailVerification } from "@/src/lib/firebase/authVerification";
+import { getUser } from "@/src/lib/firebase/users";
+import { fetchTicketsBySellerIdForAdmin, ticketPostedAtMs } from "@/src/lib/firebase/tickets";
+import { phoneDisplayToTelHref } from "@/src/lib/env/publicContact";
+import type { AdminUserRow, Ticket, TicketStatus } from "@/src/types";
+import { format, isValid, parseISO } from "date-fns";
+
+function formatUnknownJoinedAt(raw: unknown): string {
+  if (raw == null || raw === "") return "—";
+  if (typeof raw === "object" && raw !== null && typeof (raw as { toDate?: () => Date }).toDate === "function") {
+    try {
+      const d = (raw as { toDate: () => Date }).toDate();
+      return isValid(d) ? d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "—";
+    } catch {
+      /* fall through */
+    }
+  }
+  if (typeof raw === "string") {
+    const p = parseISO(raw.includes("T") ? raw : `${raw}T00:00:00`);
+    return isValid(p) ? format(p, "MMM d, yyyy") : raw;
+  }
+  return String(raw);
+}
+
+function formatTicketPostedShort(postedAt: Ticket["postedAt"]): string {
+  const ms = ticketPostedAtMs({ postedAt });
+  if (!ms) return "—";
+  return new Date(ms).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
+
+const adminTelLinkClass =
+  "underline-offset-4 hover:underline hover:text-foreground text-primary inline-flex items-center gap-1 max-w-full min-w-0 break-all";
+
+/** Profile often has no `phone`; listings carry `sellerPhone` (see Sell flow). */
+function resolveAdminPhoneDisplay(
+  profile: AdminUserRow | null | undefined,
+  tickets: Ticket[],
+): { phone: string; source: "profile" | "listing" } | null {
+  const fromProfile = typeof profile?.phone === "string" ? profile.phone.trim() : "";
+  if (fromProfile) return { phone: fromProfile, source: "profile" };
+  for (const t of tickets) {
+    const p = typeof t.sellerPhone === "string" ? t.sellerPhone.trim() : "";
+    if (p) return { phone: p, source: "listing" };
+  }
+  return null;
+}
+
+const STATUS_ORDER: TicketStatus[] = ["available", "sold", "pending", "flagged", "rejected", "expired"];
+
+function labelStatus(s: TicketStatus): string {
+  switch (s) {
+    case "available":
+      return "Available";
+    case "sold":
+      return "Sold";
+    case "pending":
+      return "Pending review";
+    case "flagged":
+      return "Flagged";
+    case "rejected":
+      return "Rejected";
+    case "expired":
+      return "Expired";
+    default:
+      return s;
+  }
+}
+
+function AdminUserStatsPanel({
+  tickets,
+  profile,
+}: {
+  tickets: Ticket[];
+  profile: AdminUserRow | null;
+}) {
+  const totalListingsLoaded = tickets.length;
+  const docPosts = profile != null && typeof profile.ticketsPosted === "number" ? profile.ticketsPosted : null;
+
+  const byStatus = tickets.reduce<Partial<Record<TicketStatus, number>>>((acc, t) => {
+    const k = t.status;
+    acc[k] = (acc[k] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const available = byStatus.available ?? 0;
+  const sold = byStatus.sold ?? 0;
+  const totalViews = tickets.reduce((sum, t) => sum + (typeof t.views === "number" && !Number.isNaN(t.views) ? t.views : 0), 0);
+  const trainCount = tickets.filter((t) => t.mode === "train").length;
+  const busCount = tickets.filter((t) => t.mode === "bus").length;
+
+  const docActive = profile?.performance?.active;
+  const docSold = profile?.performance?.sold;
+
+  const statTile = (label: string, value: number | string, hint?: string) => (
+    <div className="border-2 border-foreground p-4 shadow-[4px_4px_0_0_rgba(0,0,0,1)] bg-muted/10">
+      <p className="font-mono text-[10px] font-black uppercase text-muted-foreground">{label}</p>
+      <p className="font-heading text-2xl font-black mt-1">{value}</p>
+      {hint ? <p className="font-mono text-[9px] text-muted-foreground mt-1 leading-snug">{hint}</p> : null}
+    </div>
+  );
+
+  return (
+    <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 space-y-6">
+      <h2 className="font-heading text-xl font-black uppercase tracking-tighter flex flex-wrap items-center gap-2 bg-foreground text-background px-3 py-1 border-2 border-foreground inline-flex">
+        <Activity className="w-5 h-5 shrink-0" aria-hidden />
+        User statistics
+      </h2>
+      <p className="font-mono text-[10px] text-muted-foreground font-bold leading-relaxed max-w-3xl">
+        Admin-only summary. Counts below use listings loaded for this seller (up to 200). Firestore profile totals may differ if the user has older listings outside this window.
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {statTile(
+          "Listings (loaded)",
+          totalListingsLoaded,
+          docPosts != null ? `Profile field ticketsPosted: ${docPosts}` : undefined,
+        )}
+        {statTile("Available", available, docActive != null ? `Profile performance.active: ${docActive}` : undefined)}
+        {statTile("Sold", sold, docSold != null ? `Profile performance.sold: ${docSold}` : undefined)}
+        {statTile("Total listing views", totalViews.toLocaleString(), "Sum of views across loaded listings")}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {statTile("Train listings", trainCount)}
+        {statTile("Bus listings", busCount)}
+      </div>
+
+      <div>
+        <p className="font-mono text-[10px] font-black uppercase text-muted-foreground mb-3">Status breakdown</p>
+        <div className="flex flex-wrap gap-2">
+          {STATUS_ORDER.map((s) => (
+            <Badge
+              key={s}
+              variant="outline"
+              className="rounded-none border-2 border-foreground font-mono text-[10px] font-black uppercase shadow-[2px_2px_0_0_rgba(0,0,0,1)] py-1.5 px-3"
+            >
+              {labelStatus(s)} · {byStatus[s] ?? 0}
+            </Badge>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function AdminUserProfile() {
+  const { userId } = useParams<{ userId: string }>();
+  const location = useLocation();
+  const { currentUser, firebaseUser, loading } = useAuth();
+  const [profile, setProfile] = useState<AdminUserRow | null | undefined>(undefined);
+  const [sellerTickets, setSellerTickets] = useState<Ticket[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const tabFromState = (location.state as { tab?: string } | null)?.tab;
+  const allowedBackTabs = new Set(["overview", "tickets", "users", "reports", "logs", "admins"]);
+  const backTab = tabFromState && allowedBackTabs.has(tabFromState) ? tabFromState : "users";
+
+  useEffect(() => {
+    if (!userId || currentUser?.role !== "admin") return;
+    let cancelled = false;
+    setLoadError(null);
+    void (async () => {
+      try {
+        const [u, tickets] = await Promise.all([
+          getUser(userId),
+          fetchTicketsBySellerIdForAdmin(userId),
+        ]);
+        if (cancelled) return;
+        setProfile((u ?? null) as AdminUserRow | null);
+        setSellerTickets(Array.isArray(tickets) ? tickets : []);
+      } catch (e: unknown) {
+        if (cancelled) return;
+        setProfile(null);
+        setSellerTickets([]);
+        setLoadError(e instanceof Error ? e.message : String(e));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, currentUser?.role]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center font-mono uppercase font-bold tracking-widest text-muted-foreground">
+        Verifying access…
+      </div>
+    );
+  }
+
+  if (firebaseUser && needsEmailVerification(firebaseUser)) {
+    return <Navigate to="/verify-email" replace />;
+  }
+
+  if (!firebaseUser) {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
+
+  if (!currentUser || currentUser.role !== "admin") {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  if (!userId) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  const resolvedPhone =
+    profile !== undefined ? resolveAdminPhoneDisplay(profile, sellerTickets) : null;
+
+  return (
+    <div className="flex-1 bg-background bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] min-h-screen pt-24 pb-24 relative px-4 sm:px-6 lg:px-8">
+      <div className="max-w-5xl mx-auto space-y-8 relative z-10">
+        <div className="flex flex-wrap items-center gap-4 justify-between">
+          <Button
+            variant="outline"
+            render={<Link to="/admin" state={{ tab: backTab }} />}
+            className="rounded-none border-2 border-foreground bg-background text-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all inline-flex items-center gap-2 font-mono text-xs uppercase font-bold tracking-widest h-12 px-5"
+          >
+            <ArrowLeft className="w-4 h-4 shrink-0" aria-hidden />
+            Back to dashboard
+          </Button>
+          <Badge className="rounded-none border-2 border-foreground font-black text-[10px] uppercase shadow-[2px_2px_0_0_rgba(0,0,0,1)] bg-primary text-primary-foreground px-3 py-1.5">
+            Admin view · read-only
+          </Badge>
+        </div>
+
+        {loadError ? (
+          <p className="font-mono text-xs text-destructive font-bold border-2 border-destructive p-4 bg-destructive/10">
+            {loadError}
+          </p>
+        ) : null}
+
+        {profile === undefined ? (
+          <div className="font-mono text-xs uppercase font-bold text-muted-foreground">Loading profile…</div>
+        ) : profile === null ? (
+          <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 space-y-4">
+            <h1 className="font-heading text-2xl font-black uppercase tracking-tighter mb-2">No user document</h1>
+            <p className="font-mono text-xs text-muted-foreground mb-4">
+              Firestore has no <span className="font-bold text-foreground">users/{userId}</span> row. Tickets below may still exist if the ID matches{" "}
+              <span className="font-bold text-foreground">sellerId</span>.
+            </p>
+            {resolvedPhone ? (
+              <div className="border-t-2 border-dashed border-muted-foreground/40 pt-4">
+                <p className="font-mono text-[10px] font-black uppercase text-muted-foreground mb-1">Phone</p>
+                <a href={phoneDisplayToTelHref(resolvedPhone.phone)} className={`${adminTelLinkClass} font-mono text-xs`}>
+                  <Phone className="w-4 h-4 shrink-0" aria-hidden />
+                  {resolvedPhone.phone}
+                </a>
+                {resolvedPhone.source === "listing" ? (
+                  <p className="font-mono text-[9px] text-muted-foreground mt-1 italic">From seller listings (no profile row).</p>
+                ) : null}
+              </div>
+            ) : (
+              <p className="font-mono text-[10px] text-muted-foreground italic">No phone on file.</p>
+            )}
+          </div>
+        ) : (
+          <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 space-y-8">
+            <div className="flex flex-col sm:flex-row gap-6 items-start">
+              <div className="shrink-0 border-4 border-foreground w-24 h-24 bg-muted overflow-hidden shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
+                {profile.avatar ? (
+                  <img src={profile.avatar} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <UserIcon className="w-10 h-10 text-muted-foreground" aria-hidden />
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 flex-1 space-y-3">
+                <h1 className="font-heading text-3xl font-black uppercase tracking-tighter">{profile.name}</h1>
+                <div className="flex flex-wrap gap-2 items-center">
+                  <Badge
+                    className={`rounded-none border-2 border-foreground font-black text-[10px] uppercase shadow-[2px_2px_0_0_rgba(0,0,0,1)] ${
+                      profile.status === "active"
+                        ? "bg-emerald-400 text-emerald-950"
+                        : profile.status === "warned"
+                          ? "bg-amber-400 text-amber-950"
+                          : profile.status
+                            ? "bg-destructive text-destructive-foreground"
+                            : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {profile.status ?? "—"}
+                  </Badge>
+                  <span className="font-mono text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1">
+                    <Shield className="w-3 h-3" aria-hidden />
+                    {profile.role}
+                  </span>
+                </div>
+                <p className="font-mono text-[10px] text-muted-foreground break-all">
+                  <span className="font-black uppercase text-foreground/80">User ID · </span>
+                  {profile.id}
+                </p>
+                <p className="font-mono text-[10px] text-muted-foreground">
+                  <span className="font-black uppercase text-foreground/80">Joined · </span>
+                  {formatUnknownJoinedAt(profile.joinedAt)}
+                </p>
+                <div className="space-y-2 pt-2">
+                  <a href={`mailto:${profile.email.trim()}`} className={`${adminTelLinkClass} font-mono text-xs font-bold`}>
+                    <Mail className="w-4 h-4 shrink-0" aria-hidden />
+                    {profile.email}
+                  </a>
+                  {resolvedPhone ? (
+                    <div>
+                      <a href={phoneDisplayToTelHref(resolvedPhone.phone)} className={`${adminTelLinkClass} font-mono text-xs`}>
+                        <Phone className="w-4 h-4 shrink-0" aria-hidden />
+                        {resolvedPhone.phone}
+                      </a>
+                      {resolvedPhone.source === "listing" ? (
+                        <p className="font-mono text-[9px] text-muted-foreground mt-1 italic">
+                          From latest listing — profile has no phone field.
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <p className="font-mono text-[10px] text-muted-foreground italic">No phone on file.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {profile !== undefined ? (
+          <AdminUserStatsPanel tickets={sellerTickets} profile={profile} />
+        ) : null}
+
+        <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8">
+          <h2 className="font-heading text-xl font-black uppercase tracking-tighter mb-6 bg-foreground text-background px-3 py-1 border-2 border-foreground inline-block">
+            Listings ({sellerTickets.length})
+          </h2>
+          {sellerTickets.length === 0 ? (
+            <p className="font-mono text-xs text-muted-foreground font-bold">No tickets for this seller ID.</p>
+          ) : (
+            <div className="overflow-x-auto border-t border-b border-muted">
+              <table className="w-full text-left font-mono text-[10px] xl:text-xs">
+                <thead className="bg-foreground text-background uppercase tracking-widest font-black border-y-2 border-foreground">
+                  <tr>
+                    <th className="p-3 border-r-2 border-foreground">Listing</th>
+                    <th className="p-3 border-r-2 border-foreground">Route</th>
+                    <th className="p-3 border-r-2 border-foreground">Posted</th>
+                    <th className="p-3 border-r-2 border-foreground">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sellerTickets.map((t, i) => (
+                    <tr
+                      key={t.id}
+                      className={`border-b-2 border-foreground ${i % 2 === 0 ? "bg-muted/10" : "bg-background"}`}
+                    >
+                      <td className="p-3 border-r-2 border-foreground align-top">
+                        <Link to={`/ticket/${t.id}`} className="font-bold text-primary underline-offset-2 hover:underline break-all">
+                          {t.id}
+                        </Link>
+                        <p className="font-heading font-bold uppercase mt-1">{t.transportName}</p>
+                      </td>
+                      <td className="p-3 border-r-2 border-foreground align-top">
+                        {t.from} → {t.to}
+                      </td>
+                      <td className="p-3 border-r-2 border-foreground align-top whitespace-nowrap">{formatTicketPostedShort(t.postedAt)}</td>
+                      <td className="p-3 align-top font-bold uppercase">{t.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

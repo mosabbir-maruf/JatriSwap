@@ -31,7 +31,7 @@ export const TICKETS_PAGE_SIZE = 60;
 export const TICKETS_ADMIN_QUERY_LIMIT = 500;
 
 /** Normalize Firestore Timestamp / ISO string for sorting (matches Browse behavior). */
-export function ticketPostedAtMs(t: Ticket): number {
+export function ticketPostedAtMs(t: Pick<Ticket, 'postedAt'>): number {
   const p = t.postedAt as unknown;
   if (p != null && typeof p === 'object') {
     const o = p as { toMillis?: () => number; seconds?: number };
@@ -160,11 +160,27 @@ export const updateTicket = async (
 export const deleteTicket = async (ticketId: string): Promise<void> => {
   const path = `tickets/${ticketId}`;
   try {
+    await deleteDoc(doc(db, 'ticketAdminNotes', ticketId)).catch(() => {});
     await deleteDoc(doc(db, 'tickets', ticketId));
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
   }
 };
+
+/** Admin read-only: seller's listings (single-field query + client sort; avoids compound index). */
+export async function fetchTicketsBySellerIdForAdmin(sellerId: string): Promise<Ticket[]> {
+  const path = 'tickets';
+  try {
+    const snapshot = await getDocs(
+      query(collection(db, 'tickets'), where('sellerId', '==', sellerId), limit(200)),
+    );
+    const rows = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Ticket));
+    rows.sort((a, b) => ticketPostedAtMs(b) - ticketPostedAtMs(a));
+    return rows;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+  }
+}
 
 /** Public-safe counter bump (+1 views); rules allow only exactly-one increments without auth. */
 export const incrementTicketViews = async (ticketId: string): Promise<void> => {

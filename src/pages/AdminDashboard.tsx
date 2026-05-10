@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useState, useEffect } from "react";
-import { Users, AlertTriangle, Shield, CheckCircle2, Ticket, XCircle, Search, Edit, Trash2, Activity, Plus, TrendingUp, Star, Clock, AlertCircle, FileText, Ban, Settings, LogOut, Check } from "lucide-react";
+import { Users, AlertTriangle, Shield, CheckCircle2, Ticket as TicketIcon, XCircle, Search, Edit, Trash2, Activity, Plus, TrendingUp, Star, Clock, AlertCircle, FileText, Ban, Settings, LogOut, Check, Phone, Eye, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -11,24 +11,40 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Navigate, Link, useNavigate } from "react-router-dom";
+import { Navigate, Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { needsEmailVerification } from "@/src/lib/firebase/authVerification";
-import type { TicketReport } from "@/src/types";
+import type { TicketReport, Ticket, AdminUserRow, PendingAdminRow } from "@/src/types";
 import { signOut } from "firebase/auth";
 import { auth, db } from "@/src/lib/firebase/firebase";
 import {
   getTickets,
+  getTicket,
   TICKETS_ADMIN_QUERY_LIMIT,
+  ticketPostedAtMs,
   updateTicketStatus,
-  updateTicket,
   deleteTicket,
 } from "@/src/lib/firebase/tickets";
+import { scheduleTicketDeleteWithUndo } from "@/src/lib/ticketDeleteUndo";
+import {
+  fetchTicketAdminNotesForIds,
+  saveTicketAdminNote,
+  TICKET_ADMIN_NOTE_MAX_CHARS,
+} from "@/src/lib/firebase/ticketAdminNotes";
 import { enqueueSellerAdminTicketNotification } from "@/src/lib/firebase/sellerTicketNotifications";
+import { phoneDisplayToTelHref } from "@/src/lib/env/publicContact";
 import { getAllUsers, deleteUserData } from "@/src/lib/firebase/users";
-import { getAdminNotes, getAdminLogs, addAdminLog, saveAdminNotes } from "@/src/lib/firebase/adminSettings";
+import {
+  getAdminNotes,
+  getAdminLogs,
+  addAdminLog,
+  saveAdminNotes,
+  type AdminLog,
+} from "@/src/lib/firebase/adminSettings";
 import { ANONYMOUS_REPORTER_ID, getTicketReports } from "@/src/lib/firebase/ticketReports";
 import { collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
+import { format, isValid, parseISO } from "date-fns";
+import { EditTicketDialog } from "@/src/components/common/EditTicketDialog";
 
 const AVAILABLE_PERMISSIONS = [
   { id: "manage_users", label: "Manage users", category: "User Management" },
@@ -58,14 +74,76 @@ const PRESETS = {
   "Support Agent": ["view_users", "mark_sold", "manage_notifications"]
 };
 
+/** Opens the device dialer (`tel:`); underline on hover to match Contact page links. */
+const adminTelLinkClass =
+  "underline-offset-4 hover:underline hover:text-foreground text-inherit inline-flex items-center gap-1 max-w-full min-w-0";
+
+function formatTicketPostedAtForAdmin(postedAt: Ticket["postedAt"]): string {
+  const ms = ticketPostedAtMs({ postedAt });
+  if (!ms) return "—";
+  return new Date(ms).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
+
+/** Compact trip line for admin table (avoids raw ISO blobs in cells). */
+function formatTripLineForAdmin(dateRaw: string, departureRaw: string): string {
+  const dateTrim = (dateRaw ?? "").trim();
+  const timeTrim = (departureRaw ?? "").trim();
+
+  let dateLabel = "";
+  if (dateTrim) {
+    const ymd = dateTrim.includes("T") ? dateTrim.slice(0, 10) : dateTrim;
+    const parsed = parseISO(ymd.length >= 10 ? ymd : dateTrim);
+    dateLabel = isValid(parsed) ? format(parsed, "MMM d, yyyy") : dateTrim;
+  }
+
+  let timeLabel = "";
+  if (timeTrim) {
+    if (/^\d{4}-\d{2}-\d{2}T/.test(timeTrim)) {
+      const tp = parseISO(timeTrim);
+      timeLabel = isValid(tp) ? format(tp, "HH:mm") : timeTrim;
+    } else {
+      const m = timeTrim.match(/^(\d{1,2}:\d{2})/);
+      timeLabel = m ? m[1] : timeTrim;
+    }
+  }
+
+  if (dateLabel && timeLabel) return `${dateLabel} · ${timeLabel}`;
+  return dateLabel || timeLabel || "—";
+}
+
+function formatUnknownError(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+function looksLikeEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+/** Prefilled subject/body for admin → seller email from Manage Tickets. */
+function adminSellerMailtoHref(
+  email: string,
+  ctx: { sellerDisplayName: string; ticketId: string },
+): string {
+  const addr = email.trim();
+  const subject = `TransitSwap — ticket ${ctx.ticketId}`;
+  const body =
+    `Hello ${ctx.sellerDisplayName},\n\n` +
+    `We're writing from TransitSwap regarding listing/ticket ID: ${ctx.ticketId}.\n\n` +
+    `[Your message here]\n\n` +
+    `— TransitSwap admin`;
+  return `mailto:${addr}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentUser, firebaseUser, loading } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
   const [adminRole, setAdminRole] = useState("Super Admin"); // Super Admin, Moderator, Support Agent
-  const [tickets, setTickets] = useState<any[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
-  const [logs, setLogs] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [ticketAdminNotes, setTicketAdminNotes] = useState<Record<string, string>>({});
+  const [users, setUsers] = useState<AdminUserRow[]>([]);
+  const [logs, setLogs] = useState<AdminLog[]>([]);
   const [adminNotes, setAdminNotes] = useState("");
   const [adminsList, setAdminsList] = useState<
     { id: string; name: string; email: string; role: string; permissions: string[]; isSelf: boolean }[]
@@ -73,13 +151,13 @@ export default function AdminDashboard() {
   const [ticketReports, setTicketReports] = useState<TicketReport[]>([]);
   const [selectedAdminId, setSelectedAdminId] = useState<string | null>(null);
 
-  const [pendingAdmins, setPendingAdmins] = useState<any[]>([]);
+  const [pendingAdmins, setPendingAdmins] = useState<PendingAdminRow[]>([]);
 
   useEffect(() => {
     if (currentUser?.role !== 'admin') return;
 
     getTickets({ maxResults: TICKETS_ADMIN_QUERY_LIMIT }).then((t) => setTickets(t));
-    getAllUsers().then((u) => setUsers(u));
+    getAllUsers().then((u) => setUsers(u as AdminUserRow[]));
     getAdminNotes().then((notes) => setAdminNotes(notes ?? ""));
     getAdminLogs().then((loadedLogs) => setLogs(loadedLogs));
 
@@ -99,12 +177,43 @@ export default function AdminDashboard() {
           }),
         );
       })
-      .catch((err) => console.error("Failed to load admins", err));
+      .catch((err: unknown) => console.error("Failed to load admins", err));
 
     getTicketReports()
       .then(setTicketReports)
       .catch(() => setTicketReports([]));
   }, [currentUser]);
+
+  useEffect(() => {
+    const tab = (location.state as { tab?: string } | null)?.tab;
+    const allowed = new Set(["overview", "tickets", "users", "reports", "logs", "admins"]);
+    if (tab && allowed.has(tab)) setActiveTab(tab);
+  }, [location.state, location.key]);
+
+  const ticketIdsKey = tickets.map((t) => t.id).sort().join("|");
+
+  useEffect(() => {
+    if (currentUser?.role !== "admin") return;
+    if (tickets.length === 0) {
+      setTicketAdminNotes({});
+      return;
+    }
+    const ids = tickets.map((t) => t.id);
+    let cancelled = false;
+    void fetchTicketAdminNotesForIds(ids).then((map) => {
+      if (cancelled) return;
+      setTicketAdminNotes((prev) => {
+        const next: Record<string, string> = {};
+        for (const id of ids) {
+          next[id] = id in map ? map[id] : (prev[id] ?? "");
+        }
+        return next;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [ticketIdsKey, currentUser?.role]); // eslint-disable-line react-hooks/exhaustive-deps -- ticketIdsKey tracks listing ids
 
   const [isAddAdminOpen, setIsAddAdminOpen] = useState(false);
   const [newAdminName, setNewAdminName] = useState("");
@@ -125,7 +234,8 @@ export default function AdminDashboard() {
 
   // Modal states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [currentEditTicket, setCurrentEditTicket] = useState<any>(null);
+  const [currentEditTicket, setCurrentEditTicket] = useState<Ticket | null>(null);
+  const [staffNoteTicket, setStaffNoteTicket] = useState<Ticket | null>(null);
 
   useEffect(() => {
     if (currentUser?.role !== 'admin') return;
@@ -134,9 +244,9 @@ export default function AdminDashboard() {
       try {
         const q = query(collection(db, "admins"), where("role", "==", "pending_admin"));
         const snapshot = await getDocs(q);
-        const approvals: any[] = [];
+        const approvals: PendingAdminRow[] = [];
         snapshot.forEach((docSnap) => {
-          approvals.push({ id: docSnap.id, ...docSnap.data() });
+          approvals.push({ id: docSnap.id, ...docSnap.data() } as PendingAdminRow);
         });
         setPendingAdmins(approvals);
       } catch (err: unknown) {
@@ -163,8 +273,8 @@ export default function AdminDashboard() {
       await updateDoc(doc(db, "admins", userId), { role: "admin" });
       setPendingAdmins(pendingAdmins.filter(a => a.id !== userId));
       toast.success("Administrator approved successfully.");
-    } catch (err: any) {
-      toast.error("Failed to approve administrator: " + err.message);
+    } catch (err: unknown) {
+      toast.error("Failed to approve administrator: " + formatUnknownError(err));
     }
   };
 
@@ -174,8 +284,8 @@ export default function AdminDashboard() {
       await updateDoc(doc(db, "admins", userId), { role: "rejected" }); 
       setPendingAdmins(pendingAdmins.filter(a => a.id !== userId));
       toast.success("Administrator request rejected.");
-    } catch (err: any) {
-      toast.error("Failed to reject administrator: " + err.message);
+    } catch (err: unknown) {
+      toast.error("Failed to reject administrator: " + formatUnknownError(err));
     }
   };
 
@@ -212,34 +322,33 @@ export default function AdminDashboard() {
   };
 
   const handleToggleSold = (id: string) => {
-    const ticket = tickets.find(t => t.id === id);
+    const ticket = tickets.find((t) => t.id === id);
     if (!ticket) return;
-    const newStatus = ticket.status === 'sold' ? 'active' : 'sold';
-    setTickets(tickets.map(t => t.id === id ? { ...t, status: newStatus } : t));
-    
-    void updateTicketStatus(id, newStatus as "available" | "sold" | "pending").then(() => {
-      addLog("Ticket Status Toggle", `Toggled sold status for ${id} to ${newStatus}`);
-      toast.success("Ticket status updated to " + newStatus);
-      enqueueSellerAdminTicketNotification({
-        sellerUserId: ticket.sellerId,
-        ticketId: ticket.id,
-        transportName: ticket.transportName ?? ticket.id,
-        kind: "status",
-        statusLabel: newStatus,
-      });
-    });
-  };
+    const prevStatus = ticket.status;
+    const newStatus = ticket.status === "sold" ? "available" : "sold";
+    setTickets((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, status: newStatus } : t)),
+    );
 
-  const handleToggleUrgentFeatured = (id: string, type: 'urgent' | 'featured') => {
-    const ticket = tickets.find(t => t.id === id);
-    if (!ticket) return;
-    const newValue = !ticket[type];
-    setTickets(tickets.map(t => t.id === id ? { ...t, [type]: newValue } : t));
-    
-    void updateTicket(id, { [type]: newValue } as Parameters<typeof updateTicket>[1]).then(() => {
-      addLog("Ticket Promoted", `Toggled ${type} for ${id}`);
-      toast.success("Ticket highlight updated");
-    });
+    void updateTicketStatus(id, newStatus)
+      .then(() => {
+        addLog("Ticket Status Toggle", `Toggled sold status for ${id} to ${newStatus}`);
+        toast.success("Ticket status updated to " + newStatus);
+        enqueueSellerAdminTicketNotification({
+          sellerUserId: ticket.sellerId,
+          ticketId: ticket.id,
+          transportName: ticket.transportName ?? ticket.id,
+          kind: "status",
+          statusLabel: newStatus,
+        });
+      })
+      .catch((err: unknown) => {
+        console.error(err);
+        toast.error("Failed to update ticket status.");
+        setTickets((prev) =>
+          prev.map((t) => (t.id === id ? { ...t, status: prevStatus } : t)),
+        );
+      });
   };
 
   const handleActionClick = (actionName: string) => {
@@ -253,25 +362,45 @@ export default function AdminDashboard() {
   const handleDeleteTicket = (id: string) => {
     if (!handleActionClick("Delete Ticket")) return;
     const removed = tickets.find((t) => t.id === id);
-    setTickets(tickets.filter(t => t.id !== id));
-    
-    void deleteTicket(id).then(() => {
-      addLog("Ticket Removed", `Removed listing ${id}`);
-      toast.success("Ticket removed successfully");
-      if (removed?.sellerId) {
-        enqueueSellerAdminTicketNotification({
-          sellerUserId: removed.sellerId,
-          ticketId: removed.id,
-          transportName: removed.transportName ?? removed.id,
-          kind: "deleted",
-        });
-      }
+    if (!removed) return;
+
+    setTickets((prev) => prev.filter((t) => t.id !== id));
+
+    const restoreRemoved = () => {
+      setTickets((prev) => {
+        if (prev.some((t) => t.id === id)) return prev;
+        return [...prev, removed].sort((a, b) => ticketPostedAtMs(b) - ticketPostedAtMs(a));
+      });
+    };
+
+    scheduleTicketDeleteWithUndo({
+      ticketId: id,
+      message: "Listing removed. Undo within 10 seconds.",
+      onUndo: restoreRemoved,
+      commitDelete: () => deleteTicket(id),
+      onCommitted: () => {
+        addLog("Ticket Removed", `Removed listing ${id}`);
+        toast.success("Listing deleted.");
+        if (removed.sellerId) {
+          enqueueSellerAdminTicketNotification({
+            sellerUserId: removed.sellerId,
+            ticketId: removed.id,
+            transportName: removed.transportName ?? removed.id,
+            kind: "deleted",
+          });
+        }
+      },
+      onCommitFailed: (err: unknown) => {
+        console.error(err);
+        toast.error("Failed to delete listing.");
+        restoreRemoved();
+      },
     });
   };
 
   const handleApproveFlagged = (id: string) => {
     const ticket = tickets.find((t) => t.id === id);
-    setTickets(tickets.map(t => t.id === id ? { ...t, status: 'active' } : t));
+    setTickets(tickets.map((t) => (t.id === id ? { ...t, status: "available" } : t)));
     void updateTicketStatus(id, "available").then(() => {
       addLog("Ticket Approved", `Approved flagged ticket ${id}`);
       toast.success("Ticket approved on marketplace");
@@ -288,10 +417,27 @@ export default function AdminDashboard() {
   };
 
   const handleToggleUserStatus = (id: string, newStatus: string) => {
-    if (!handleActionClick("Ban User") && newStatus === 'banned') return;
-    setUsers(users.map(u => u.id === id ? { ...u, status: newStatus } : u));
+    if (!handleActionClick("Ban User") && newStatus === "banned") return;
+    setUsers(users.map((u) => (u.id === id ? { ...u, status: newStatus } : u)));
     addLog("User Status Updated", `User ${id} is now ${newStatus}`);
     toast.success(`User marked as ${newStatus}`);
+  };
+
+  /** Ban ↔ active on one control; unban does not require the Ban User permission gate. */
+  const handleToggleBanUser = (userId: string) => {
+    const row = users.find((u) => u.id === userId);
+    if (!row) {
+      toast.error("User is not in the loaded directory. Open Manage Users or refresh the dashboard.");
+      return;
+    }
+    const currentlyBanned = row.status === "banned";
+    const next = currentlyBanned ? "active" : "banned";
+    if (!currentlyBanned && !handleActionClick("Ban User")) return;
+    setUsers((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, status: next } : u)),
+    );
+    addLog("User Status Updated", `User ${userId} is now ${next}`);
+    toast.success(currentlyBanned ? "User unbanned (active)" : "User banned");
   };
 
   const handleHardDeleteUser = async (id: string) => {
@@ -302,48 +448,28 @@ export default function AdminDashboard() {
           addLog("User Hard Deleted", `User ${id} and all their data was permanently deleted`);
           toast.success("User data successfully deleted");
         })
-        .catch((err) => {
+        .catch((err: unknown) => {
           console.error(err);
           toast.error("Failed to delete user data");
         });
     }
   };
 
-  const handleSaveTicket = (e: React.FormEvent) => {
-    e.preventDefault();
-    const formData = new FormData(e.target as HTMLFormElement);
-    if (currentEditTicket) {
-      const edited = currentEditTicket;
-      const updatedData = {
-        transportName: formData.get('transportName') as string,
-        sellingPrice: Number(formData.get('sellingPrice')),
-        status: formData.get('status') as string,
-      };
-
-      setTickets(tickets.map(t => t.id === edited.id ? { 
-        ...t, 
-        ...updatedData
-      } : t));
-      
-      void updateTicket(edited.id, updatedData as Parameters<typeof updateTicket>[1])
-        .then(() => {
-          addLog("Ticket Edited", `Admin edited ticket ${edited.id}`);
-          setIsEditModalOpen(false);
-          setCurrentEditTicket(null);
-          toast.success("Ticket details updated");
-          if (edited.sellerId) {
-            enqueueSellerAdminTicketNotification({
-              sellerUserId: edited.sellerId,
-              ticketId: edited.id,
-              transportName: edited.transportName ?? edited.id,
-              kind: "edited",
-            });
-          }
-        })
-        .catch((err) => {
-          console.error(err);
-          toast.error("Failed to update ticket.");
-        });
+  const handleSaveTicketAdminNote = async (ticketId: string, note: string): Promise<boolean> => {
+    const uid = firebaseUser?.uid;
+    if (!uid) {
+      toast.error("You must be signed in to save notes.");
+      return false;
+    }
+    try {
+      await saveTicketAdminNote(ticketId, note, uid);
+      addLog("Ticket admin note", `Updated internal note for ${ticketId}`);
+      toast.success("Admin note saved");
+      return true;
+    } catch (err: unknown) {
+      console.error(err);
+      toast.error("Failed to save admin note");
+      return false;
     }
   };
 
@@ -410,7 +536,7 @@ export default function AdminDashboard() {
               <div className="bg-background border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] p-6 flex flex-col justify-between h-40">
                 <div className="flex justify-between items-start">
                   <h3 className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Total Listings</h3>
-                  <Ticket className="w-5 h-5 text-primary" />
+                  <TicketIcon className="w-5 h-5 text-primary" />
                 </div>
                 <div className="text-4xl font-heading font-black tracking-tighter">{tickets.length}</div>
                 <p className="font-mono text-[10px] text-emerald-600 font-bold uppercase tracking-widest flex items-center"><TrendingUp className="w-3 h-3 mr-1"/> Active tickets</p>
@@ -448,19 +574,35 @@ export default function AdminDashboard() {
                   Recent Ticket Posts <Badge className="rounded-none bg-primary text-primary-foreground border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] font-mono text-[10px] tracking-widest font-black uppercase">Live Updates</Badge>
                 </h3>
                 <div className="space-y-4">
-                  {tickets.slice(0, 3).map(ticket => (
+                  {tickets.slice(0, 3).map((ticket) => {
+                    const sellerUser = users.find((u) => u.id === ticket.sellerId);
+                    const sellerPhone = ticket.sellerPhone || sellerUser?.phone;
+                    return (
                     <div key={ticket.id} className="flex justify-between items-center border-l-4 border-primary p-3 bg-muted/20">
                       <div>
-                        <p className="font-mono text-[10px] font-black uppercase tracking-widest">{ticket.id} • {ticket.postedAt && typeof ticket.postedAt === 'object' ? new Date((ticket.postedAt as any).seconds * 1000).toLocaleDateString() : ticket.postedAt}</p>
+                        <p className="font-mono text-[10px] font-black uppercase tracking-widest">{ticket.id} · {formatTicketPostedAtForAdmin(ticket.postedAt)}</p>
                         <p className="font-heading font-bold text-lg uppercase leading-none mt-1">{ticket.transportName}</p>
                         <p className="font-mono text-xs text-muted-foreground mt-1">{ticket.from} → {ticket.to}</p>
                       </div>
                       <div className="text-right">
                          <p className="font-heading text-xl font-black tracking-tighter text-emerald-600">৳{ticket.sellingPrice}</p>
                          <p className="font-mono text-[10px] font-bold text-muted-foreground">Seller: {ticket.sellerName ?? ticket.sellerId}</p>
+                         {sellerPhone ? (
+                           <a
+                             href={phoneDisplayToTelHref(sellerPhone)}
+                             className={`font-mono text-[10px] text-muted-foreground mt-1 justify-end ${adminTelLinkClass}`}
+                             title="Call seller"
+                           >
+                             <Phone className="w-3 h-3 shrink-0" aria-hidden />
+                             <span className="truncate">{sellerPhone}</span>
+                           </a>
+                         ) : (
+                           <p className="font-mono text-[10px] text-muted-foreground/70 mt-1 italic">No phone on file</p>
+                         )}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
               
@@ -544,12 +686,17 @@ export default function AdminDashboard() {
                 <table className="w-full text-left font-mono text-[10px] xl:text-xs">
                   <thead className="bg-foreground text-background uppercase tracking-widest font-black border-y-2 border-foreground">
                     <tr>
-                      <th className="p-3 border-r-2 border-foreground">Ticket & Route</th>
-                      <th className="p-3 border-r-2 border-foreground">Price</th>
-                      <th className="p-3 border-r-2 border-foreground">User Details</th>
-                      <th className="p-3 border-r-2 border-foreground">Features & Expiry</th>
-                      <th className="p-3 border-r-2 border-foreground">Status</th>
-                      <th className="p-3">Actions</th>
+                      <th className="p-3 border-r-2 border-foreground align-top">Ticket & Route</th>
+                      <th className="p-3 border-r-2 border-foreground align-top w-[5.5rem]">Price</th>
+                      <th className="p-3 border-r-2 border-foreground align-top max-w-[200px]">User</th>
+                      <th className="p-3 border-r-2 border-foreground align-top min-w-[10rem] max-w-[220px]">
+                        <span className="block">Meta</span>
+                        <span className="block text-[8px] font-normal opacity-90 normal-case tracking-normal font-sans font-medium mt-1 leading-snug">
+                          postedAt · views · date · departureTime · staff note (modal)
+                        </span>
+                      </th>
+                      <th className="p-3 border-r-2 border-foreground align-top whitespace-nowrap">Status</th>
+                      <th className="p-3 align-top">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -557,42 +704,113 @@ export default function AdminDashboard() {
                       const user = users.find(u => u.id === ticket.sellerId);
                       return (
                       <tr key={ticket.id} className={`border-b-2 border-foreground ${i % 2 === 0 ? "bg-muted/10" : "bg-background"} hover:bg-muted/50 transition-colors`}>
-                        <td className="p-3 border-r-2 border-foreground">
-                          <p className="font-heading font-bold text-sm xl:text-base uppercase">{ticket.transportName}</p>
-                          <p className="text-muted-foreground">{ticket.from} → {ticket.to} | {ticket.id}</p>
+                        <td className="p-3 border-r-2 border-foreground align-top min-w-0">
+                          <p className="font-heading font-bold text-sm xl:text-base uppercase leading-tight">{ticket.transportName}</p>
+                          <p className="text-muted-foreground mt-1 space-y-1 leading-snug">
+                            <span className="block">{ticket.from} → {ticket.to}</span>
+                            <Link
+                              to={`/ticket/${ticket.id}`}
+                              className="block text-primary font-bold underline-offset-2 hover:underline break-all"
+                              title="Open listing"
+                            >
+                              {ticket.id}
+                            </Link>
+                          </p>
                         </td>
-                        <td className="p-3 font-bold border-r-2 border-foreground text-emerald-600 text-sm">৳{ticket.sellingPrice}</td>
-                        <td className="p-3 border-r-2 border-foreground">
-                          <p className="font-bold">{ticket.sellerName || user?.name || "Unknown User"} <span className="text-muted-foreground font-normal">({user?.role || "user"})</span></p>
-                          <p className="text-muted-foreground">{user?.email || ticket.sellerId}</p>
-                          {ticket.sellerPhone && <p className="text-muted-foreground mt-1 text-[10px]">📞 {ticket.sellerPhone}</p>}
+                        <td className="p-3 font-bold border-r-2 border-foreground text-emerald-600 text-sm align-top whitespace-nowrap">৳{ticket.sellingPrice}</td>
+                        <td className="p-3 border-r-2 border-foreground align-top min-w-0 max-w-[200px]">
+                          <p className="font-bold truncate max-w-full" title={ticket.sellerName || user?.name || "Unknown User"}>
+                            {ticket.sellerId ? (
+                              <Link
+                                to={`/admin/users/${ticket.sellerId}`}
+                                state={{ tab: "tickets" }}
+                                className="text-primary underline-offset-2 hover:underline truncate inline-block max-w-full align-bottom"
+                              >
+                                {ticket.sellerName || user?.name || "Unknown User"}
+                              </Link>
+                            ) : (
+                              ticket.sellerName || user?.name || "Unknown User"
+                            )}
+                          </p>
+                          <div className="mt-1 min-w-0">
+                            {user?.email && looksLikeEmail(user.email) ? (
+                              <a
+                                href={adminSellerMailtoHref(user.email, {
+                                  sellerDisplayName: ticket.sellerName || user?.name || "there",
+                                  ticketId: ticket.id,
+                                })}
+                                className={`${adminTelLinkClass} font-normal text-[10px] xl:text-xs max-w-full`}
+                                title={`Email ${user.email}`}
+                              >
+                                <Mail className="w-3 h-3 shrink-0" aria-hidden />
+                                <span className="truncate min-w-0">{user.email}</span>
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground text-[10px] xl:text-xs truncate block" title={String(user?.email || ticket.sellerId)}>
+                                {user?.email || ticket.sellerId}
+                              </span>
+                            )}
+                          </div>
+                          {ticket.sellerPhone && (
+                            <a
+                              href={phoneDisplayToTelHref(ticket.sellerPhone)}
+                              className={`text-muted-foreground mt-1 text-[10px] ${adminTelLinkClass} max-w-full`}
+                              title="Open phone app"
+                            >
+                              <Phone className="w-3 h-3 shrink-0" aria-hidden />
+                              <span className="truncate min-w-0">{ticket.sellerPhone}</span>
+                            </a>
+                          )}
                         </td>
-                        <td className="p-3 border-r-2 border-foreground">
-                           <div className="flex flex-wrap gap-1 mb-1">
-                             <Button onClick={() => handleToggleUrgentFeatured(ticket.id, 'featured')} size="sm" variant="outline" className={`h-6 px-2 text-[8px] rounded-none border-foreground font-bold shadow-[2px_2px_0_0_rgba(0,0,0,1)] ${ticket.featured ? 'bg-amber-400 text-amber-950' : 'bg-background'}`}>Featured</Button>
-                             <Button onClick={() => handleToggleUrgentFeatured(ticket.id, 'urgent')} size="sm" variant="outline" className={`h-6 px-2 text-[8px] rounded-none border-foreground font-bold shadow-[2px_2px_0_0_rgba(0,0,0,1)] ${ticket.urgent ? 'bg-red-400 text-red-950' : 'bg-background'}`}>Urgent</Button>
+                        <td className="p-3 border-r-2 border-foreground align-top min-w-0 max-w-[220px]">
+                           <div className="space-y-2 text-[10px] text-muted-foreground leading-snug">
+                             <p>
+                               <span className="font-black uppercase tracking-wider text-foreground/85 block mb-0.5">Posted</span>
+                               <span className="font-mono">{formatTicketPostedAtForAdmin(ticket.postedAt)}</span>
+                             </p>
+                             <p className="flex items-center gap-1 font-bold">
+                               <Eye className="w-3 h-3 shrink-0 text-foreground" aria-hidden />
+                               <span>{ticket.views ?? 0} views</span>
+                             </p>
+                             <p>
+                               <span className="font-black uppercase tracking-wider text-foreground/85 block mb-0.5">Trip</span>
+                               <span className="font-mono">{formatTripLineForAdmin(ticket.date, ticket.departureTime)}</span>
+                             </p>
                            </div>
-                           <p className="text-muted-foreground mb-1">Exp: {ticket.date} {ticket.departureTime}</p>
-                           <p className="text-muted-foreground font-mono text-[10px] font-bold">👁️ {ticket.views || 0} Views</p>
+                           <Button
+                             type="button"
+                             size="sm"
+                             variant="outline"
+                             className="mt-2 h-7 w-full max-w-[13rem] rounded-none border-2 border-foreground text-[8px] font-black uppercase shadow-[2px_2px_0_0_rgba(0,0,0,1)] justify-center gap-1"
+                             onClick={() => setStaffNoteTicket(ticket)}
+                           >
+                             <FileText className="w-3 h-3 shrink-0" aria-hidden />
+                             Staff note
+                             {(ticketAdminNotes[ticket.id] ?? "").trim() ? (
+                               <span className="text-emerald-600 font-black" aria-hidden>
+                                 ·
+                               </span>
+                             ) : null}
+                           </Button>
                         </td>
-                        <td className="p-3 border-r-2 border-foreground">
+                        <td className="p-3 border-r-2 border-foreground align-top">
                           <Badge className={`rounded-none border-2 border-foreground font-black text-[10px] uppercase shadow-[2px_2px_0_0_rgba(0,0,0,1)] ${
                             ticket.status === 'sold' ? 'bg-muted text-muted-foreground' :
                             ticket.status === 'expired' || new Date() > new Date(`${ticket.date}T${ticket.departureTime || '00:00'}`) ? 'bg-red-900 text-red-100' :
-                            ticket.status === 'active' || ticket.status === 'available' ? 'bg-emerald-400 text-emerald-950' : 
+                            ticket.status === 'available' ? 'bg-emerald-400 text-emerald-950' : 
                             ticket.status === 'flagged' ? 'bg-destructive text-destructive-foreground' : 
                             'bg-muted text-muted-foreground'
                           }`}>
                             {ticket.status === 'sold' ? 'Sold' : ticket.status === 'expired' || new Date() > new Date(`${ticket.date}T${ticket.departureTime || '00:00'}`) ? 'Expired' : ticket.status}
                           </Badge>
                         </td>
-                        <td className="p-3">
+                        <td className="p-3 align-top">
                           <div className="flex flex-wrap gap-1">
                              <Button onClick={() => { setCurrentEditTicket(ticket); setIsEditModalOpen(true); }} size="sm" variant="outline" className="h-7 px-2 rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:bg-blue-500 hover:text-white uppercase font-bold text-[8px]">
                                 Edit
                              </Button>
-                             <Button onClick={() => handleToggleSold(ticket.id)} size="sm" variant="outline" className="h-7 px-2 rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:bg-emerald-500 hover:text-white uppercase font-bold text-[8px]">
-                                Mark Sold
+                             <Button onClick={() => handleToggleSold(ticket.id)} size="sm" variant="outline" className={`h-7 px-2 rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] uppercase font-bold text-[8px] ${ticket.status === "sold" ? "hover:bg-sky-500 hover:text-white" : "hover:bg-emerald-500 hover:text-white"}`}>
+                                {ticket.status === "sold" ? "Mark Available" : "Mark Sold"}
                              </Button>
                              {ticket.status === 'flagged' && (
                                <Button onClick={() => handleApproveFlagged(ticket.id)} size="sm" variant="outline" className="h-7 px-2 rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:bg-emerald-500 hover:text-white uppercase font-bold text-[8px]">
@@ -609,6 +827,73 @@ export default function AdminDashboard() {
                   </tbody>
                 </table>
               </div>
+
+              <Dialog open={staffNoteTicket !== null} onOpenChange={(open) => !open && setStaffNoteTicket(null)}>
+                <DialogContent className="rounded-none border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] bg-background max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle className="font-heading font-black text-xl uppercase tracking-tighter">
+                      Staff note
+                    </DialogTitle>
+                    <DialogDescription className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
+                      {staffNoteTicket ? (
+                        <>
+                          {staffNoteTicket.transportName} ·{" "}
+                          <Link
+                            to={`/ticket/${staffNoteTicket.id}`}
+                            className="text-primary underline-offset-2 hover:underline"
+                          >
+                            {staffNoteTicket.id}
+                          </Link>
+                        </>
+                      ) : null}
+                    </DialogDescription>
+                  </DialogHeader>
+                  {staffNoteTicket ? (
+                    <div className="space-y-3 pt-2">
+                      <Label htmlFor="staff-note-modal" className="font-mono text-[10px] uppercase font-black">
+                        Note (admins only)
+                      </Label>
+                      <Textarea
+                        id="staff-note-modal"
+                        value={ticketAdminNotes[staffNoteTicket.id] ?? ""}
+                        onChange={(e) =>
+                          setTicketAdminNotes((prev) => ({
+                            ...prev,
+                            [staffNoteTicket.id]: e.target.value.slice(0, TICKET_ADMIN_NOTE_MAX_CHARS),
+                          }))
+                        }
+                        placeholder="Internal moderation note…"
+                        rows={5}
+                        className="rounded-none border-2 border-foreground text-xs font-mono resize-y bg-muted/10 min-h-[120px]"
+                      />
+                      <DialogFooter className="gap-2 sm:gap-0">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-none border-2 border-foreground font-mono text-[10px] uppercase font-black"
+                          onClick={() => setStaffNoteTicket(null)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          className="rounded-none border-2 border-foreground bg-primary font-mono text-[10px] uppercase font-black shadow-[4px_4px_0_0_rgba(0,0,0,1)]"
+                          onClick={() => {
+                            void handleSaveTicketAdminNote(
+                              staffNoteTicket.id,
+                              ticketAdminNotes[staffNoteTicket.id] ?? "",
+                            ).then((ok) => {
+                              if (ok) setStaffNoteTicket(null);
+                            });
+                          }}
+                        >
+                          Save note
+                        </Button>
+                      </DialogFooter>
+                    </div>
+                  ) : null}
+                </DialogContent>
+              </Dialog>
             </div>
           </TabsContent>
 
@@ -637,9 +922,25 @@ export default function AdminDashboard() {
                            <p className="text-[9px] text-muted-foreground font-normal">Joined: {user.joinedAt}</p>
                         </td>
                         <td className="p-3 border-r-2 border-foreground">
-                          <p className="font-heading font-bold text-sm uppercase">{user.name}</p>
+                          <p className="font-heading font-bold text-sm uppercase">
+                            <Link
+                              to={`/admin/users/${user.id}`}
+                              state={{ tab: "users" }}
+                              className="text-primary underline-offset-2 hover:underline"
+                            >
+                              {user.name}
+                            </Link>
+                          </p>
                           <p className="text-[10px] text-muted-foreground font-bold">{user.email}</p>
-                          <p className="text-[10px] text-muted-foreground font-mono">{user.phone}</p>
+                          {user.phone ? (
+                            <a
+                              href={phoneDisplayToTelHref(user.phone)}
+                              className={`text-[10px] text-muted-foreground font-mono ${adminTelLinkClass}`}
+                              title="Open phone app"
+                            >
+                              {user.phone}
+                            </a>
+                          ) : null}
                         </td>
                         <td className="p-3 font-bold border-r-2 border-foreground">
                            <p>Posts: <span className="text-foreground">{user.ticketsPosted || 0}</span></p>
@@ -665,8 +966,18 @@ export default function AdminDashboard() {
                              <Button onClick={() => handleToggleUserStatus(user.id, 'suspended')} size="icon" variant="outline" className="w-8 h-8 rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none transition-all text-amber-600" title="Suspend User">
                                 <AlertCircle className="w-4 h-4" />
                              </Button>
-                             <Button onClick={() => handleToggleUserStatus(user.id, 'banned')} size="icon" variant="outline" className="w-8 h-8 rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none transition-all text-destructive" title="Ban User">
-                                <Ban className="w-4 h-4" />
+                             <Button
+                               onClick={() => handleToggleBanUser(user.id)}
+                               size="icon"
+                               variant="outline"
+                               className={`w-8 h-8 rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none transition-all ${
+                                 user.status === "banned"
+                                   ? "text-emerald-600 hover:bg-emerald-500 hover:text-white"
+                                   : "text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                               }`}
+                               title={user.status === "banned" ? "Unban user" : "Ban user"}
+                             >
+                               {user.status === "banned" ? <CheckCircle2 className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
                              </Button>
                              <Button onClick={() => handleHardDeleteUser(user.id)} size="icon" variant="outline" className="w-8 h-8 rounded-none border-2 border-destructive bg-destructive/10 shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none transition-all text-destructive hover:bg-destructive hover:text-destructive-foreground" title="Hard Delete User">
                                 <Trash2 className="w-4 h-4" />
@@ -685,7 +996,12 @@ export default function AdminDashboard() {
              <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8">
                <h3 className="font-heading text-3xl font-black uppercase tracking-tighter bg-destructive text-destructive-foreground px-3 py-1 border-2 border-foreground inline-block mb-8">Scam Reporting System</h3>
                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                 {ticketReports.map((report) => (
+                 {ticketReports.map((report) => {
+                   const reporterUser = users.find((u) => u.id === report.reporterId);
+                   const reporterIsAnon = report.reporterId === ANONYMOUS_REPORTER_ID;
+                   const sellerRow = users.find((u) => u.id === report.sellerId);
+                   const sellerBanned = sellerRow?.status === "banned";
+                   return (
                    <div key={report.id} className="border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] p-6 bg-red-50 relative overflow-hidden flex flex-col justify-between">
                      <div className="absolute top-0 right-0 p-4">
                        <AlertCircle className="w-12 h-12 text-red-200" />
@@ -694,28 +1010,101 @@ export default function AdminDashboard() {
                        <h4 className="font-heading font-black text-xl uppercase mb-4 relative z-10">Report #{report.id.slice(0, 8)}</h4>
                        
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                         <div>
-                           <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Target Ticket</p>
-                           <p className="font-mono text-xs font-bold leading-tight">
-                             <Link to={`/ticket/${report.ticketId}`} className="text-primary hover:underline">{report.ticketName} ({report.ticketId})</Link>
-                           </p>
+                         <div className="space-y-2">
+                           <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Target listing</p>
+                           <p className="font-heading font-bold text-sm uppercase leading-tight text-foreground">{report.ticketName}</p>
+                           <div>
+                             <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-0.5">Ticket ID</p>
+                             <Link
+                               to={`/ticket/${report.ticketId}`}
+                               className="font-mono text-xs font-bold text-primary underline-offset-2 hover:underline break-all inline-block max-w-full"
+                               title="Open listing details"
+                             >
+                               {report.ticketId}
+                             </Link>
+                           </div>
                          </div>
                          <div>
-                           <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest font-bold">User Info</p>
-                           <p className="font-mono text-xs font-bold leading-tight text-destructive">
-                             {report.sellerName} ({report.sellerId})
+                           <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Reported seller</p>
+                           <p className="font-mono text-xs font-bold leading-tight">
+                             <Link
+                               to={`/admin/users/${report.sellerId}`}
+                               state={{ tab: "reports" }}
+                               className="text-primary underline-offset-2 hover:underline font-bold"
+                               title="Open seller profile (admin)"
+                             >
+                               {report.sellerName || "Unknown seller"}
+                             </Link>
                            </p>
-                           <p className="font-mono text-[10px] mt-1">{report.sellerPhone}</p>
+                           <div className="font-mono text-[10px] mt-0.5 min-w-0">
+                             {sellerRow?.email?.trim() ? (
+                               looksLikeEmail(sellerRow.email) ? (
+                                 <a
+                                   href={`mailto:${sellerRow.email.trim()}`}
+                                   className={`${adminTelLinkClass} font-normal break-all inline-flex items-center gap-1 max-w-full`}
+                                   title={`Email ${sellerRow.email}`}
+                                 >
+                                   <Mail className="w-3 h-3 shrink-0" aria-hidden />
+                                   <span className="min-w-0">{sellerRow.email}</span>
+                                 </a>
+                               ) : (
+                                 <span className="text-foreground font-bold break-all">{sellerRow.email}</span>
+                               )
+                             ) : (
+                               <span className="text-muted-foreground italic">No email on file</span>
+                             )}
+                           </div>
+                           {report.sellerPhone?.trim() ? (
+                             <a
+                               href={phoneDisplayToTelHref(report.sellerPhone)}
+                               className={`font-mono text-[10px] mt-1 ${adminTelLinkClass}`}
+                               title="Open phone app"
+                             >
+                               <Phone className="w-3 h-3 shrink-0" aria-hidden />
+                               <span>{report.sellerPhone}</span>
+                             </a>
+                           ) : (
+                             <p className="font-mono text-[10px] mt-1 text-muted-foreground">—</p>
+                           )}
                          </div>
                        </div>
 
-                       <div className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground mb-2">
-                         Reporter:{" "}
-                         <span className="text-foreground font-mono normal-case tracking-normal">
-                           {report.reporterId === ANONYMOUS_REPORTER_ID
-                             ? "Guest (not signed in)"
-                             : report.reporterId}
-                         </span>
+                       <div className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground mb-2 space-y-1">
+                         <span className="block">Reporter</span>
+                         {reporterIsAnon ? (
+                           <span className="text-foreground font-mono normal-case tracking-normal font-bold">
+                             Guest (not signed in)
+                           </span>
+                         ) : (
+                           <span className="normal-case tracking-normal block">
+                             <Link
+                               to={`/admin/users/${report.reporterId}`}
+                               state={{ tab: "reports" }}
+                               className="font-bold text-primary underline-offset-2 hover:underline"
+                               title="Open reporter profile (admin)"
+                             >
+                               {reporterUser?.name ?? "Unknown user"}
+                             </Link>
+                             <div className="font-mono text-[10px] font-normal mt-0.5 min-w-0">
+                               {reporterUser?.email?.trim() ? (
+                                 looksLikeEmail(reporterUser.email) ? (
+                                   <a
+                                     href={`mailto:${reporterUser.email.trim()}`}
+                                     className={`${adminTelLinkClass} font-bold break-all inline-flex items-center gap-1 max-w-full`}
+                                     title={`Email ${reporterUser.email}`}
+                                   >
+                                     <Mail className="w-3 h-3 shrink-0" aria-hidden />
+                                     <span className="min-w-0">{reporterUser.email}</span>
+                                   </a>
+                                 ) : (
+                                   <span className="text-foreground font-bold break-all">{reporterUser.email}</span>
+                                 )
+                               ) : (
+                                 <span className="text-muted-foreground italic">No email on file</span>
+                               )}
+                             </div>
+                           </span>
+                         )}
                        </div>
 
                        <div className="font-mono text-xs mb-4 p-3 bg-white border border-foreground">
@@ -725,11 +1114,21 @@ export default function AdminDashboard() {
                      </div>
 
                      <div className="flex flex-wrap gap-2 mt-4 relative z-10">
-                       <Button onClick={() => handleToggleUserStatus(report.sellerId, 'banned')} className="rounded-none font-mono text-[10px] uppercase font-bold border-2 border-destructive bg-destructive text-destructive-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-1 transition-all">Ban User</Button>
+                       <Button
+                         onClick={() => handleToggleBanUser(report.sellerId)}
+                         className={`rounded-none font-mono text-[10px] uppercase font-bold border-2 shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-1 transition-all ${
+                           sellerBanned
+                             ? "border-foreground bg-background text-foreground hover:bg-emerald-500 hover:text-white"
+                             : "border-destructive bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                         }`}
+                       >
+                         {sellerBanned ? "Unban User" : "Ban User"}
+                       </Button>
                        <Button onClick={() => handleDeleteTicket(report.ticketId)} variant="outline" className="rounded-none font-mono text-[10px] uppercase font-bold border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-1 transition-all">Remove Ticket</Button>
                      </div>
                    </div>
-                 ))}
+                   );
+                 })}
                  
                  {ticketReports.length === 0 && (
                    <div className="border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] p-6 bg-muted/20 flex items-center justify-center min-h-[200px]">
@@ -855,7 +1254,7 @@ export default function AdminDashboard() {
                                      {Object.keys(PRESETS).map(preset => (
                                         <Button 
                                            key={preset} 
-                                           onClick={() => handleSelectPreset(admin.id, preset as any)}
+                                           onClick={() => handleSelectPreset(admin.id, preset as keyof typeof PRESETS)}
                                            size="sm" 
                                            variant={admin.role === preset ? 'default' : 'outline'}
                                            className={`rounded-none border-2 font-mono text-[10px] uppercase font-bold shadow-[2px_2px_0_0_rgba(0,0,0,1)] ${admin.role === preset ? 'border-primary bg-primary text-primary-foreground' : 'border-foreground hover:translate-y-1'}`}
@@ -942,7 +1341,7 @@ export default function AdminDashboard() {
             </div>
             <div className="space-y-2">
               <Label className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Role Preset</Label>
-              <Select value={newAdminRole} onValueChange={(v: any) => setNewAdminRole(v)}>
+              <Select value={newAdminRole} onValueChange={(v) => setNewAdminRole(v as keyof typeof PRESETS)}>
                 <SelectTrigger className="w-full bg-background rounded-none border-2 border-foreground focus:ring-0 focus:border-foreground font-mono text-xs uppercase shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
                   <SelectValue placeholder="Select Role" />
                 </SelectTrigger>
@@ -965,69 +1364,39 @@ export default function AdminDashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Ticket Modal */}
-      <Dialog open={isEditModalOpen} onOpenChange={(open) => {
-        if (!open) {
+      <EditTicketDialog
+        ticket={currentEditTicket}
+        isOpen={isEditModalOpen}
+        showListingStatus
+        onClose={() => {
           setIsEditModalOpen(false);
           setCurrentEditTicket(null);
-        }
-      }}>
-        <DialogContent className="rounded-none border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] bg-background">
-          <DialogHeader>
-            <DialogTitle className="font-heading font-black text-2xl uppercase tracking-tighter">
-              Edit Ticket {currentEditTicket?.id}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSaveTicket} className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label className="font-mono text-xs font-bold uppercase tracking-widest">Transport Name</Label>
-              <Input 
-                name="transportName"
-                defaultValue={currentEditTicket?.transportName || ""}
-                placeholder="e.g. Sonar Bangla Express"
-                required
-                className="rounded-none border-2 border-foreground font-mono text-sm focus-visible:ring-0 shadow-[4px_4px_0_0_rgba(0,0,0,1)]"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label className="font-mono text-xs font-bold uppercase tracking-widest">Selling Price (৳)</Label>
-              <Input 
-                name="sellingPrice"
-                type="number"
-                min="1"
-                defaultValue={currentEditTicket?.sellingPrice || ""}
-                placeholder="e.g. 1000"
-                required
-                className="rounded-none border-2 border-foreground font-mono text-sm focus-visible:ring-0 shadow-[4px_4px_0_0_rgba(0,0,0,1)]"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="font-mono text-xs font-bold uppercase tracking-widest">Status</Label>
-              <Select name="status" defaultValue={currentEditTicket?.status === "active" ? "available" : (currentEditTicket?.status || "available")}>
-                <SelectTrigger className="rounded-none border-2 border-foreground font-mono text-sm focus:ring-0 shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
-                  <SelectValue placeholder="Select Status" />
-                </SelectTrigger>
-                <SelectContent className="rounded-none border-2 border-foreground">
-                  <SelectItem value="available" className="font-mono text-xs uppercase">Available</SelectItem>
-                  <SelectItem value="sold" className="font-mono text-xs uppercase">Mark As Sold</SelectItem>
-                  <SelectItem value="expired" className="font-mono text-xs uppercase">Expire</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex justify-end pt-4 mt-8 border-t-2 border-foreground">
-              <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)} className="mr-4 rounded-none font-mono text-[10px] uppercase tracking-widest font-bold border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all">
-                Cancel
-              </Button>
-              <Button type="submit" className="rounded-none font-mono text-[10px] uppercase tracking-widest font-bold border-2 border-primary bg-primary text-primary-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all">
-                Save
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+        }}
+        onSuccess={(ticketId) => {
+          const rowBeforeRefresh = tickets.find((t) => t.id === ticketId);
+          void getTicket(ticketId)
+            .then((refreshed) => {
+              if (refreshed) {
+                setTickets((prev) => prev.map((t) => (t.id === refreshed.id ? refreshed : t)));
+              }
+              addLog("Ticket Edited", `Admin edited ticket ${ticketId}`);
+              const sellerId = refreshed?.sellerId ?? rowBeforeRefresh?.sellerId;
+              if (sellerId) {
+                enqueueSellerAdminTicketNotification({
+                  sellerUserId: sellerId,
+                  ticketId,
+                  transportName:
+                    refreshed?.transportName ?? rowBeforeRefresh?.transportName ?? ticketId,
+                  kind: "edited",
+                });
+              }
+            })
+            .catch((err: unknown) => {
+              console.error(err);
+              toast.error("Ticket saved but failed to refresh the listing.");
+            });
+        }}
+      />
     </div>
   );
 }

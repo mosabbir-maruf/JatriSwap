@@ -1,8 +1,24 @@
 import { createNotification } from "@/src/lib/firebase/notifications";
+import type { Notification } from "@/src/types";
+
+/** Keep in sync with seller dashboard Alerts highlighting. */
+export const SELLER_PURCHASE_REQUEST_NOTIFICATION_TITLE = "Purchase request";
+
+export function isSellerPurchaseRequestNotification(n: Pick<Notification, "title">): boolean {
+  return (n.title ?? "").trim() === SELLER_PURCHASE_REQUEST_NOTIFICATION_TITLE;
+}
 
 /** Fire-and-forget; never throws to callers (logs on failure). */
 function safeNotify(label: string, fn: () => Promise<void>): void {
   void fn().catch((err) => console.error(`[sellerTicketNotifications] ${label}`, err));
+}
+
+const LISTING_TITLE_NOTIFY_MAX = 80;
+
+function truncateListingTitleForSellerNotify(transportName: string, maxLen = LISTING_TITLE_NOTIFY_MAX): string {
+  const t = transportName.trim();
+  if (t.length <= maxLen) return t;
+  return `${t.slice(0, maxLen - 1)}…`;
 }
 
 /**
@@ -19,11 +35,11 @@ export function enqueueSellerPurchaseRequestNotification(input: {
   const { sellerUserId, ticketId, transportName, buyerUserId, buyerLabel } = input;
   if (!sellerUserId || !buyerUserId || buyerUserId === sellerUserId) return;
 
-  const shortName = transportName.length > 80 ? `${transportName.slice(0, 77)}…` : transportName;
+  const shortName = truncateListingTitleForSellerNotify(transportName);
   const msg = `${buyerLabel} requested to buy "${shortName}" (${ticketId}). They messaged via WhatsApp — check your business inbox.`;
 
   safeNotify("purchaseRequest", () =>
-    createNotification(sellerUserId, "info", "Purchase request", msg.slice(0, 1000)),
+    createNotification(sellerUserId, "info", SELLER_PURCHASE_REQUEST_NOTIFICATION_TITLE, msg.slice(0, 1000)),
   );
 }
 
@@ -40,7 +56,7 @@ export function enqueueSellerAdminTicketNotification(input: {
   const { sellerUserId, ticketId, transportName, kind, statusLabel } = input;
   if (!sellerUserId) return;
 
-  const shortName = transportName.length > 80 ? `${transportName.slice(0, 77)}…` : transportName;
+  const shortName = truncateListingTitleForSellerNotify(transportName);
 
   let title: string;
   let message: string;

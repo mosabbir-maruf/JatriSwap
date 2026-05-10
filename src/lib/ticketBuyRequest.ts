@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import { formatDepartureTimeDisplay } from "@/src/lib/formatDepartureTime";
 import type { Ticket } from "@/src/types";
 import { getPublicWhatsAppLink } from "@/src/lib/env/publicContact";
 
@@ -23,7 +24,7 @@ function buildPurchasePrefillText(ticket: Ticket, listingUrl: string): string {
     boldField("Service", ticket.transportName),
     boldField("Route", `${ticket.from} -> ${ticket.to}`),
     boldField("Travel date", format(new Date(ticket.date), "EEEE, dd MMM yyyy")),
-    boldField("Departure time", ticket.departureTime),
+    boldField("Departure time", formatDepartureTimeDisplay(ticket.departureTime)),
     boldField("Class", ticket.seatClass),
     boldField("Seat", ticket.seatNumber),
     boldField("Passengers", ticket.passengerCount),

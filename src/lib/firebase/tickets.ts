@@ -21,6 +21,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { handleFirestoreError } from './errors';
+import { sliceQueryDocsPage } from './queryPageSlice';
 import { OperationType, Ticket } from '../../types';
 
 /** Cap for public/marketing ticket subscriptions (reduces read blast radius). */
@@ -29,6 +30,26 @@ export const TICKETS_SUBSCRIPTION_CAP = 200;
 export const TICKETS_PAGE_SIZE = 60;
 /** Soft cap for admin bulk reads when no cursor is used. */
 export const TICKETS_ADMIN_QUERY_LIMIT = 500;
+/** Admin overview strip — fetch size + 1 row for `hasMore`. */
+export const TICKETS_ADMIN_RECENT_OVERVIEW_SIZE = 3;
+/** Admin “Recent Ticket Posts” dialog — each Load more batch. */
+export const TICKETS_ADMIN_RECENT_DIALOG_PAGE_SIZE = 20;
+
+function buildTicketsPostedAtConstraints(
+  filters: TicketListFilters | undefined,
+  cursor: QueryDocumentSnapshot<DocumentData> | null,
+  fetchLimit: number,
+): QueryConstraint[] {
+  const constraints: QueryConstraint[] = [];
+  if (filters?.mode) constraints.push(where('mode', '==', filters.mode));
+  if (filters?.from) constraints.push(where('from', '==', filters.from));
+  if (filters?.to) constraints.push(where('to', '==', filters.to));
+  if (filters?.status) constraints.push(where('status', '==', filters.status));
+  constraints.push(orderBy('postedAt', 'desc'));
+  if (cursor) constraints.push(startAfter(cursor));
+  constraints.push(limit(fetchLimit));
+  return constraints;
+}
 
 /** Normalize Firestore Timestamp / ISO string for sorting (matches Browse behavior). */
 export function ticketPostedAtMs(t: Pick<Ticket, 'postedAt'>): number {
@@ -54,17 +75,11 @@ export const getTickets = async (
 ): Promise<Ticket[]> => {
   const path = 'tickets';
   try {
-    const constraints: QueryConstraint[] = [];
-    if (filters?.mode) constraints.push(where('mode', '==', filters.mode));
-    if (filters?.from) constraints.push(where('from', '==', filters.from));
-    if (filters?.to) constraints.push(where('to', '==', filters.to));
-    if (filters?.status) constraints.push(where('status', '==', filters.status));
-
     const maxResults = filters?.maxResults ?? TICKETS_ADMIN_QUERY_LIMIT;
-    constraints.push(orderBy('postedAt', 'desc'));
-    constraints.push(limit(Math.min(maxResults, TICKETS_ADMIN_QUERY_LIMIT)));
-
-    const snapshot = await getDocs(query(collection(db, 'tickets'), ...constraints));
+    const lim = Math.min(maxResults, TICKETS_ADMIN_QUERY_LIMIT);
+    const snapshot = await getDocs(
+      query(collection(db, 'tickets'), ...buildTicketsPostedAtConstraints(filters, null, lim)),
+    );
     return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Ticket));
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, path);
@@ -80,17 +95,9 @@ export async function fetchTicketsPage(
   const path = 'tickets';
   const safeLimit = Math.min(Math.max(pageSize, 1), TICKETS_ADMIN_QUERY_LIMIT);
   try {
-    const constraints: QueryConstraint[] = [];
-    if (filters?.mode) constraints.push(where('mode', '==', filters.mode));
-    if (filters?.from) constraints.push(where('from', '==', filters.from));
-    if (filters?.to) constraints.push(where('to', '==', filters.to));
-    if (filters?.status) constraints.push(where('status', '==', filters.status));
-
-    constraints.push(orderBy('postedAt', 'desc'));
-    if (cursor) constraints.push(startAfter(cursor));
-    constraints.push(limit(safeLimit));
-
-    const snapshot = await getDocs(query(collection(db, 'tickets'), ...constraints));
+    const snapshot = await getDocs(
+      query(collection(db, 'tickets'), ...buildTicketsPostedAtConstraints(filters, cursor, safeLimit)),
+    );
     const docs = snapshot.docs;
     const lastDoc = docs.length > 0 ? docs[docs.length - 1] : null;
     return {
@@ -100,6 +107,48 @@ export async function fetchTicketsPage(
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, path);
   }
+}
+
+/**
+ * Admin recent-posts listing: same ordering/filters as Browse pagination but requests `pageSize + 1`
+ * docs to derive `hasMore` without a count query.
+ */
+export async function fetchTicketsPostedAtAdminPage(
+  pageSize: number,
+  cursor: QueryDocumentSnapshot<DocumentData> | null,
+  filters?: TicketListFilters,
+): Promise<{
+  tickets: Ticket[];
+  endCursor: QueryDocumentSnapshot<DocumentData> | null;
+  hasMore: boolean;
+}> {
+  const path = 'tickets';
+  const capped = Math.min(Math.max(1, pageSize), TICKETS_ADMIN_QUERY_LIMIT);
+  const fetchLimit = capped + 1;
+  try {
+    const snapshot = await getDocs(
+      query(collection(db, path), ...buildTicketsPostedAtConstraints(filters, cursor, fetchLimit)),
+    );
+    const { items: tickets, endCursor, hasMore } = sliceQueryDocsPage(
+      snapshot.docs,
+      capped,
+      (d) => ({ id: d.id, ...d.data() } as Ticket),
+    );
+    return { tickets, endCursor, hasMore };
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+  }
+}
+
+export async function fetchTicketsRecentOverview(
+  filters?: TicketListFilters,
+): Promise<{ tickets: Ticket[]; hasMore: boolean }> {
+  const { tickets, hasMore } = await fetchTicketsPostedAtAdminPage(
+    TICKETS_ADMIN_RECENT_OVERVIEW_SIZE,
+    null,
+    filters,
+  );
+  return { tickets, hasMore };
 }
 
 export const getTicket = async (ticketId: string): Promise<Ticket | null> => {

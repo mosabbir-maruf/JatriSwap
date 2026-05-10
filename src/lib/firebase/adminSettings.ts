@@ -14,6 +14,7 @@ import {
 import { db } from './firebase';
 import { handleFirestoreError } from './errors';
 import { OperationType } from '../../types';
+import { formatMediumDateTimeAmPm } from '@/src/lib/formatLocaleDateTime';
 
 export const getAdminNotes = async (): Promise<string> => {
   const path = 'adminSettings/global';
@@ -61,7 +62,7 @@ export const getAdminLogs = async (): Promise<AdminLog[]> => {
         id: d.id,
         action: String(data.action ?? ''),
         details: String(data.details ?? ''),
-        time: date.toLocaleString(),
+        time: formatMediumDateTimeAmPm(date),
         createdAt: ts ?? date,
       };
     });

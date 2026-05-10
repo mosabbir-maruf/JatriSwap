@@ -162,6 +162,78 @@ service cloud.firestore {
              data.ticketName == get(/databases/$(database)/documents/tickets/$(data.ticketId)).data.transportName;
     }
 
+    function purchaseRequestBuyerValid(data) {
+      return data.buyerUserId is string && data.buyerUserId.size() > 0 && data.buyerUserId.size() <= 128 &&
+             data.buyerUserId != data.sellerId &&
+             (
+               (request.auth != null && request.auth.uid == data.buyerUserId) ||
+               (request.auth == null && data.buyerUserId == 'anonymous' && data.buyerLabel == 'Guest via WhatsApp')
+             );
+    }
+
+    function purchaseRequestCoreFieldsValid(data) {
+      return data.ticketId is string && data.ticketId.size() > 0 && data.ticketId.size() <= 128 &&
+             data.sellerId is string && data.sellerId.size() > 0 && data.sellerId.size() <= 128 &&
+             data.transportName is string && data.transportName.size() > 0 && data.transportName.size() <= 100 &&
+             data.routeFrom is string && data.routeFrom.size() > 0 && data.routeFrom.size() <= 100 &&
+             data.routeTo is string && data.routeTo.size() > 0 && data.routeTo.size() <= 100 &&
+             data.sellingPrice is number && data.sellingPrice >= 0 &&
+             data.buyerLabel is string && data.buyerLabel.size() > 0 && data.buyerLabel.size() <= 200 &&
+             purchaseRequestBuyerValid(data);
+    }
+
+    /** Guests: one Firestore row per tap (no stable uid); rows include lastRequestedAt for admin ordering. */
+    function isValidPurchaseRequestAnonymousCreate(data) {
+      return data.keys().hasOnly(['ticketId', 'sellerId', 'transportName', 'routeFrom', 'routeTo', 'sellingPrice', 'sellerListingPhone', 'listingDepartureTime', 'listingTripDate', 'listingTransportMode', 'buyerUserId', 'buyerLabel', 'createdAt', 'lastRequestedAt', 'requestCount']) &&
+             data.buyerUserId == 'anonymous' &&
+             purchaseRequestCoreFieldsValid(data) &&
+             data.requestCount == 1 &&
+             data.createdAt == request.time &&
+             data.lastRequestedAt == request.time;
+    }
+
+    function purchaseRequestIdMatchesSignedBuyer(requestId, data) {
+      return data.buyerUserId != 'anonymous' &&
+             requestId == data.ticketId + '__pr__' + data.buyerUserId;
+    }
+
+    /** Signed-in: stable doc id `${ticketId}__pr__${buyerUid}`; repeat taps update same doc (handled by update rule). */
+    function isValidPurchaseRequestSignedCreate(data, requestId) {
+      return data.keys().hasOnly(['ticketId', 'sellerId', 'transportName', 'routeFrom', 'routeTo', 'sellingPrice', 'sellerListingPhone', 'listingDepartureTime', 'listingTripDate', 'listingTransportMode', 'buyerUserId', 'buyerLabel', 'createdAt', 'lastRequestedAt', 'requestCount']) &&
+             purchaseRequestIdMatchesSignedBuyer(requestId, data) &&
+             purchaseRequestCoreFieldsValid(data) &&
+             data.requestCount == 1 &&
+             data.createdAt == request.time &&
+             data.lastRequestedAt == request.time &&
+             isSignedIn() &&
+             request.auth.uid == data.buyerUserId;
+    }
+
+    /** Listing snapshot must match the ticket doc (prevents forged seller/route/price). */
+    function purchaseRequestMatchesTicket(data) {
+      return exists(/databases/$(database)/documents/tickets/$(data.ticketId)) &&
+             data.sellerId == get(/databases/$(database)/documents/tickets/$(data.ticketId)).data.sellerId &&
+             data.transportName == get(/databases/$(database)/documents/tickets/$(data.ticketId)).data.transportName &&
+             data.routeFrom == get(/databases/$(database)/documents/tickets/$(data.ticketId)).data.from &&
+             data.routeTo == get(/databases/$(database)/documents/tickets/$(data.ticketId)).data.to &&
+             data.sellingPrice == get(/databases/$(database)/documents/tickets/$(data.ticketId)).data.sellingPrice &&
+             data.sellerListingPhone is string &&
+             data.sellerListingPhone.size() > 0 &&
+             data.sellerListingPhone.size() <= 50 &&
+             data.sellerListingPhone == get(/databases/$(database)/documents/tickets/$(data.ticketId)).data.sellerPhone &&
+             data.listingDepartureTime is string &&
+             data.listingDepartureTime.size() > 0 &&
+             data.listingDepartureTime.size() <= 20 &&
+             data.listingDepartureTime == get(/databases/$(database)/documents/tickets/$(data.ticketId)).data.departureTime &&
+             data.listingTripDate is string &&
+             data.listingTripDate.size() > 0 &&
+             data.listingTripDate.size() <= 50 &&
+             data.listingTripDate == get(/databases/$(database)/documents/tickets/$(data.ticketId)).data.date &&
+             data.listingTransportMode is string &&
+             (data.listingTransportMode == 'train' || data.listingTransportMode == 'bus') &&
+             data.listingTransportMode == get(/databases/$(database)/documents/tickets/$(data.ticketId)).data.mode;
+    }
+
     // ---- Collections ----
     
     match /admins/{adminId} {
@@ -268,6 +340,31 @@ service cloud.firestore {
       allow list: if isAdmin();
       allow create: if isValidId(reportId) && isValidTicketReport(incoming()) && ticketReportMatchesTicket(incoming());
       allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    match /purchaseRequests/{requestId} {
+      allow get: if isAdmin() || (isSignedIn() && isVerified() && resource.data.sellerId == request.auth.uid);
+      allow list: if isAdmin() || (isSignedIn() && isVerified() && resource.data.sellerId == request.auth.uid);
+      allow create: if isValidId(requestId) && purchaseRequestMatchesTicket(incoming()) && (
+        isValidPurchaseRequestAnonymousCreate(incoming()) ||
+        isValidPurchaseRequestSignedCreate(incoming(), requestId)
+      );
+      allow update: if isSignedIn() && isVerified() &&
+        purchaseRequestIdMatchesSignedBuyer(requestId, resource.data) &&
+        resource.data.buyerUserId == request.auth.uid &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['lastRequestedAt', 'requestCount', 'buyerLabel']) &&
+        incoming().buyerLabel is string && incoming().buyerLabel.size() > 0 && incoming().buyerLabel.size() <= 200 &&
+        incoming().lastRequestedAt == request.time &&
+        incoming().requestCount == existing().requestCount + 1 &&
+        incoming().ticketId == existing().ticketId &&
+        incoming().sellerId == existing().sellerId &&
+        incoming().buyerUserId == existing().buyerUserId &&
+        incoming().transportName == existing().transportName &&
+        incoming().routeFrom == existing().routeFrom &&
+        incoming().routeTo == existing().routeTo &&
+        incoming().sellingPrice == existing().sellingPrice &&
+        incoming().createdAt == existing().createdAt;
       allow delete: if isAdmin();
     }
 

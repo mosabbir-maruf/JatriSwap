@@ -6,17 +6,18 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { needsEmailVerification } from "@/src/lib/firebase/authVerification";
 import { getUser } from "@/src/lib/firebase/users";
-import { fetchTicketsBySellerIdForAdmin, ticketPostedAtMs } from "@/src/lib/firebase/tickets";
+import { fetchTicketsBySellerIdForAdmin } from "@/src/lib/firebase/tickets";
 import { phoneDisplayToTelHref } from "@/src/lib/env/publicContact";
 import type { AdminUserRow, Ticket, TicketStatus } from "@/src/types";
 import { format, isValid, parseISO } from "date-fns";
+import { formatMediumDateTimeAmPm, formatTicketPostedAtAmPm } from "@/src/lib/formatLocaleDateTime";
 
 function formatUnknownJoinedAt(raw: unknown): string {
   if (raw == null || raw === "") return "—";
   if (typeof raw === "object" && raw !== null && typeof (raw as { toDate?: () => Date }).toDate === "function") {
     try {
       const d = (raw as { toDate: () => Date }).toDate();
-      return isValid(d) ? d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "—";
+      return isValid(d) ? formatMediumDateTimeAmPm(d) : "—";
     } catch {
       /* fall through */
     }
@@ -26,12 +27,6 @@ function formatUnknownJoinedAt(raw: unknown): string {
     return isValid(p) ? format(p, "MMM d, yyyy") : raw;
   }
   return String(raw);
-}
-
-function formatTicketPostedShort(postedAt: Ticket["postedAt"]): string {
-  const ms = ticketPostedAtMs({ postedAt });
-  if (!ms) return "—";
-  return new Date(ms).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
 const adminTelLinkClass =
@@ -363,7 +358,7 @@ export default function AdminUserProfile() {
                       <td className="p-3 border-r-2 border-foreground align-top">
                         {t.from} → {t.to}
                       </td>
-                      <td className="p-3 border-r-2 border-foreground align-top whitespace-nowrap">{formatTicketPostedShort(t.postedAt)}</td>
+                      <td className="p-3 border-r-2 border-foreground align-top whitespace-nowrap">{formatTicketPostedAtAmPm(t.postedAt)}</td>
                       <td className="p-3 align-top font-bold uppercase">{t.status}</td>
                     </tr>
                   ))}

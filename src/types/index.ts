@@ -67,6 +67,30 @@ export interface TicketReport {
   createdAt: string;
 }
 
+/** Stored in Firestore collection `purchaseRequests` when a buyer taps Request to Buy (WhatsApp opens). */
+export interface BuyerPurchaseRequest {
+  id: string;
+  ticketId: string;
+  sellerId: string;
+  transportName: string;
+  routeFrom: string;
+  routeTo: string;
+  sellingPrice: number;
+  /** Snapshot of `tickets/{id}.sellerPhone` at write time (listing contact). */
+  sellerListingPhone?: string;
+  /** Listing schedule snapshot (`departureTime`, `date`, `mode`). */
+  listingDepartureTime?: string;
+  listingTripDate?: string;
+  listingTransportMode?: "train" | "bus";
+  buyerUserId: string;
+  buyerLabel: string;
+  createdAt: string;
+  /** Signed-in buyers: taps after the first increment this (default 1 for legacy / anonymous rows). */
+  requestCount?: number;
+  /** Latest tap time (ISO); mirrors `createdAt` when only one tap or legacy doc. */
+  lastRequestedAt?: string;
+}
+
 export interface Chat {
   id: string;
   userIds: string[];

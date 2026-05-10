@@ -16,6 +16,12 @@ import { enqueueSellerPurchaseRequestNotification } from "@/src/lib/firebase/sel
 import { useTicketDetailListing } from "@/src/hooks/useTicketDetailListing";
 import { openTicketPurchaseWhatsApp } from "@/src/lib/ticketBuyRequest";
 import { isTicketDetailHiddenFromPublicBuyer } from "@/src/lib/ticketDetailVisibility";
+import {
+  ANONYMOUS_BUYER_ID,
+  buyerPurchaseRequestLabelForWhatsAppIntent,
+  recordBuyerPurchaseRequest,
+} from "@/src/lib/firebase/purchaseRequests";
+import { formatDepartureTimeDisplay } from "@/src/lib/formatDepartureTime";
 
 const TicketDetails = () => {
   const { firebaseUser, currentUser, loading: authLoading } = useAuth();
@@ -106,20 +112,35 @@ const TicketDetails = () => {
       }
     }
 
-    if (
-      firebaseUser &&
-      !needsEmailVerification(firebaseUser) &&
-      viewerUid &&
-      viewerUid !== ticket.sellerId
-    ) {
+    const actorUid = viewerUid ?? firebaseUser?.uid;
+    if (actorUid === ticket.sellerId) {
+      return;
+    }
+
+    const { buyerUserId, buyerLabel } = buyerPurchaseRequestLabelForWhatsAppIntent({
+      firebaseUid: actorUid,
+      firebaseEmail: firebaseUser?.email,
+      firebaseDisplayName: firebaseUser?.displayName,
+    });
+    void recordBuyerPurchaseRequest({ ticket, buyerUserId, buyerLabel }).then(({ shouldNotifySeller }) => {
+      if (!shouldNotifySeller) return;
+      if (
+        !firebaseUser ||
+        needsEmailVerification(firebaseUser) ||
+        !viewerUid ||
+        viewerUid === ticket.sellerId ||
+        buyerUserId === ANONYMOUS_BUYER_ID
+      ) {
+        return;
+      }
       enqueueSellerPurchaseRequestNotification({
         sellerUserId: ticket.sellerId,
         ticketId: ticket.id,
         transportName: ticket.transportName,
-        buyerUserId: viewerUid,
-        buyerLabel: firebaseUser.email ?? firebaseUser.displayName ?? viewerUid,
+        buyerUserId,
+        buyerLabel,
       });
-    }
+    });
   };
 
   const handleCopyId = () => {
@@ -226,7 +247,7 @@ const TicketDetails = () => {
                        <div className="hidden md:block absolute top-1/2 left-[20%] right-[20%] h-1 bg-foreground -translate-y-1/2" />
                        
                        <div className="text-center z-10 bg-background border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] p-4 min-w-[200px]">
-                         <p className="text-4xl font-heading font-black tracking-tighter">{ticket.departureTime}</p>
+                         <p className="text-4xl font-heading font-black tracking-tighter">{formatDepartureTimeDisplay(ticket.departureTime)}</p>
                          <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground mt-2">
                            Departs
                          </p>

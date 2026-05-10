@@ -1,4 +1,5 @@
 import { format, isValid, parseISO } from 'date-fns';
+import { formatDepartureTimeDisplay } from '@/src/lib/formatDepartureTime';
 
 /** Same key as Sell page — single source for listing-form drafts in localStorage. */
 export const SELL_DRAFT_STORAGE_KEY = 'railswap_sell_draft';
@@ -78,7 +79,10 @@ export function summarizeSellDraft(d: SellDraftSnapshot): { title: string; subti
       bits.push(rawDate);
     }
   }
-  if (d.depTime?.trim()) bits.push(`Dep ${d.depTime.trim()}`);
+  if (d.depTime?.trim()) {
+    const depShown = formatDepartureTimeDisplay(d.depTime.trim());
+    bits.push(depShown !== "—" ? `Dep ${depShown}` : `Dep ${d.depTime.trim()}`);
+  }
 
   const subtitle =
     bits.length > 0 ? bits.join(' • ') : 'Continue on the Sell page to add route and ticket details.';

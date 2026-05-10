@@ -1,6 +1,6 @@
 import * as React from "react";
-import { useState, useEffect } from "react";
-import { Users, AlertTriangle, Shield, CheckCircle2, Ticket as TicketIcon, XCircle, Search, Edit, Trash2, Activity, Plus, TrendingUp, Star, Clock, AlertCircle, FileText, Ban, Settings, LogOut, Check, Phone, Eye, Mail } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback, memo, type ReactNode } from "react";
+import { Users, AlertTriangle, Shield, CheckCircle2, Ticket as TicketIcon, XCircle, Search, Edit, Trash2, Activity, Plus, TrendingUp, Star, Clock, AlertCircle, FileText, Ban, Settings, LogOut, Check, Phone, Eye, Mail, MessageCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -11,19 +11,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { BuyerPurchaseRequestCard } from "@/src/components/common/BuyerPurchaseRequestCard";
 import { Navigate, Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { needsEmailVerification } from "@/src/lib/firebase/authVerification";
-import type { TicketReport, Ticket, AdminUserRow, PendingAdminRow } from "@/src/types";
+import type { TicketReport, Ticket, AdminUserRow, PendingAdminRow, BuyerPurchaseRequest } from "@/src/types";
 import { signOut } from "firebase/auth";
 import { auth, db } from "@/src/lib/firebase/firebase";
 import {
   getTickets,
   getTicket,
   TICKETS_ADMIN_QUERY_LIMIT,
+  TICKETS_ADMIN_RECENT_DIALOG_PAGE_SIZE,
   ticketPostedAtMs,
   updateTicketStatus,
   deleteTicket,
+  fetchTicketsPostedAtAdminPage,
+  fetchTicketsRecentOverview,
 } from "@/src/lib/firebase/tickets";
 import { scheduleTicketDeleteWithUndo } from "@/src/lib/ticketDeleteUndo";
 import {
@@ -42,9 +47,25 @@ import {
   type AdminLog,
 } from "@/src/lib/firebase/adminSettings";
 import { ANONYMOUS_REPORTER_ID, getTicketReports } from "@/src/lib/firebase/ticketReports";
-import { collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
+import {
+  BUYER_PURCHASE_ADMIN_PAGE_SIZE,
+  fetchBuyerPurchaseRequestsOverview,
+  fetchBuyerPurchaseRequestsPage,
+} from "@/src/lib/firebase/purchaseRequests";
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  updateDoc,
+  doc,
+  type DocumentData,
+  type QueryDocumentSnapshot,
+} from "firebase/firestore";
 import { format, isValid, parseISO } from "date-fns";
 import { EditTicketDialog } from "@/src/components/common/EditTicketDialog";
+import { formatTicketPostedAtAmPm } from "@/src/lib/formatLocaleDateTime";
+import { formatDepartureTimeDisplay } from "@/src/lib/formatDepartureTime";
 
 const AVAILABLE_PERMISSIONS = [
   { id: "manage_users", label: "Manage users", category: "User Management" },
@@ -78,10 +99,83 @@ const PRESETS = {
 const adminTelLinkClass =
   "underline-offset-4 hover:underline hover:text-foreground text-inherit inline-flex items-center gap-1 max-w-full min-w-0";
 
-function formatTicketPostedAtForAdmin(postedAt: Ticket["postedAt"]): string {
-  const ms = ticketPostedAtMs({ postedAt });
-  if (!ms) return "—";
-  return new Date(ms).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+/** `DialogContent` ships `sm:max-w-sm`; override with explicit `sm:max-w-*` or width changes never show at desktop. */
+const adminPagedOverviewDialogContentClass =
+  "rounded-none border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] bg-background w-[calc(100vw-2rem)] max-w-4xl sm:max-w-4xl max-h-[min(90vh,720px)] flex flex-col gap-0 overflow-hidden p-0";
+
+const adminPagedLoadMoreButtonClass =
+  "w-full rounded-none border-2 border-foreground font-mono text-[10px] font-black uppercase tracking-widest shadow-[4px_4px_0_0_rgba(0,0,0,1)]";
+
+/** Shared shell for “View all” admin lists (buyer requests, recent ticket posts). */
+function AdminPagedOverviewDialog({
+  open,
+  onOpenChange,
+  title,
+  loading,
+  itemCount,
+  hasMore,
+  onLoadMore,
+  emptyMessage,
+  contentClassName,
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  loading: boolean;
+  itemCount: number;
+  hasMore: boolean;
+  onLoadMore: () => void;
+  emptyMessage: string;
+  /** Merged with base shell; use for wider dialogs (e.g. ticket rows). */
+  contentClassName?: string;
+  children: ReactNode;
+}) {
+  const showInitialSpinner = loading && itemCount === 0;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className={cn(adminPagedOverviewDialogContentClass, contentClassName)}>
+        <DialogHeader className="p-6 pb-4 border-b-4 border-foreground shrink-0 space-y-2">
+          <DialogTitle className="font-heading font-black text-xl uppercase tracking-tighter">{title}</DialogTitle>
+          <DialogDescription className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
+            Newest first
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex-1 overflow-y-auto min-h-0 p-6 pt-4 space-y-3">
+          {showInitialSpinner ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground font-mono text-xs font-bold uppercase">
+              <Loader2 className="w-8 h-8 animate-spin" aria-hidden />
+              Loading…
+            </div>
+          ) : itemCount === 0 ? (
+            <p className="font-mono text-xs font-bold text-muted-foreground">{emptyMessage}</p>
+          ) : (
+            children
+          )}
+        </div>
+        {hasMore ? (
+          <div className="p-4 border-t-4 border-foreground shrink-0 bg-muted/30">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={loading}
+              className={adminPagedLoadMoreButtonClass}
+              onClick={onLoadMore}
+            >
+              {loading ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin shrink-0" aria-hidden />
+                  Loading…
+                </span>
+              ) : (
+                "Load more"
+              )}
+            </Button>
+          </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 /** Compact trip line for admin table (avoids raw ISO blobs in cells). */
@@ -98,13 +192,8 @@ function formatTripLineForAdmin(dateRaw: string, departureRaw: string): string {
 
   let timeLabel = "";
   if (timeTrim) {
-    if (/^\d{4}-\d{2}-\d{2}T/.test(timeTrim)) {
-      const tp = parseISO(timeTrim);
-      timeLabel = isValid(tp) ? format(tp, "HH:mm") : timeTrim;
-    } else {
-      const m = timeTrim.match(/^(\d{1,2}:\d{2})/);
-      timeLabel = m ? m[1] : timeTrim;
-    }
+    const fd = formatDepartureTimeDisplay(timeTrim);
+    timeLabel = fd !== "—" ? fd : timeTrim;
   }
 
   if (dateLabel && timeLabel) return `${dateLabel} · ${timeLabel}`;
@@ -119,19 +208,271 @@ function looksLikeEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
+/** Absolute public URL for `/ticket/:id` (mailto bodies). Prefer `VITE_PUBLIC_SITE_URL` when set so links are not `localhost` in dev. */
+function ticketDetailsPageUrl(ticketId: string): string {
+  const path = `/ticket/${ticketId}`;
+  const site =
+    typeof import.meta.env.VITE_PUBLIC_SITE_URL === "string"
+      ? import.meta.env.VITE_PUBLIC_SITE_URL.trim()
+      : "";
+  if (site.length > 0) {
+    try {
+      return new URL(path, site).href;
+    } catch {
+      /* fall through */
+    }
+  }
+  if (typeof window === "undefined") return path;
+  try {
+    return new URL(path, window.location.origin).href;
+  } catch {
+    return path;
+  }
+}
+
+/** SPA navigation to the public listing detail route (`/ticket/:id`). */
+function AdminTicketPublicListingLink({
+  ticketId,
+  className,
+  title = "Open listing",
+}: {
+  ticketId: string;
+  className?: string;
+  title?: string;
+}) {
+  return (
+    <Link to={`/ticket/${ticketId}`} className={className} title={title}>
+      {ticketId}
+    </Link>
+  );
+}
+
+/**
+ * Plain-text listing URL line for mail bodies. `mailto` payloads are plain text—HTML `<a>` tags show verbatim.
+ * Most mail apps auto-link a standalone https URL line.
+ */
+function listingDetailsMailLinkBlock(absUrl: string): string {
+  return `Public listing page:\n${absUrl}\n`;
+}
+
+function ticketSellerDisplayName(ticket: Ticket, sellerRow: AdminUserRow | undefined): string {
+  return ticket.sellerName?.trim() || sellerRow?.name?.trim() || "Unknown User";
+}
+
+function ticketSellerMailtoDisplayName(ticket: Ticket, sellerRow: AdminUserRow | undefined): string {
+  const n = ticket.sellerName?.trim() || sellerRow?.name?.trim();
+  return n || "there";
+}
+
 /** Prefilled subject/body for admin → seller email from Manage Tickets. */
 function adminSellerMailtoHref(
   email: string,
   ctx: { sellerDisplayName: string; ticketId: string },
 ): string {
   const addr = email.trim();
-  const subject = `TransitSwap — ticket ${ctx.ticketId}`;
+  const subject = `[TransitSwap] Official correspondence regarding your listing (Ticket ID: ${ctx.ticketId})`;
+  const listingUrl = ticketDetailsPageUrl(ctx.ticketId);
   const body =
-    `Hello ${ctx.sellerDisplayName},\n\n` +
-    `We're writing from TransitSwap regarding listing/ticket ID: ${ctx.ticketId}.\n\n` +
-    `[Your message here]\n\n` +
-    `— TransitSwap admin`;
+    `Dear ${ctx.sellerDisplayName},\n\n` +
+    `Thank you for using TransitSwap.\n\n` +
+    `TransitSwap Support is contacting you regarding the listing identified below. This message may relate to routine listing administration—for example verification steps, alignment with listing policies, buyer coordination, or updates pertinent to your ticket—as determined during operational review.\n\n` +
+    `Please retain the following references whenever you reply so we can assist you promptly:\n\n` +
+    `Ticket ID:\n${ctx.ticketId}\n\n` +
+    `${listingDetailsMailLinkBlock(listingUrl)}\n` +
+    `You may reply directly to this email if you require clarification or further assistance.\n\n` +
+    `Kind regards,\n` +
+    `TransitSwap Support`;
   return `mailto:${addr}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+/** Prefilled subject/body for ban / account moderation (Manage Users, scam reports). Send-ready universal Trust & Safety notice—only personalization is name plus injected refs/URLs. */
+function adminBanModerationMailtoHref(
+  email: string,
+  ctx: {
+    recipientDisplayName: string;
+    ticketId?: string;
+    reportIdShort?: string;
+  },
+): string {
+  const addr = email.trim();
+  const hasListing =
+    ctx.ticketId != null && String(ctx.ticketId).trim().length > 0;
+  const subject = hasListing
+    ? `[TransitSwap] Trust & Safety: Important notice regarding your account (Ticket ID: ${String(ctx.ticketId).trim()})`
+    : `[TransitSwap] Trust & Safety: Important notice regarding your account`;
+
+  let referenceBlock = "";
+  if (hasListing) {
+    const id = String(ctx.ticketId).trim();
+    referenceBlock +=
+      `Ticket ID:\n` +
+      `${id}\n\n` +
+      `${listingDetailsMailLinkBlock(ticketDetailsPageUrl(id))}\n`;
+  }
+  if (ctx.reportIdShort) {
+    referenceBlock += `Internal case reference (TransitSwap):\nReport #${ctx.reportIdShort}\n\n`;
+  }
+
+  const body =
+    `Dear ${ctx.recipientDisplayName},\n\n` +
+    `We are writing to you from the TransitSwap Trust & Safety team concerning your TransitSwap account and your activity on our marketplace.\n\n` +
+    (referenceBlock
+      ? `Please retain the following reference information for any correspondence:\n\n${referenceBlock}\n`
+      : "") +
+    `TransitSwap operates as a marketplace for ticket resale. To protect buyers, sellers, and the integrity of the platform, we review accounts and listings for compliance with our Terms of Service, posted policies, and applicable legal requirements.\n\n` +
+    `You are receiving this formal notice because our Trust & Safety function has assessed matters involving your account or listings under those standards. Such matters may include—but are not limited to—reports from users or third parties, suspected fraud or misrepresentation, listing or transaction disputes, suspected breaches of marketplace rules, or other conduct that may affect safety or trust within TransitSwap.\n\n` +
+    `Depending on our findings and the seriousness of the issue, TransitSwap may take proportionate administrative measures permitted under our Terms of Service and policies. Those measures may include warnings or advisories; restriction or suspension of specific listings or account features; removal of content that does not meet our rules; temporary suspension of account access; or permanent termination of access where the circumstances warrant. Any restriction already reflected on your account or listings should be understood as reflecting our position unless we expressly advise otherwise in a subsequent written message.\n\n` +
+    `Further correspondence may follow while reviews remain open. Continued or severe breaches after notice may result in further or escalating enforcement without separate preamble beyond what our Terms allow.\n\n` +
+    `If you wish to respond—including where you believe a determination may have been made in error—or you seek clarification, reply to this email and include any Ticket IDs or reference identifiers shown above so we may trace your message accurately.\n\n` +
+    `Thank you for your cooperation.\n\n` +
+    `Kind regards,\n` +
+    `TransitSwap Trust & Safety Team`;
+  return `mailto:${addr}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+function AdminSellerProfileLink({
+  ticket,
+  sellerRow,
+  profileTab,
+  linkClassName,
+  noSellerIdClassName,
+}: {
+  ticket: Ticket;
+  sellerRow: AdminUserRow | undefined;
+  profileTab: "overview" | "tickets";
+  linkClassName: string;
+  noSellerIdClassName: string;
+}) {
+  const label = ticketSellerDisplayName(ticket, sellerRow);
+  if (!ticket.sellerId) {
+    return <span className={noSellerIdClassName}>{ticket.sellerName ?? "—"}</span>;
+  }
+  return (
+    <Link
+      to={`/admin/users/${ticket.sellerId}`}
+      state={{ tab: profileTab }}
+      className={linkClassName}
+      title="Open seller profile (admin)"
+    >
+      {label}
+    </Link>
+  );
+}
+
+/** Seller listing mailto + fallback line (Manage Tickets + Recent Ticket Posts). */
+function AdminSellerListingMailRow({
+  ticket,
+  sellerRow,
+  linkClassName,
+  fallbackClassName,
+  emptyLabel,
+  fallbackTitle,
+}: {
+  ticket: Ticket;
+  sellerRow: AdminUserRow | undefined;
+  linkClassName: string;
+  fallbackClassName: string;
+  /** Shown when there is no mailable email and no sellerId to display (e.g. overview cards). */
+  emptyLabel?: string;
+  fallbackTitle?: string;
+}) {
+  const email = sellerRow?.email?.trim();
+  if (email && looksLikeEmail(email)) {
+    return (
+      <a
+        href={adminSellerMailtoHref(email, {
+          sellerDisplayName: ticketSellerMailtoDisplayName(ticket, sellerRow),
+          ticketId: ticket.id,
+        })}
+        className={linkClassName}
+        title={`Email ${email}`}
+      >
+        <Mail className="w-3 h-3 shrink-0" aria-hidden />
+        <span className="truncate min-w-0">{email}</span>
+      </a>
+    );
+  }
+  const fallbackText = (email || ticket.sellerId || "").trim();
+  const shown = fallbackText || emptyLabel || "";
+  return (
+    <span className={fallbackClassName} title={fallbackTitle ?? String(fallbackText || ticket.sellerId || "")}>
+      {shown}
+    </span>
+  );
+}
+
+const RecentTicketPostRow = memo(function RecentTicketPostRow({
+  ticket,
+  sellerRow,
+}: {
+  ticket: Ticket;
+  sellerRow: AdminUserRow | undefined;
+}) {
+  const sellerPhone = ticket.sellerPhone || sellerRow?.phone;
+  return (
+    <div className="flex justify-between items-center border-l-4 border-primary p-3 bg-muted/20 gap-3">
+      <div className="min-w-0">
+        <p className="font-mono text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+          {formatTicketPostedAtAmPm(ticket.postedAt)}
+        </p>
+        <p className="font-heading font-bold text-lg uppercase leading-none mt-1">{ticket.transportName}</p>
+        <p className="font-mono text-xs text-muted-foreground mt-1">
+          {ticket.from} → {ticket.to}
+        </p>
+        <AdminTicketPublicListingLink
+          ticketId={ticket.id}
+          className="mt-1 block font-mono text-[10px] font-black uppercase tracking-widest text-primary underline-offset-2 hover:underline break-all max-w-full"
+        />
+      </div>
+      <div className="text-right flex flex-col items-end gap-0.5 min-w-0 max-w-[58%] shrink-0">
+        <p className="font-heading text-xl font-black tracking-tighter text-emerald-600">৳{ticket.sellingPrice}</p>
+        <AdminSellerProfileLink
+          ticket={ticket}
+          sellerRow={sellerRow}
+          profileTab="overview"
+          linkClassName="font-mono text-[10px] font-bold text-primary underline-offset-2 hover:underline truncate max-w-full text-right"
+          noSellerIdClassName="font-mono text-[10px] font-bold text-muted-foreground truncate max-w-full"
+        />
+        <div className="font-mono text-[10px] mt-0.5 max-w-full flex justify-end">
+          <AdminSellerListingMailRow
+            ticket={ticket}
+            sellerRow={sellerRow}
+            linkClassName={`${adminTelLinkClass} justify-end max-w-full`}
+            fallbackClassName="text-muted-foreground truncate font-normal text-right"
+            emptyLabel="No email on file"
+          />
+        </div>
+        {sellerPhone ? (
+          <a
+            href={phoneDisplayToTelHref(sellerPhone)}
+            className={`font-mono text-[10px] text-muted-foreground mt-1 justify-end ${adminTelLinkClass} max-w-full`}
+            title="Call seller"
+          >
+            <Phone className="w-3 h-3 shrink-0" aria-hidden />
+            <span className="truncate min-w-0">{sellerPhone}</span>
+          </a>
+        ) : (
+          <p className="font-mono text-[10px] text-muted-foreground/70 mt-1 italic">No phone on file</p>
+        )}
+      </div>
+    </div>
+  );
+});
+
+function recentTicketPostRows(items: Ticket[], userById: Map<string, AdminUserRow>) {
+  return items.map((ticket) => (
+    <RecentTicketPostRow
+      key={ticket.id}
+      ticket={ticket}
+      sellerRow={ticket.sellerId ? userById.get(ticket.sellerId) : undefined}
+    />
+  ));
+}
+
+function buyerRequestCardElements(items: BuyerPurchaseRequest[], userById: Map<string, AdminUserRow>) {
+  return items.map((req) => (
+    <BuyerPurchaseRequestCard key={req.id} mode="admin" req={req} sellerRow={userById.get(req.sellerId)} />
+  ));
 }
 
 export default function AdminDashboard() {
@@ -149,9 +490,99 @@ export default function AdminDashboard() {
     { id: string; name: string; email: string; role: string; permissions: string[]; isSelf: boolean }[]
   >([]);
   const [ticketReports, setTicketReports] = useState<TicketReport[]>([]);
+  const [buyerPurchaseOverview, setBuyerPurchaseOverview] = useState<BuyerPurchaseRequest[]>([]);
+  const [buyerPurchaseOverviewHasMore, setBuyerPurchaseOverviewHasMore] = useState(false);
+  const [buyerPurchaseListOpen, setBuyerPurchaseListOpen] = useState(false);
+  const [buyerPurchaseListItems, setBuyerPurchaseListItems] = useState<BuyerPurchaseRequest[]>([]);
+  const [buyerPurchaseListCursor, setBuyerPurchaseListCursor] =
+    useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [buyerPurchaseListHasMore, setBuyerPurchaseListHasMore] = useState(false);
+  const [buyerPurchaseListLoading, setBuyerPurchaseListLoading] = useState(false);
+  const [recentTicketsOverview, setRecentTicketsOverview] = useState<Ticket[]>([]);
+  const [recentTicketsOverviewHasMore, setRecentTicketsOverviewHasMore] = useState(false);
+  const [recentTicketsListOpen, setRecentTicketsListOpen] = useState(false);
+  const [recentTicketsListItems, setRecentTicketsListItems] = useState<Ticket[]>([]);
+  const [recentTicketsListCursor, setRecentTicketsListCursor] =
+    useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [recentTicketsListHasMore, setRecentTicketsListHasMore] = useState(false);
+  const [recentTicketsListLoading, setRecentTicketsListLoading] = useState(false);
   const [selectedAdminId, setSelectedAdminId] = useState<string | null>(null);
 
   const [pendingAdmins, setPendingAdmins] = useState<PendingAdminRow[]>([]);
+
+  const userById = useMemo(() => {
+    const m = new Map<string, AdminUserRow>();
+    for (const u of users) m.set(u.id, u);
+    return m;
+  }, [users]);
+
+  const syncBuyerPurchaseOverviewFromServer = useCallback(() => {
+    void fetchBuyerPurchaseRequestsOverview().then(({ items, hasMore }) => {
+      setBuyerPurchaseOverview(items);
+      setBuyerPurchaseOverviewHasMore(hasMore);
+    });
+  }, []);
+
+  const applyBuyerPurchaseListPage = useCallback(
+    (r: Awaited<ReturnType<typeof fetchBuyerPurchaseRequestsPage>>, mode: "replace" | "append") => {
+      if (mode === "append") {
+        setBuyerPurchaseListItems((prev) => [...prev, ...r.items]);
+      } else {
+        setBuyerPurchaseListItems(r.items);
+      }
+      setBuyerPurchaseListCursor(r.endCursor);
+      setBuyerPurchaseListHasMore(r.hasMore);
+      setBuyerPurchaseListLoading(false);
+    },
+    [],
+  );
+
+  const loadMoreBuyerPurchaseRequests = useCallback(() => {
+    if (!buyerPurchaseListCursor || buyerPurchaseListLoading || !buyerPurchaseListHasMore) return;
+    setBuyerPurchaseListLoading(true);
+    void fetchBuyerPurchaseRequestsPage(BUYER_PURCHASE_ADMIN_PAGE_SIZE, buyerPurchaseListCursor).then((r) =>
+      applyBuyerPurchaseListPage(r, "append"),
+    );
+  }, [
+    buyerPurchaseListCursor,
+    buyerPurchaseListLoading,
+    buyerPurchaseListHasMore,
+    applyBuyerPurchaseListPage,
+  ]);
+
+  const syncRecentTicketsOverviewFromServer = useCallback(() => {
+    void fetchTicketsRecentOverview().then(({ tickets: rows, hasMore }) => {
+      setRecentTicketsOverview(rows);
+      setRecentTicketsOverviewHasMore(hasMore);
+    });
+  }, []);
+
+  const applyRecentTicketsListPage = useCallback(
+    (r: Awaited<ReturnType<typeof fetchTicketsPostedAtAdminPage>>, mode: "replace" | "append") => {
+      if (mode === "append") {
+        setRecentTicketsListItems((prev) => [...prev, ...r.tickets]);
+      } else {
+        setRecentTicketsListItems(r.tickets);
+      }
+      setRecentTicketsListCursor(r.endCursor);
+      setRecentTicketsListHasMore(r.hasMore);
+      setRecentTicketsListLoading(false);
+    },
+    [],
+  );
+
+  const loadMoreRecentTickets = useCallback(() => {
+    if (!recentTicketsListCursor || recentTicketsListLoading || !recentTicketsListHasMore) return;
+    setRecentTicketsListLoading(true);
+    void fetchTicketsPostedAtAdminPage(TICKETS_ADMIN_RECENT_DIALOG_PAGE_SIZE, recentTicketsListCursor).then((r) => {
+      if (r) applyRecentTicketsListPage(r, "append");
+    });
+  }, [
+    recentTicketsListCursor,
+    recentTicketsListLoading,
+    recentTicketsListHasMore,
+    applyRecentTicketsListPage,
+  ]);
 
   useEffect(() => {
     if (currentUser?.role !== 'admin') return;
@@ -182,7 +613,42 @@ export default function AdminDashboard() {
     getTicketReports()
       .then(setTicketReports)
       .catch(() => setTicketReports([]));
-  }, [currentUser]);
+
+    syncBuyerPurchaseOverviewFromServer();
+    syncRecentTicketsOverviewFromServer();
+  }, [currentUser, syncBuyerPurchaseOverviewFromServer, syncRecentTicketsOverviewFromServer]);
+
+  useEffect(() => {
+    if (!buyerPurchaseListOpen || currentUser?.role !== "admin") return;
+    let cancelled = false;
+    setBuyerPurchaseListLoading(true);
+    setBuyerPurchaseListItems([]);
+    setBuyerPurchaseListCursor(null);
+    setBuyerPurchaseListHasMore(false);
+    void fetchBuyerPurchaseRequestsPage(BUYER_PURCHASE_ADMIN_PAGE_SIZE, null).then((r) => {
+      if (cancelled) return;
+      applyBuyerPurchaseListPage(r, "replace");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [buyerPurchaseListOpen, currentUser?.role, applyBuyerPurchaseListPage]);
+
+  useEffect(() => {
+    if (!recentTicketsListOpen || currentUser?.role !== "admin") return;
+    let cancelled = false;
+    setRecentTicketsListLoading(true);
+    setRecentTicketsListItems([]);
+    setRecentTicketsListCursor(null);
+    setRecentTicketsListHasMore(false);
+    void fetchTicketsPostedAtAdminPage(TICKETS_ADMIN_RECENT_DIALOG_PAGE_SIZE, null).then((r) => {
+      if (cancelled || !r) return;
+      applyRecentTicketsListPage(r, "replace");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [recentTicketsListOpen, currentUser?.role, applyRecentTicketsListPage]);
 
   useEffect(() => {
     const tab = (location.state as { tab?: string } | null)?.tab;
@@ -255,6 +721,15 @@ export default function AdminDashboard() {
     };
     fetchPendingAdmins();
   }, [currentUser]);
+
+  const destinationCounts = useMemo(() => {
+    const acc: Record<string, number> = {};
+    for (const t of tickets) {
+      const key = t.to;
+      acc[key] = (acc[key] ?? 0) + 1;
+    }
+    return acc;
+  }, [tickets]);
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center font-mono uppercase font-bold tracking-widest text-muted-foreground">Verifying access...</div>;
@@ -425,7 +900,7 @@ export default function AdminDashboard() {
 
   /** Ban ↔ active on one control; unban does not require the Ban User permission gate. */
   const handleToggleBanUser = (userId: string) => {
-    const row = users.find((u) => u.id === userId);
+    const row = userById.get(userId);
     if (!row) {
       toast.error("User is not in the loaded directory. Open Manage Users or refresh the dashboard.");
       return;
@@ -570,48 +1045,60 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Daily/Weekly Stats */}
               <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 lg:col-span-2">
-                <h3 className="font-heading text-2xl font-black uppercase tracking-tighter mb-6 border-b-4 border-foreground pb-4 flex justify-between items-center">
-                  Recent Ticket Posts <Badge className="rounded-none bg-primary text-primary-foreground border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] font-mono text-[10px] tracking-widest font-black uppercase">Live Updates</Badge>
-                </h3>
+                <div className="mb-6 flex flex-wrap items-start justify-between gap-3 border-b-4 border-foreground pb-4">
+                  <div className="flex flex-wrap items-center gap-2 min-w-0">
+                    <h3 className="font-heading text-2xl font-black uppercase tracking-tighter">Recent Ticket Posts</h3>
+                    <Badge className="rounded-none bg-primary text-primary-foreground border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] font-mono text-[10px] tracking-widest font-black uppercase shrink-0">
+                      Live Updates
+                    </Badge>
+                  </div>
+                  {recentTicketsOverviewHasMore ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-none border-2 border-foreground font-mono text-[10px] font-black uppercase tracking-widest shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-px shrink-0"
+                      onClick={() => setRecentTicketsListOpen(true)}
+                    >
+                      View all
+                    </Button>
+                  ) : null}
+                </div>
                 <div className="space-y-4">
-                  {tickets.slice(0, 3).map((ticket) => {
-                    const sellerUser = users.find((u) => u.id === ticket.sellerId);
-                    const sellerPhone = ticket.sellerPhone || sellerUser?.phone;
-                    return (
-                    <div key={ticket.id} className="flex justify-between items-center border-l-4 border-primary p-3 bg-muted/20">
-                      <div>
-                        <p className="font-mono text-[10px] font-black uppercase tracking-widest">{ticket.id} · {formatTicketPostedAtForAdmin(ticket.postedAt)}</p>
-                        <p className="font-heading font-bold text-lg uppercase leading-none mt-1">{ticket.transportName}</p>
-                        <p className="font-mono text-xs text-muted-foreground mt-1">{ticket.from} → {ticket.to}</p>
-                      </div>
-                      <div className="text-right">
-                         <p className="font-heading text-xl font-black tracking-tighter text-emerald-600">৳{ticket.sellingPrice}</p>
-                         <p className="font-mono text-[10px] font-bold text-muted-foreground">Seller: {ticket.sellerName ?? ticket.sellerId}</p>
-                         {sellerPhone ? (
-                           <a
-                             href={phoneDisplayToTelHref(sellerPhone)}
-                             className={`font-mono text-[10px] text-muted-foreground mt-1 justify-end ${adminTelLinkClass}`}
-                             title="Call seller"
-                           >
-                             <Phone className="w-3 h-3 shrink-0" aria-hidden />
-                             <span className="truncate">{sellerPhone}</span>
-                           </a>
-                         ) : (
-                           <p className="font-mono text-[10px] text-muted-foreground/70 mt-1 italic">No phone on file</p>
-                         )}
-                      </div>
-                    </div>
-                    );
-                  })}
+                  {recentTicketsOverview.length === 0 ? (
+                    <p className="font-mono text-xs font-bold text-muted-foreground">No listings yet.</p>
+                  ) : (
+                    recentTicketPostRows(recentTicketsOverview, userById)
+                  )}
                 </div>
               </div>
+
+              <AdminPagedOverviewDialog
+                open={recentTicketsListOpen}
+                onOpenChange={(open) => {
+                  setRecentTicketsListOpen(open);
+                  if (!open && currentUser?.role === "admin") {
+                    syncRecentTicketsOverviewFromServer();
+                  }
+                }}
+                title="Recent ticket posts"
+                contentClassName="max-w-6xl sm:max-w-6xl"
+                loading={recentTicketsListLoading}
+                itemCount={recentTicketsListItems.length}
+                hasMore={recentTicketsListHasMore}
+                onLoadMore={loadMoreRecentTickets}
+                emptyMessage="No listings yet."
+              >
+                {recentTicketPostRows(recentTicketsListItems, userById)}
+              </AdminPagedOverviewDialog>
               
               {/* Most Searched */}
               <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8">
                 <h3 className="font-heading text-xl font-black uppercase tracking-tighter mb-4 border-b-4 border-foreground pb-2">Top Destinations</h3>
                 <div className="space-y-4 font-mono uppercase text-xs font-bold">
-                  {Object.entries(tickets.reduce((acc, t) => ({...acc, [t.to]: (acc[t.to] || 0) + 1}), {} as Record<string, number>))
-                    .sort(([,a], [,b]) => (b as number) - (a as number)).slice(0, 4).map(([name, count], i, arr) => (
+                  {Object.entries(destinationCounts)
+                    .sort(([, a], [, b]) => Number(b) - Number(a))
+                    .slice(0, 10)
+                    .map(([name, count], i, arr) => (
                     <div key={name} className="flex flex-col gap-1">
                       <div className="flex justify-between">
                          <span>{i+1}. {name}</span>
@@ -627,12 +1114,58 @@ export default function AdminDashboard() {
               </div>
 
               {/* Recent Buyer Requests */}
-               <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8">
-                 <h3 className="font-heading text-xl font-black uppercase tracking-tighter mb-4 border-b-4 border-foreground pb-2">Recent Buyer Requests</h3>
-                 <div className="space-y-4">
-                   <p className="font-mono text-xs font-bold text-muted-foreground">Buyer requests tracking not implemented yet.</p>
+               <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 lg:col-span-3">
+                 <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b-4 border-foreground pb-4">
+                   <div className="flex flex-wrap items-center gap-2 min-w-0">
+                     <h3 className="font-heading text-xl font-black uppercase tracking-tighter">Recent Buyer Requests</h3>
+                     <Badge variant="outline" className="rounded-none border-2 border-foreground font-mono text-[9px] font-black uppercase tracking-widest gap-1 py-0 shrink-0">
+                       <MessageCircle className="w-3 h-3 text-emerald-600 shrink-0" aria-hidden />
+                       WhatsApp handoff
+                     </Badge>
+                   </div>
+                   {buyerPurchaseOverviewHasMore ? (
+                     <Button
+                       type="button"
+                       variant="outline"
+                       className="rounded-none border-2 border-foreground font-mono text-[10px] font-black uppercase tracking-widest shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-px shrink-0"
+                       onClick={() => setBuyerPurchaseListOpen(true)}
+                     >
+                       View all
+                     </Button>
+                   ) : null}
+                 </div>
+                 <div
+                   className={
+                     buyerPurchaseOverview.length === 0 ? "" : "grid grid-cols-1 md:grid-cols-3 gap-4"
+                   }
+                 >
+                   {buyerPurchaseOverview.length === 0 ? (
+                     <p className="font-mono text-xs font-bold text-muted-foreground">
+                       No buyer requests logged yet. Requests appear when someone taps Request to Buy on a listing.
+                     </p>
+                   ) : (
+                     buyerRequestCardElements(buyerPurchaseOverview, userById)
+                   )}
                  </div>
                </div>
+
+              <AdminPagedOverviewDialog
+                open={buyerPurchaseListOpen}
+                onOpenChange={(open) => {
+                  setBuyerPurchaseListOpen(open);
+                  if (!open && currentUser?.role === "admin") {
+                    syncBuyerPurchaseOverviewFromServer();
+                  }
+                }}
+                title="Buyer purchase requests"
+                loading={buyerPurchaseListLoading}
+                itemCount={buyerPurchaseListItems.length}
+                hasMore={buyerPurchaseListHasMore}
+                onLoadMore={loadMoreBuyerPurchaseRequests}
+                emptyMessage="No purchase requests yet."
+              >
+                {buyerRequestCardElements(buyerPurchaseListItems, userById)}
+              </AdminPagedOverviewDialog>
 
               {/* Admin Notes */}
               <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 lg:col-span-3">
@@ -701,55 +1234,38 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody>
                     {filteredTickets.map((ticket, i) => {
-                      const user = users.find(u => u.id === ticket.sellerId);
+                      const sellerRow = ticket.sellerId ? userById.get(ticket.sellerId) : undefined;
                       return (
                       <tr key={ticket.id} className={`border-b-2 border-foreground ${i % 2 === 0 ? "bg-muted/10" : "bg-background"} hover:bg-muted/50 transition-colors`}>
                         <td className="p-3 border-r-2 border-foreground align-top min-w-0">
                           <p className="font-heading font-bold text-sm xl:text-base uppercase leading-tight">{ticket.transportName}</p>
                           <p className="text-muted-foreground mt-1 space-y-1 leading-snug">
                             <span className="block">{ticket.from} → {ticket.to}</span>
-                            <Link
-                              to={`/ticket/${ticket.id}`}
+                            <AdminTicketPublicListingLink
+                              ticketId={ticket.id}
                               className="block text-primary font-bold underline-offset-2 hover:underline break-all"
-                              title="Open listing"
-                            >
-                              {ticket.id}
-                            </Link>
+                            />
                           </p>
                         </td>
                         <td className="p-3 font-bold border-r-2 border-foreground text-emerald-600 text-sm align-top whitespace-nowrap">৳{ticket.sellingPrice}</td>
                         <td className="p-3 border-r-2 border-foreground align-top min-w-0 max-w-[200px]">
-                          <p className="font-bold truncate max-w-full" title={ticket.sellerName || user?.name || "Unknown User"}>
-                            {ticket.sellerId ? (
-                              <Link
-                                to={`/admin/users/${ticket.sellerId}`}
-                                state={{ tab: "tickets" }}
-                                className="text-primary underline-offset-2 hover:underline truncate inline-block max-w-full align-bottom"
-                              >
-                                {ticket.sellerName || user?.name || "Unknown User"}
-                              </Link>
-                            ) : (
-                              ticket.sellerName || user?.name || "Unknown User"
-                            )}
+                          <p className="font-bold truncate max-w-full" title={ticketSellerDisplayName(ticket, sellerRow)}>
+                            <AdminSellerProfileLink
+                              ticket={ticket}
+                              sellerRow={sellerRow}
+                              profileTab="tickets"
+                              linkClassName="text-primary underline-offset-2 hover:underline truncate inline-block max-w-full align-bottom"
+                              noSellerIdClassName="font-bold"
+                            />
                           </p>
                           <div className="mt-1 min-w-0">
-                            {user?.email && looksLikeEmail(user.email) ? (
-                              <a
-                                href={adminSellerMailtoHref(user.email, {
-                                  sellerDisplayName: ticket.sellerName || user?.name || "there",
-                                  ticketId: ticket.id,
-                                })}
-                                className={`${adminTelLinkClass} font-normal text-[10px] xl:text-xs max-w-full`}
-                                title={`Email ${user.email}`}
-                              >
-                                <Mail className="w-3 h-3 shrink-0" aria-hidden />
-                                <span className="truncate min-w-0">{user.email}</span>
-                              </a>
-                            ) : (
-                              <span className="text-muted-foreground text-[10px] xl:text-xs truncate block" title={String(user?.email || ticket.sellerId)}>
-                                {user?.email || ticket.sellerId}
-                              </span>
-                            )}
+                            <AdminSellerListingMailRow
+                              ticket={ticket}
+                              sellerRow={sellerRow}
+                              linkClassName={`${adminTelLinkClass} font-normal text-[10px] xl:text-xs max-w-full`}
+                              fallbackClassName="text-muted-foreground text-[10px] xl:text-xs truncate block"
+                              fallbackTitle={String(sellerRow?.email || ticket.sellerId)}
+                            />
                           </div>
                           {ticket.sellerPhone && (
                             <a
@@ -766,7 +1282,7 @@ export default function AdminDashboard() {
                            <div className="space-y-2 text-[10px] text-muted-foreground leading-snug">
                              <p>
                                <span className="font-black uppercase tracking-wider text-foreground/85 block mb-0.5">Posted</span>
-                               <span className="font-mono">{formatTicketPostedAtForAdmin(ticket.postedAt)}</span>
+                               <span className="font-mono">{formatTicketPostedAtAmPm(ticket.postedAt)}</span>
                              </p>
                              <p className="flex items-center gap-1 font-bold">
                                <Eye className="w-3 h-3 shrink-0 text-foreground" aria-hidden />
@@ -838,12 +1354,10 @@ export default function AdminDashboard() {
                       {staffNoteTicket ? (
                         <>
                           {staffNoteTicket.transportName} ·{" "}
-                          <Link
-                            to={`/ticket/${staffNoteTicket.id}`}
+                          <AdminTicketPublicListingLink
+                            ticketId={staffNoteTicket.id}
                             className="text-primary underline-offset-2 hover:underline"
-                          >
-                            {staffNoteTicket.id}
-                          </Link>
+                          />
                         </>
                       ) : null}
                     </DialogDescription>
@@ -931,7 +1445,20 @@ export default function AdminDashboard() {
                               {user.name}
                             </Link>
                           </p>
-                          <p className="text-[10px] text-muted-foreground font-bold">{user.email}</p>
+                          {user.email && looksLikeEmail(user.email) ? (
+                            <a
+                              href={adminBanModerationMailtoHref(user.email, {
+                                recipientDisplayName: user.name || "there",
+                              })}
+                              className={`text-[10px] text-muted-foreground font-bold ${adminTelLinkClass} inline-flex items-center gap-1 max-w-full mt-0.5`}
+                              title="Compose moderation email"
+                            >
+                              <Mail className="w-3 h-3 shrink-0" aria-hidden />
+                              <span className="truncate min-w-0">{user.email}</span>
+                            </a>
+                          ) : (
+                            <p className="text-[10px] text-muted-foreground font-bold">{user.email}</p>
+                          )}
                           {user.phone ? (
                             <a
                               href={phoneDisplayToTelHref(user.phone)}
@@ -997,9 +1524,9 @@ export default function AdminDashboard() {
                <h3 className="font-heading text-3xl font-black uppercase tracking-tighter bg-destructive text-destructive-foreground px-3 py-1 border-2 border-foreground inline-block mb-8">Scam Reporting System</h3>
                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                  {ticketReports.map((report) => {
-                   const reporterUser = users.find((u) => u.id === report.reporterId);
+                   const reporterUser = userById.get(report.reporterId);
                    const reporterIsAnon = report.reporterId === ANONYMOUS_REPORTER_ID;
-                   const sellerRow = users.find((u) => u.id === report.sellerId);
+                   const sellerRow = userById.get(report.sellerId);
                    const sellerBanned = sellerRow?.status === "banned";
                    return (
                    <div key={report.id} className="border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] p-6 bg-red-50 relative overflow-hidden flex flex-col justify-between">
@@ -1015,13 +1542,11 @@ export default function AdminDashboard() {
                            <p className="font-heading font-bold text-sm uppercase leading-tight text-foreground">{report.ticketName}</p>
                            <div>
                              <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-0.5">Ticket ID</p>
-                             <Link
-                               to={`/ticket/${report.ticketId}`}
+                             <AdminTicketPublicListingLink
+                               ticketId={report.ticketId}
                                className="font-mono text-xs font-bold text-primary underline-offset-2 hover:underline break-all inline-block max-w-full"
                                title="Open listing details"
-                             >
-                               {report.ticketId}
-                             </Link>
+                             />
                            </div>
                          </div>
                          <div>
@@ -1040,9 +1565,13 @@ export default function AdminDashboard() {
                              {sellerRow?.email?.trim() ? (
                                looksLikeEmail(sellerRow.email) ? (
                                  <a
-                                   href={`mailto:${sellerRow.email.trim()}`}
+                                   href={adminBanModerationMailtoHref(sellerRow.email, {
+                                     recipientDisplayName: report.sellerName || sellerRow.name || "there",
+                                     ticketId: report.ticketId,
+                                     reportIdShort: report.id.slice(0, 8),
+                                   })}
                                    className={`${adminTelLinkClass} font-normal break-all inline-flex items-center gap-1 max-w-full`}
-                                   title={`Email ${sellerRow.email}`}
+                                   title="Compose moderation email (reported seller)"
                                  >
                                    <Mail className="w-3 h-3 shrink-0" aria-hidden />
                                    <span className="min-w-0">{sellerRow.email}</span>

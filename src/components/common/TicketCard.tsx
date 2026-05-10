@@ -1,6 +1,7 @@
 import * as React from "react"
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
+import { formatDepartureTimeDisplay } from "@/src/lib/formatDepartureTime";
 import { MapPin, Train, BusFront, Edit2, Trash2, CheckCircle2, AlertTriangle, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { QRCodeSVG } from "qrcode.react";
@@ -85,7 +86,7 @@ export const TicketCard: React.FC<TicketProps> = ({ ticket, mode = "default", on
           <div className="flex items-center justify-between mt-auto">
              <div className="flex flex-col">
                <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest mb-1 flex items-center gap-1"><MapPin className="w-3 h-3"/> Depart</span>
-               <span className="font-heading font-bold text-4xl tracking-tighter">{ticket.departureTime}</span>
+               <span className="font-heading font-bold text-4xl tracking-tighter">{formatDepartureTimeDisplay(ticket.departureTime)}</span>
              </div>
              
              {/* Divider Graphic */}

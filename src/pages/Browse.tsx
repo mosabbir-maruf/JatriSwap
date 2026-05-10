@@ -19,6 +19,7 @@ import type { QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { toast } from "sonner";
 import { fetchTicketsPage, TICKETS_PAGE_SIZE, ticketPostedAtMs, type TicketListFilters } from "@/src/lib/firebase/tickets";
 import { Ticket } from "@/src/types";
+import { departureTimeMatchesSearch } from "@/src/lib/formatDepartureTime";
 import { useTicketSellerPrivacy } from "@/src/hooks/useTicketSellerPrivacy";
 import { redactSellerPhonesForViewer } from "@/src/lib/ticketPrivacy";
 
@@ -128,7 +129,8 @@ const Browse = () => {
       const matchName = t.transportName.toLowerCase().includes(q);
       const matchRoute = t.from.toLowerCase().includes(q) || t.to.toLowerCase().includes(q);
       const matchId = t.id?.toLowerCase().includes(q) || false;
-      const matchTime = t.departureTime?.toLowerCase().includes(q) || t.date?.toLowerCase().includes(q) || false;
+      const matchTime =
+        departureTimeMatchesSearch(t.departureTime, q) || (!!t.date && t.date.toLowerCase().includes(q));
       
       if (!matchName && !matchRoute && !matchId && !matchTime) return false;
     }

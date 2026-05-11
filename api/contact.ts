@@ -1,37 +1,53 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-
-import { ContactHttpError } from "./lib/contact/httpError";
+import { isContactHttpError } from "./lib/contact/httpError";
 import { logUnexpectedContactError } from "./lib/contact/logUnexpectedContact";
 
-function applyCors(res: VercelResponse): void {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+function corsHeaders(): Record<string, string> {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
-  applyCors(res);
+/**
+ * Web-standard handler (Vercel “other framework” / Vite SPA).
+ * Legacy `(req, res)` exports can fail invocation with ESM + npm `"type": "module"`.
+ */
+export default {
+  async fetch(request: Request): Promise<Response> {
+    const cors = corsHeaders();
 
-  if (req.method === "OPTIONS") {
-    res.status(204).end();
-    return;
-  }
-
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST, OPTIONS");
-    res.status(405).json({ error: "Method not allowed" });
-    return;
-  }
-
-  try {
-    const { handleContactPost } = await import("./lib/contact/httpPost");
-    res.status(200).json(await handleContactPost(req.body, req.headers));
-  } catch (err) {
-    if (err instanceof ContactHttpError) {
-      res.status(err.statusCode).json({ error: err.message });
-      return;
+    if (request.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: cors });
     }
-    logUnexpectedContactError("handler", err);
-    res.status(500).json({ error: "Could not send your message right now. Please try again later." });
-  }
-}
+
+    if (request.method !== "POST") {
+      return Response.json(
+        { error: "Method not allowed" },
+        { status: 405, headers: { ...cors, Allow: "POST, OPTIONS" } },
+      );
+    }
+
+    let body: unknown = {};
+    try {
+      body = await request.json();
+    } catch {
+      // Malformed JSON — treat as empty; validation yields a clear 400 from sanitize.
+    }
+
+    try {
+      const { handleContactPost } = await import("./lib/contact/httpPost");
+      const result = await handleContactPost(body, request.headers);
+      return Response.json(result, { status: 200, headers: cors });
+    } catch (err) {
+      if (isContactHttpError(err)) {
+        return Response.json({ error: err.message }, { status: err.statusCode, headers: cors });
+      }
+      logUnexpectedContactError("handler", err);
+      return Response.json(
+        { error: "Could not send your message right now. Please try again later." },
+        { status: 500, headers: cors },
+      );
+    }
+  },
+};

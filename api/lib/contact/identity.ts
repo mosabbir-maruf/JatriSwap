@@ -8,8 +8,17 @@ export function sha256Hex(input: string): string {
   return createHash("sha256").update(input, "utf8").digest("hex");
 }
 
-export function clientIpFromHeaders(headers: IncomingHttpHeaders): string {
-  const xf = headers["x-forwarded-for"];
+export type ContactRequestHeaders = IncomingHttpHeaders | Headers;
+
+export function clientIpFromHeaders(headers: ContactRequestHeaders): string {
+  let xf: string | string[] | undefined;
+  if (typeof Headers !== "undefined" && headers instanceof Headers) {
+    const v = headers.get("x-forwarded-for");
+    xf = v ?? undefined;
+  } else {
+    xf = (headers as IncomingHttpHeaders)["x-forwarded-for"];
+  }
+
   if (typeof xf === "string" && xf.length > 0) {
     const first = xf.split(",")[0]?.trim();
     if (first && first.length > 0) return first.slice(0, 128);

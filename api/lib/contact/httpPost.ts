@@ -1,16 +1,15 @@
-import type { IncomingHttpHeaders } from "node:http";
-
 import { getContactFirestore } from "../firebaseAdmin";
 import {
   contactClientKeyFromIp,
   clientIpFromHeaders,
   contactSubmissionContentHash,
   contactSubmissionKey,
+  type ContactRequestHeaders,
 } from "./identity";
 import { finalizeSuccessfulContact, reserveContactSlot, rollbackContactReservation } from "./firestoreGuards";
 import { sanitizeContactPayload, type RawContactPayload } from "./sanitize";
 import { formatContactTelegramText, sendTelegramPlainText } from "./telegram";
-import { ContactHttpError } from "./httpError";
+import { ContactHttpError, isContactHttpError } from "./httpError";
 import { logUnexpectedContactError } from "./logUnexpectedContact";
 import { isContactHoneypotTripped } from "../../../shared/contactValidation";
 
@@ -37,7 +36,7 @@ function normalizeJsonBody(body: unknown): Record<string, unknown> {
 
 export async function handleContactPost(
   body: unknown,
-  headers: IncomingHttpHeaders,
+  headers: ContactRequestHeaders,
 ): Promise<{ ok: true }> {
   const data = normalizeJsonBody(body) as RawContactPayload;
 
@@ -61,7 +60,7 @@ export async function handleContactPost(
   try {
     db = getContactFirestore();
   } catch (err) {
-    if (err instanceof ContactHttpError) throw err;
+    if (isContactHttpError(err)) throw err;
     logUnexpectedContactError("firestore_init", err);
     throw new ContactHttpError(
       503,
@@ -80,7 +79,7 @@ export async function handleContactPost(
   try {
     reserved = await reserveContactSlot(db, { submissionKey, clientKey, nowMs });
   } catch (err) {
-    if (err instanceof ContactHttpError) throw err;
+    if (isContactHttpError(err)) throw err;
     logUnexpectedContactError("firestore_reserve", err);
     throw new ContactHttpError(
       503,
@@ -100,8 +99,6 @@ export async function handleContactPost(
       chatId,
       text: formatContactTelegramText(payload),
     });
-    await finalizeSuccessfulContact(dedupeRef);
-    return { ok: true };
   } catch (err) {
     await rollbackContactReservation(db, dedupeRef, rateRef);
     logUnexpectedContactError("telegram_send", err);
@@ -110,4 +107,17 @@ export async function handleContactPost(
       "Could not deliver your message right now. Please try again in a few minutes.",
     );
   }
+
+  try {
+    await finalizeSuccessfulContact(dedupeRef);
+  } catch (err) {
+    await rollbackContactReservation(db, dedupeRef, rateRef);
+    logUnexpectedContactError("finalize_dedupe", err);
+    throw new ContactHttpError(
+      500,
+      "Could not deliver your message right now. Please try again in a few minutes.",
+    );
+  }
+
+  return { ok: true };
 }

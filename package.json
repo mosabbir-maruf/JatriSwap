@@ -1,10 +1,10 @@
 {
-  "name": "transitswap",
+  "name": "jatriswap",
   "private": true,
   "version": "0.0.0",
-  "description": "TransitSwap — React + Vite web app for browsing, listing, and buying or selling unused train and bus tickets (Firebase Auth & Firestore backend).",
+  "description": "JatriSwap — React + Vite web app for browsing, listing, and buying or selling unused train and bus tickets (Firebase Auth & Firestore backend).",
   "keywords": [
-    "transitswap",
+    "jatriswap",
     "tickets",
     "marketplace",
     "train",

@@ -27,7 +27,7 @@ export default function PrivacyPolicy() {
               <section>
                 <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">1. Information We Collect</h2>
                 <p className="font-sans text-base leading-relaxed font-bold text-muted-foreground mb-4">
-                  We collect information to provide better services to all our users. When you sign up for TransitSwap, we collect personal information you give us such as your name, email address, physical address, and telephone number.
+                  We collect information to provide better services to all our users. When you sign up for JatriSwap, we collect personal information you give us such as your name, email address, physical address, and telephone number.
                 </p>
                 <div className="bg-muted p-6 border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
                   <h3 className="font-heading text-lg font-black uppercase tracking-tighter mb-2">We also collect:</h3>
@@ -43,17 +43,17 @@ export default function PrivacyPolicy() {
               <section>
                 <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">2. How We Use Information</h2>
                 <p className="font-sans text-base leading-relaxed font-bold text-muted-foreground">
-                  We use the information we collect from all our services to provide, maintain, protect and improve them, to develop new ones, and to protect TransitSwap and our users. We also use this information to offer you tailored content – like giving you more relevant search results.
+                  We use the information we collect from all our services to provide, maintain, protect and improve them, to develop new ones, and to protect JatriSwap and our users. We also use this information to offer you tailored content – like giving you more relevant search results.
                 </p>
               </section>
 
               <section>
                 <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">3. Information We Share</h2>
                 <p className="font-sans text-base leading-relaxed font-bold text-muted-foreground mb-4">
-                  We do not share personal information with companies, organizations and individuals outside of TransitSwap unless one of the following circumstances applies:
+                  We do not share personal information with companies, organizations and individuals outside of JatriSwap unless one of the following circumstances applies:
                 </p>
                 <ul className="list-disc list-inside space-y-2 font-sans font-bold text-muted-foreground mb-4">
-                  <li><strong>With your consent:</strong> We will share personal information with companies, organizations or individuals outside of TransitSwap when we have your consent to do so.</li>
+                  <li><strong>With your consent:</strong> We will share personal information with companies, organizations or individuals outside of JatriSwap when we have your consent to do so.</li>
                   <li><strong>For legal reasons:</strong> We will share personal information if we have a good-faith belief that access, use, preservation or disclosure of the information is reasonably necessary.</li>
                 </ul>
               </section>
@@ -61,7 +61,7 @@ export default function PrivacyPolicy() {
               <section>
                 <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">4. Information Security</h2>
                 <p className="font-sans text-base leading-relaxed font-bold text-muted-foreground">
-                  We work hard to protect TransitSwap and our users from unauthorized access to or unauthorized alteration, disclosure or destruction of information we hold. We use secure escrow payments and encrypt many of our services using SSL.
+                  We work hard to protect JatriSwap and our users from unauthorized access to or unauthorized alteration, disclosure or destruction of information we hold. We use secure escrow payments and encrypt many of our services using SSL.
                 </p>
               </section>
             </div>

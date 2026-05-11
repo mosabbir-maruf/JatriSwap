@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { needsEmailVerification } from "@/src/lib/firebase/authVerification";
 import { getAuthErrorMessage } from "@/src/lib/firebase/authErrors";
-import { TransitSwapLogo } from "@/src/components/branding/TransitSwapLogo";
+import { JatriSwapLogo } from "@/src/components/branding/JatriSwapLogo";
 import { BrutalistLoadingPlaceholder } from "@/src/components/common/AuthLoadingPlaceholder";
 
 export default function VerifyEmail() {
@@ -88,9 +88,9 @@ export default function VerifyEmail() {
           <Link
             to="/"
             className="mb-4 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            aria-label="TransitSwap home"
+            aria-label="JatriSwap home"
           >
-            <TransitSwapLogo variant="auth" showDot={false} />
+            <JatriSwapLogo variant="auth" showDot={false} />
           </Link>
           <div className="w-14 h-14 border-4 border-foreground bg-muted flex items-center justify-center shadow-[4px_4px_0_0_rgba(0,0,0,1)] mb-4">
             <Mail className="w-7 h-7 text-foreground" />

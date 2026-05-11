@@ -14,7 +14,7 @@ interface ImportMetaEnv {
   /** Optional — support phone shown on Contact (display / tel: link). */
   readonly VITE_PUBLIC_SUPPORT_PHONE?: string;
   /**
-   * Optional public site origin for mailto links (e.g. https://transitswap.example.com).
+   * Optional public site origin for mailto links (e.g. https://jatriswap.example.com).
    * When set, admin email templates use this instead of window.location.origin so links are not localhost in dev.
    */
   readonly VITE_PUBLIC_SITE_URL?: string;

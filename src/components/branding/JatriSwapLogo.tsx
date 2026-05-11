@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
  * App icon mark — perforated transit ticket stub (symmetrical tear notches, dashed tear line).
  * Stroke-only so `currentColor` matches header/footer chips; reads clearly at favicon + navbar sizes.
  */
-export function TransitSwapMark({ className }: { className?: string }) {
+export function JatriSwapMark({ className }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 40 40"
@@ -41,9 +41,9 @@ export function TransitSwapMark({ className }: { className?: string }) {
   );
 }
 
-const wordmarkTitle = "TransitSwap";
+const wordmarkTitle = "JatriSwap";
 
-function TransitSwapWordmark({
+function JatriSwapWordmark({
   variant,
   sizeClass,
   showDot = true,
@@ -52,7 +52,7 @@ function TransitSwapWordmark({
   sizeClass: string;
   showDot?: boolean;
 }) {
-  const transitClass =
+  const jatriClass =
     variant === "footer"
       ? "text-background"
       : "text-foreground";
@@ -60,21 +60,21 @@ function TransitSwapWordmark({
 
   return (
     <span className={cn("font-heading font-black tracking-tighter uppercase leading-none", sizeClass)}>
-      <span className={transitClass}>Transit</span>
+      <span className={jatriClass}>Jatri</span>
       <span className={swapClass}>Swap</span>
-      {showDot ? <span className={transitClass}>.</span> : null}
+      {showDot ? <span className={jatriClass}>.</span> : null}
     </span>
   );
 }
 
-export type TransitSwapLogoVariant = "header" | "footer" | "auth";
+export type JatriSwapLogoVariant = "header" | "footer" | "auth";
 
-export function TransitSwapLogo({
+export function JatriSwapLogo({
   variant,
   className,
   showDot = true,
 }: {
-  variant: TransitSwapLogoVariant;
+  variant: JatriSwapLogoVariant;
   className?: string;
   /** Navbar/footer use a trailing period; auth cards match cleaner lockup without dot if desired */
   showDot?: boolean;
@@ -95,9 +95,9 @@ export function TransitSwapLogo({
   return (
     <span className={cn("inline-flex items-center", gap, className)} title={wordmarkTitle}>
       <span className={cn("flex shrink-0 items-center justify-center", markSizes, markShell)}>
-        <TransitSwapMark className="h-full w-full" />
+        <JatriSwapMark className="h-full w-full" />
       </span>
-      <TransitSwapWordmark variant={variant} sizeClass={textSize} showDot={showDot} />
+      <JatriSwapWordmark variant={variant} sizeClass={textSize} showDot={showDot} />
     </span>
   );
 }

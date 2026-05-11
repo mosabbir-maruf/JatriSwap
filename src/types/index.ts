@@ -43,7 +43,6 @@ export interface Ticket {
   departureTime: string;
   date: string;
   seatClass: string;
-  seatNumber: string;
   originalPrice: number;
   sellingPrice: number;
   status: TicketStatus;

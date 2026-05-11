@@ -127,14 +127,9 @@ export const TicketCard: React.FC<TicketProps> = ({ ticket, mode = "default", on
                <span className="block font-mono text-[9px]">{format(new Date(ticket.date), "yyyy")}</span>
              </div>
              
-             <div className="text-left sm:text-center sm:border-b border-foreground/10 pb-0 sm:pb-2 flex-1 sm:flex-none">
+             <div className="text-left sm:text-center flex-1 sm:flex-none">
                <span className="block font-mono text-[8px] uppercase tracking-widest text-muted-foreground mb-1">Class</span>
                <span className="block font-mono text-xs font-bold leading-tight">{ticket.seatClass}</span>
-             </div>
-
-             <div className="text-left sm:text-center flex-1 sm:flex-none">
-               <span className="block font-mono text-[8px] uppercase tracking-widest text-muted-foreground mb-1">Seat</span>
-               <span className="block font-mono text-xs uppercase font-bold tracking-wider">{ticket.seatNumber}</span>
              </div>
            </div>
 

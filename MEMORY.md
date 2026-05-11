@@ -1,6 +1,6 @@
 # Project memory
 
-Concise long-term reference for **TransitSwap** (transit ticket marketplace). Full agent/process rules live in `AGENTS.md`, `.agents/rules`, and `.agents/skills`.
+Concise long-term reference for **JatriSwap** (transit ticket marketplace). Full agent/process rules live in `AGENTS.md`, `.agents/rules`, and `.agents/skills`.
 
 ## Architecture
 
@@ -55,8 +55,8 @@ Concise long-term reference for **TransitSwap** (transit ticket marketplace). Fu
 
 - **`src/lib/firebase/`**: `web-config`, `firebase` bootstrap, modular **`tickets`**, **`users`**, **`notifications`**, **`ticketReports`**, **`adminSettings`**, **`ticketAdminNotes`**, **`sellerTicketNotifications`**, **`adminDeleteTargetAuth`**, **`errors`**, **`authErrors`**, **`authVerification`**.
 - **`src/types/index.ts`**: Shared domain types (`User`, **`AdminUserRow`**, **`PendingAdminRow`**, `Ticket`, `Notification`, etc.) and `OperationType` / legacy **`FirestoreErrorInfo`**.
-- **`src/constants.ts`**: Bangladesh-focused `STATIONS` (166 deduplicated stations/cities, frozen `as const`), `TRANSPORTS`, `TRAIN_SEAT_CLASSES` / `BUS_SEAT_CLASSES` for forms/filters.
-- **[`src/components/common/StationAutocomplete.tsx`](src/components/common/StationAutocomplete.tsx)**: Free-text typeahead used by Home / Browse / Sell / EditTicketDialog From/To inputs. Suggestion rules — empty: scope's recent searches; 1-2 chars: matching recents only (catalog hidden); 3+ chars: startsWith → contains → recents-first. Recents persisted in `localStorage` under `transitswap.stationRecent.<scope>` (LRU, `RECENT_MAX = 5`); `lastSavedLcRef` skips redundant writes when commit + blur cover the same value. ARIA combobox + keyboard nav.
+- **`src/constants.ts`**: Bangladesh-focused `STATIONS` (166 stations/cities) + `TRAIN_NAMES` (69 trains) and `BUS_NAMES` (14 buses) — all frozen `as const`. Helper `transportNamesForMode(mode)` returns the right autocomplete list; `TRANSPORTS` is derived from the two name lists (`{ name, type, mode }`) so Sell / EditTicketDialog `mode` lookups still resolve for every autocomplete option. Also exports `TRAIN_SEAT_CLASSES` / `BUS_SEAT_CLASSES`.
+- **[`src/components/common/Autocomplete.tsx`](src/components/common/Autocomplete.tsx)**: Free-text typeahead used by Home / Browse / Sell / EditTicketDialog for both From/To (`station.from` / `station.to`) and transport name (`transport.train` / `transport.bus`). Suggestion rules — empty: scope's recent picks; 1–2 chars: matching recents only (catalog hidden); 3+ chars: startsWith → contains → recents-first. Recents persisted in `localStorage` under `jatriswap.recent.<scope>` (LRU, `RECENT_MAX = 5`); `lastSavedLcRef` skips redundant writes when commit + blur cover the same value. ARIA combobox + keyboard nav.
 - **[`src/lib/scheduledDeleteUndo.ts`](src/lib/scheduledDeleteUndo.ts)**: Single shared LRU-keyed delete-with-undo helper backing both ticket (10s) and admin-user (30s) flows. No duplicate timers / toast logic.
 - **[`src/lib/vercelDeployApiUrl.ts`](src/lib/vercelDeployApiUrl.ts)**: Single resolver used by **`submitContactMessage`** and **`adminDeleteTargetAuth`** for `VITE_CONTACT_API_URL`-aware `/api/*` URLs.
 - **`ErrorBoundary`**: Class boundary around routes with fallback UI.
@@ -117,6 +117,6 @@ Concise long-term reference for **TransitSwap** (transit ticket marketplace). Fu
 
 - **Maturity**: Single frontend app with Firebase backend; admin flows and marketplace pages under `src/pages/`.
 - **Tooling**: `npm run lint` → `tsc --noEmit` only (no ESLint script in `package.json`).
-- **Product naming**: UI branding **TransitSwap**; [`index.html`](index.html) title **TransitSwap**.
+- **Product naming**: UI branding **JatriSwap**; [`index.html`](index.html) title **JatriSwap**.
 - **Dependencies**: **No** Google Gemini SDK (**`@google/genai`** was removed). **No** `firebase-admin`, **no** `@google-cloud/firestore` — server uses a custom Firestore REST client + native `node:crypto`. `npm audit` shows **0 vulnerabilities** with the **only** override being `uuid` (unrelated to security).
 - **Gaps**: Chat/messaging in rules but not in client; App Check not enabled; admin screen is a candidate for hook/component splits per `.agents/rules/react.mdc`.

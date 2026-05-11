@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { getAuthErrorMessage } from "@/src/lib/firebase/authErrors";
 import { needsEmailVerification } from "@/src/lib/firebase/authVerification";
-import { TransitSwapLogo } from "@/src/components/branding/TransitSwapLogo";
+import { JatriSwapLogo } from "@/src/components/branding/JatriSwapLogo";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -138,9 +138,9 @@ export default function Register() {
             <Link
               to="/"
               className="mb-4 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              aria-label="TransitSwap home"
+              aria-label="JatriSwap home"
             >
-              <TransitSwapLogo variant="auth" showDot={false} />
+              <JatriSwapLogo variant="auth" showDot={false} />
             </Link>
             <h1 className="font-heading text-2xl font-black uppercase tracking-tighter text-center">Create Account</h1>
             <p className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground mt-2 text-center">Join the premier ticket marketplace</p>

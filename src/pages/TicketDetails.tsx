@@ -287,7 +287,7 @@ const TicketDetails = () => {
                       </div>
                     )}
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
                       <div className="bg-background border-2 border-foreground p-4 shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
                         <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-2 flex items-center gap-1">
                           <Calendar className="w-3 h-3" /> Date
@@ -299,12 +299,6 @@ const TicketDetails = () => {
                           <Ticket className="w-3 h-3" /> Class
                         </span>
                         <span className="font-mono font-black text-sm uppercase">{ticket.seatClass}</span>
-                      </div>
-                      <div className="bg-background border-2 border-foreground p-4 shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
-                        <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-2 block">
-                          Seat
-                        </span>
-                        <span className="font-mono font-black text-sm uppercase">{ticket.seatNumber}</span>
                       </div>
                       <div className="bg-background border-2 border-foreground p-4 shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
                         <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-2 block">

@@ -292,18 +292,18 @@ function adminSellerMailtoHref(
   ctx: { sellerDisplayName: string; ticketId: string },
 ): string {
   const addr = email.trim();
-  const subject = `[TransitSwap] Official correspondence regarding your listing (Ticket ID: ${ctx.ticketId})`;
+  const subject = `[JatriSwap] Official correspondence regarding your listing (Ticket ID: ${ctx.ticketId})`;
   const listingUrl = ticketDetailsPageUrl(ctx.ticketId);
   const body =
     `Dear ${ctx.sellerDisplayName},\n\n` +
-    `Thank you for using TransitSwap.\n\n` +
-    `TransitSwap Support is contacting you regarding the listing identified below. This message may relate to routine listing administration—for example verification steps, alignment with listing policies, buyer coordination, or updates pertinent to your ticket—as determined during operational review.\n\n` +
+    `Thank you for using JatriSwap.\n\n` +
+    `JatriSwap Support is contacting you regarding the listing identified below. This message may relate to routine listing administration—for example verification steps, alignment with listing policies, buyer coordination, or updates pertinent to your ticket—as determined during operational review.\n\n` +
     `Please retain the following references whenever you reply so we can assist you promptly:\n\n` +
     `Ticket ID:\n${ctx.ticketId}\n\n` +
     `${listingDetailsMailLinkBlock(listingUrl)}\n` +
     `You may reply directly to this email if you require clarification or further assistance.\n\n` +
     `Kind regards,\n` +
-    `TransitSwap Support`;
+    `JatriSwap Support`;
   return `mailto:${addr}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
@@ -320,8 +320,8 @@ function adminBanModerationMailtoHref(
   const hasListing =
     ctx.ticketId != null && String(ctx.ticketId).trim().length > 0;
   const subject = hasListing
-    ? `[TransitSwap] Trust & Safety: Important notice regarding your account (Ticket ID: ${String(ctx.ticketId).trim()})`
-    : `[TransitSwap] Trust & Safety: Important notice regarding your account`;
+    ? `[JatriSwap] Trust & Safety: Important notice regarding your account (Ticket ID: ${String(ctx.ticketId).trim()})`
+    : `[JatriSwap] Trust & Safety: Important notice regarding your account`;
 
   let referenceBlock = "";
   if (hasListing) {
@@ -332,23 +332,23 @@ function adminBanModerationMailtoHref(
       `${listingDetailsMailLinkBlock(ticketDetailsPageUrl(id))}\n`;
   }
   if (ctx.reportIdShort) {
-    referenceBlock += `Internal case reference (TransitSwap):\nReport #${ctx.reportIdShort}\n\n`;
+    referenceBlock += `Internal case reference (JatriSwap):\nReport #${ctx.reportIdShort}\n\n`;
   }
 
   const body =
     `Dear ${ctx.recipientDisplayName},\n\n` +
-    `We are writing to you from the TransitSwap Trust & Safety team concerning your TransitSwap account and your activity on our marketplace.\n\n` +
+    `We are writing to you from the JatriSwap Trust & Safety team concerning your JatriSwap account and your activity on our marketplace.\n\n` +
     (referenceBlock
       ? `Please retain the following reference information for any correspondence:\n\n${referenceBlock}\n`
       : "") +
-    `TransitSwap operates as a marketplace for ticket resale. To protect buyers, sellers, and the integrity of the platform, we review accounts and listings for compliance with our Terms of Service, posted policies, and applicable legal requirements.\n\n` +
-    `You are receiving this formal notice because our Trust & Safety function has assessed matters involving your account or listings under those standards. Such matters may include—but are not limited to—reports from users or third parties, suspected fraud or misrepresentation, listing or transaction disputes, suspected breaches of marketplace rules, or other conduct that may affect safety or trust within TransitSwap.\n\n` +
-    `Depending on our findings and the seriousness of the issue, TransitSwap may take proportionate administrative measures permitted under our Terms of Service and policies. Those measures may include warnings or advisories; restriction or suspension of specific listings or account features; removal of content that does not meet our rules; temporary suspension of account access; or permanent termination of access where the circumstances warrant. Any restriction already reflected on your account or listings should be understood as reflecting our position unless we expressly advise otherwise in a subsequent written message.\n\n` +
+    `JatriSwap operates as a marketplace for ticket resale. To protect buyers, sellers, and the integrity of the platform, we review accounts and listings for compliance with our Terms of Service, posted policies, and applicable legal requirements.\n\n` +
+    `You are receiving this formal notice because our Trust & Safety function has assessed matters involving your account or listings under those standards. Such matters may include—but are not limited to—reports from users or third parties, suspected fraud or misrepresentation, listing or transaction disputes, suspected breaches of marketplace rules, or other conduct that may affect safety or trust within JatriSwap.\n\n` +
+    `Depending on our findings and the seriousness of the issue, JatriSwap may take proportionate administrative measures permitted under our Terms of Service and policies. Those measures may include warnings or advisories; restriction or suspension of specific listings or account features; removal of content that does not meet our rules; temporary suspension of account access; or permanent termination of access where the circumstances warrant. Any restriction already reflected on your account or listings should be understood as reflecting our position unless we expressly advise otherwise in a subsequent written message.\n\n` +
     `Further correspondence may follow while reviews remain open. Continued or severe breaches after notice may result in further or escalating enforcement without separate preamble beyond what our Terms allow.\n\n` +
     `If you wish to respond—including where you believe a determination may have been made in error—or you seek clarification, reply to this email and include any Ticket IDs or reference identifiers shown above so we may trace your message accurately.\n\n` +
     `Thank you for your cooperation.\n\n` +
     `Kind regards,\n` +
-    `TransitSwap Trust & Safety Team`;
+    `JatriSwap Trust & Safety Team`;
   return `mailto:${addr}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 

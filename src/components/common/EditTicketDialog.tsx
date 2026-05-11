@@ -12,8 +12,8 @@ import { ListingWriteBlockedError } from "@/src/lib/listingWriteGuard";
 import { normalizeUserAccountStatus, sellListingBlockedMessage } from "@/src/lib/userAccountStatus";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { toast } from "sonner";
-import { STATIONS, TRANSPORTS, seatClassesForMode } from "@/src/constants";
-import { StationAutocomplete } from "@/src/components/common/StationAutocomplete";
+import { STATIONS, TRANSPORTS, seatClassesForMode, transportNamesForMode } from "@/src/constants";
+import { Autocomplete } from "@/src/components/common/Autocomplete";
 import { Train, BusFront } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -64,20 +64,20 @@ const StationField = React.memo(function StationField({
 }: {
   label: string;
   idPrefix: string;
-  recentScope: "from" | "to";
+  recentScope: "station.from" | "station.to";
   value: string | undefined;
   onChange: (v: string) => void;
 }) {
   return (
     <div className="grid gap-2">
       <Label className="font-mono text-[10px] uppercase tracking-widest font-bold">{label}</Label>
-      <StationAutocomplete
+      <Autocomplete
         id={`${idPrefix}-station`}
         ariaLabel={label}
         value={value ?? ""}
         onValueChange={onChange}
         options={STATIONS}
-        placeholder={label}
+        placeholder={`Type ${label.toLowerCase()} station`}
         size="md"
         recentScope={recentScope}
       />
@@ -106,9 +106,7 @@ export function EditTicketDialog({
     if (!ticket || !isOpen) return;
 
     const mode = resolveEditMode(ticket);
-    const namesForMode = new Set(
-      TRANSPORTS.filter((t) => t.mode === mode).map((t) => t.name),
-    );
+    const namesForMode = new Set(transportNamesForMode(mode));
     const nameValid = Boolean(ticket.transportName && namesForMode.has(ticket.transportName));
     const matched =
       nameValid
@@ -162,7 +160,7 @@ export function EditTicketDialog({
     [uiMode],
   );
 
-  const transportsForMode = useMemo(() => TRANSPORTS.filter((t) => t.mode === uiMode), [uiMode]);
+  const transportsForMode = useMemo(() => transportNamesForMode(uiMode), [uiMode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -204,7 +202,6 @@ export function EditTicketDialog({
         departureTime: formData.departureTime,
         seatClass: formData.seatClass,
         passengerCount: pax,
-        seatNumber: formData.seatNumber,
         originalPrice: formData.originalPrice ? Number(formData.originalPrice) : undefined,
         sellingPrice: formData.sellingPrice ? Number(formData.sellingPrice) : undefined,
         additionalNotes: (formData.additionalNotes ?? "").trim(),
@@ -298,42 +295,20 @@ export function EditTicketDialog({
 
             <div className="grid gap-2" key={`transport-block-${uiMode}`}>
               <Label className="font-mono text-[10px] uppercase tracking-widest font-bold">Transport name</Label>
-              <Select
-                value={formData.transportName?.trim() ? formData.transportName : undefined}
+              <Autocomplete
+                id="edit-transport"
+                ariaLabel={uiMode === "bus" ? "Bus name" : "Train name"}
+                value={formData.transportName ?? ""}
                 onValueChange={handleTransportPick}
-              >
-                <SelectTrigger className="rounded-none border-2 border-foreground font-mono font-bold text-xs uppercase min-h-10">
-                  <SelectValue placeholder={`Select ${uiMode === "bus" ? "bus" : "train"}`} />
-                </SelectTrigger>
-                <SelectContent className="rounded-none border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
-                  {transportsForMode.map((t) => (
-                    <SelectItem
-                      key={`${t.mode}-${t.name}`}
-                      value={t.name}
-                      className="font-mono text-xs uppercase cursor-pointer hover:bg-muted"
-                    >
-                      <span className="flex items-center gap-2">
-                        {t.mode === "bus" ? (
-                          <BusFront className="w-4 h-4 shrink-0" aria-hidden />
-                        ) : (
-                          <Train className="w-4 h-4 shrink-0" aria-hidden />
-                        )}
-                        {t.name}
-                        {t.mode === "train" ? (
-                          <>
-                            {" "}
-                            <span className="text-muted-foreground normal-case">({t.type})</span>
-                          </>
-                        ) : null}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                options={transportsForMode}
+                placeholder={uiMode === "bus" ? "Type bus name" : "Type train name"}
+                size="sm"
+                recentScope={`transport.${uiMode}`}
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <StationField label="From" idPrefix="edit-from" recentScope="from" value={formData.from} onChange={handleFromStationChange} />
-              <StationField label="To" idPrefix="edit-to" recentScope="to" value={formData.to} onChange={handleToStationChange} />
+              <StationField label="From" idPrefix="edit-from" recentScope="station.from" value={formData.from} onChange={handleFromStationChange} />
+              <StationField label="To" idPrefix="edit-to" recentScope="station.to" value={formData.to} onChange={handleToStationChange} />
             </div>
             
              <div className="grid grid-cols-2 gap-4">
@@ -373,19 +348,6 @@ export function EditTicketDialog({
                   placeholder="1"
                 />
               </div>
-            </div>
-
-            <div className="grid gap-2">
-              <Label className="font-mono text-[10px] uppercase tracking-widest font-bold">Seat number(s)</Label>
-              <Input
-                value={formData.seatNumber || ""}
-                onChange={(e) => handleChange("seatNumber", e.target.value)}
-                className="rounded-none border-2 border-foreground font-mono text-xs uppercase"
-                placeholder="e.g. KA-14, KA-15"
-              />
-              <p className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground">
-                Separate multiple seats with commas
-              </p>
             </div>
 
             <div className="grid gap-2">

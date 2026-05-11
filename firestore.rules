@@ -60,7 +60,6 @@ service cloud.firestore {
              (data.get('originalPrice', 0) is number) &&
              (data.get('transportType', '') is string) && data.get('transportType', '').size() <= 50 &&
              (data.get('seatClass', '') is string) && data.get('seatClass', '').size() <= 50 &&
-             (data.get('seatNumber', '') is string) && data.get('seatNumber', '').size() <= 50 &&
              (data.get('passengerCount', 1) is number) &&
              (data.get('views', 0) is number);
     }
@@ -88,7 +87,6 @@ service cloud.firestore {
              (data.get('originalPrice', 0) is number) &&
              (data.get('transportType', '') is string) && data.get('transportType', '').size() <= 50 &&
              (data.get('seatClass', '') is string) && data.get('seatClass', '').size() <= 50 &&
-             (data.get('seatNumber', '') is string) && data.get('seatNumber', '').size() <= 50 &&
              (data.get('passengerCount', 1) is number) &&
              (data.get('views', 0) is number);
     }
@@ -100,7 +98,7 @@ service cloud.firestore {
 
     function ticketStandardFieldDiff() {
       return incoming().diff(existing()).affectedKeys().hasOnly([
-        'status', 'sellingPrice', 'views', 'transportName', 'from', 'to', 'departureTime', 'seatClass', 'seatNumber',
+        'status', 'sellingPrice', 'views', 'transportName', 'from', 'to', 'departureTime', 'seatClass',
         'originalPrice', 'transportType', 'passengerCount', 'date', 'mode', 'sellerName', 'sellerPhone',
         'additionalNotes'
       ]);

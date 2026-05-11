@@ -2,8 +2,8 @@ import * as React from "react"
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { STATIONS, TRANSPORTS, seatClassesForMode } from "@/src/constants";
-import { StationAutocomplete } from "@/src/components/common/StationAutocomplete";
+import { STATIONS, TRANSPORTS, seatClassesForMode, transportNamesForMode } from "@/src/constants";
+import { Autocomplete } from "@/src/components/common/Autocomplete";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,7 +58,6 @@ const Sell = () => {
     depTime: "",
     seatClass: "",
     passengerCount: "1",
-    seats: "",
     additionalNotes: "",
     originalPrice: "",
     sellingPrice: "",
@@ -99,9 +98,7 @@ const Sell = () => {
         const parsed = JSON.parse(savedDraft);
         const mode = parsed.transportMode === "bus" ? "bus" : "train";
         const rawName = String(parsed.transportName || parsed.trainName || "").trim();
-        const namesForMode = new Set(
-          TRANSPORTS.filter((t) => t.mode === mode).map((t) => t.name),
-        );
+        const namesForMode = new Set(transportNamesForMode(mode));
         const transportName = rawName && namesForMode.has(rawName) ? rawName : "";
         const seatRaw = String(parsed.seatClass || "").trim();
         const seatOk = seatRaw && seatClassesForMode(mode).includes(seatRaw);
@@ -115,7 +112,6 @@ const Sell = () => {
           depTime: parsed.depTime || "",
           seatClass: seatOk ? seatRaw : "",
           passengerCount: parsed.passengerCount || "1",
-          seats: parsed.seats || "",
           additionalNotes: parsed.additionalNotes || "",
           originalPrice: parsed.originalPrice || "",
           sellingPrice: parsed.sellingPrice || "",
@@ -154,8 +150,7 @@ const Sell = () => {
       if (
         !formData.seatClass ||
         !allowedSeat.includes(formData.seatClass) ||
-        !formData.passengerCount ||
-        !formData.seats
+        !formData.passengerCount
       ) {
         toast.error("Please fill in all required ticket details.");
         return false;
@@ -214,7 +209,6 @@ const Sell = () => {
         departureTime: formData.depTime,
         date: new Date(formData.date).toISOString(),
         seatClass: formData.seatClass,
-        seatNumber: formData.seats,
         originalPrice: Number(formData.originalPrice),
         sellingPrice: Number(formData.sellingPrice),
         passengerCount: Number(formData.passengerCount),
@@ -285,14 +279,9 @@ const Sell = () => {
     );
   }
 
-  const transportsForSellStep = TRANSPORTS.filter(
-    (t) => t.mode === formData.transportMode,
-  );
-  const sellTransportSelectValue = transportsForSellStep.some(
-    (t) => t.name === formData.transportName,
-  )
-    ? formData.transportName
-    : undefined;
+  const sellTransportMode: "train" | "bus" =
+    formData.transportMode === "bus" ? "bus" : "train";
+  const sellTransportOptions = transportNamesForMode(sellTransportMode);
 
   const sellSeatMode = formData.transportMode === "bus" ? "bus" : "train";
   const sellSeatOptions = seatClassesForMode(sellSeatMode);
@@ -396,30 +385,30 @@ const Sell = () => {
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-3">
                           <Label className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground">From Station</Label>
-                          <StationAutocomplete
+                          <Autocomplete
                             id="sell-from"
                             ariaLabel="From station"
                             value={formData.from ?? ""}
                             onValueChange={(v) => handleInputChange("from", v)}
                             options={STATIONS}
-                            placeholder="SELECT ORIGIN"
+                            placeholder="Type origin station"
                             required
                             inputClassName="px-6"
-                            recentScope="from"
+                            recentScope="station.from"
                           />
                         </div>
                         <div className="space-y-3">
                           <Label className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground">To Station</Label>
-                          <StationAutocomplete
+                          <Autocomplete
                             id="sell-to"
                             ariaLabel="To station"
                             value={formData.to ?? ""}
                             onValueChange={(v) => handleInputChange("to", v)}
                             options={STATIONS}
-                            placeholder="SELECT DESTINATION"
+                            placeholder="Type destination station"
                             required
                             inputClassName="px-6"
-                            recentScope="to"
+                            recentScope="station.to"
                           />
                         </div>
                      </div>
@@ -454,29 +443,19 @@ const Sell = () => {
                         </div>
                      </div>
 
-                     <div className="space-y-3" key={`sell-transport-${formData.transportMode}`}>
+                     <div className="space-y-3" key={`sell-transport-${sellTransportMode}`}>
                         <Label className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Transport Name</Label>
-                        <Select
-                          value={sellTransportSelectValue}
-                          onValueChange={(v) => handleInputChange("transportName", v || "")}
-                        >
-                          <SelectTrigger className="h-14 rounded-none bg-background border-2 border-foreground px-6 font-mono font-bold text-xs shadow-[4px_4px_0_0_rgba(0,0,0,1)] uppercase">
-                            <SelectValue placeholder="SELECT TRANSPORT" />
-                          </SelectTrigger>
-                          <SelectContent className="rounded-none border-2 border-foreground">
-                             {transportsForSellStep.map((t) => (
-                               <SelectItem key={`${t.mode}-${t.name}`} value={t.name} className="rounded-none focus:bg-foreground focus:text-background font-mono font-bold text-xs uppercase">
-                                 <div className="flex items-center gap-2">
-                                   {t.mode === 'bus' ? <BusFront className="w-4 h-4" /> : <Train className="w-4 h-4" />}
-                                   <span>
-                                     {t.name}
-                                     {t.mode === "train" ? ` (${t.type})` : ""}
-                                   </span>
-                                 </div>
-                               </SelectItem>
-                             ))}
-                          </SelectContent>
-                        </Select>
+                        <Autocomplete
+                          id="sell-transport"
+                          ariaLabel={sellTransportMode === "bus" ? "Bus name" : "Train name"}
+                          value={formData.transportName ?? ""}
+                          onValueChange={(v) => handleInputChange("transportName", v)}
+                          options={sellTransportOptions}
+                          placeholder={sellTransportMode === "bus" ? "Type bus name" : "Type train name"}
+                          required
+                          inputClassName="px-6"
+                          recentScope={`transport.${sellTransportMode}`}
+                        />
                      </div>
 
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -537,7 +516,7 @@ const Sell = () => {
                             value={sellSeatSelectValue}
                             onValueChange={(v) => handleInputChange("seatClass", v ?? "")}
                           >
-                            <SelectTrigger className="h-14 rounded-none bg-background border-2 border-foreground px-6 font-mono font-bold text-xs uppercase shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
+                            <SelectTrigger className="h-14 data-[size=default]:h-14 rounded-none bg-background border-2 border-foreground px-6 font-mono font-bold text-xs uppercase shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
                               <SelectValue placeholder="SELECT CLASS" />
                             </SelectTrigger>
                             <SelectContent alignItemWithTrigger={false} className="rounded-none border-2 border-foreground">
@@ -548,15 +527,18 @@ const Sell = () => {
                           </Select>
                         </div>
                         <div className="space-y-3">
-                          <Label className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Passenger Count</Label>
-                          <Input required type="number" min="1" max="5" value={formData.passengerCount} onChange={e => handleInputChange("passengerCount", e.target.value)} className="h-14 rounded-none bg-background border-2 border-foreground px-6 font-mono font-bold text-xs uppercase shadow-[4px_4px_0_0_rgba(0,0,0,1)]" />
+                          <Label className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Seat/Passenger Count</Label>
+                          <Input
+                            required
+                            type="number"
+                            inputMode="numeric"
+                            min="1"
+                            max="5"
+                            value={formData.passengerCount}
+                            onChange={(e) => handleInputChange("passengerCount", e.target.value)}
+                            className="h-14 w-full rounded-none bg-background border-2 border-foreground px-6 font-mono font-bold text-xs uppercase shadow-[4px_4px_0_0_rgba(0,0,0,1)] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          />
                         </div>
-                     </div>
-
-                     <div className="space-y-3">
-                        <Label className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Seat Number(s)</Label>
-                        <Input required placeholder="E.G. KA-14, KA-15" value={formData.seats} onChange={e => handleInputChange("seats", e.target.value)} className="h-14 rounded-none bg-background border-2 border-foreground px-6 font-mono font-bold text-xs uppercase shadow-[4px_4px_0_0_rgba(0,0,0,1)]" />
-                        <p className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Separate multiple seats with commas</p>
                      </div>
 
                      <div className="space-y-3">

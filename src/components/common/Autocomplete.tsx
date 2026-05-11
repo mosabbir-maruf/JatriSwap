@@ -3,21 +3,40 @@ import * as React from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-const RECENT_STORAGE_PREFIX = "transitswap.stationRecent.";
+/**
+ * Free-text input with a filtered suggestion list, used across the app for typeahead-style fields
+ * (station From/To, train name, bus name). One component, **no duplicated logic** for stations vs
+ * transports — only the `options` list and `recentScope` differ.
+ *
+ * Suggestion rules
+ *  - Empty input    → show this scope's recent picks (capped, LRU)
+ *  - 1–2 chars      → only matching recents (catalog hidden until 3 chars)
+ *  - 3+ chars       → filter the full options list (startsWith first, then contains; recently-used
+ *                     matches rank first)
+ *
+ * Recents are persisted in `localStorage` per `recentScope` (e.g. "station.from", "transport.train").
+ *
+ * Keyboard
+ *  - ArrowUp/ArrowDown highlights, Enter commits the highlighted suggestion
+ *  - Escape closes the panel
+ *  - Typing is always free-form (value is not constrained to the list)
+ */
+
+const RECENT_STORAGE_PREFIX = "jatriswap.recent.";
 const RECENT_MAX = 5;
 const MAX_SUGGESTIONS = 10;
 /** Minimum query length before the full options list is filtered against. */
 const SUGGEST_AFTER_CHARS = 3;
 
-export type StationAutocompleteSize = "sm" | "md" | "lg";
+export type AutocompleteSize = "sm" | "md" | "lg";
 
-interface StationAutocompleteProps {
+interface AutocompleteProps {
   value: string;
   onValueChange: (next: string) => void;
   options: readonly string[];
   placeholder?: string;
   /** Match existing Select trigger heights across the app. */
-  size?: StationAutocompleteSize;
+  size?: AutocompleteSize;
   /** Override the input border weight (matches the Home hero card's `border-4`). */
   borderClassName?: string;
   /** Outer wrapper class — passed straight through. */
@@ -28,25 +47,25 @@ interface StationAutocompleteProps {
   id?: string;
   ariaLabel?: string;
   /**
-   * `localStorage` namespace for recent picks (e.g. "from", "to"). Keeps origin/destination
-   * recents separate. Different StationAutocomplete instances with the same scope share recents.
+   * `localStorage` namespace for recent picks (e.g. "station.from", "transport.train"). Keeps
+   * different fields' recents separate; different instances with the same scope share recents.
    */
   recentScope?: string;
 }
 
-const SIZE_HEIGHT: Record<StationAutocompleteSize, string> = {
+const SIZE_HEIGHT: Record<AutocompleteSize, string> = {
   sm: "h-10",
   md: "h-14",
   lg: "h-16",
 };
 
-// ---------- Recent searches (localStorage) ----------
+// ---------- Recent picks (localStorage) ----------
 
 function recentKey(scope: string): string {
   return `${RECENT_STORAGE_PREFIX}${scope}`;
 }
 
-function loadRecentStations(scope: string): string[] {
+function loadRecentItems(scope: string): string[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(recentKey(scope));
@@ -71,9 +90,9 @@ function loadRecentStations(scope: string): string[] {
   }
 }
 
-function saveRecentStation(scope: string, station: string): string[] {
-  const trimmed = station.trim();
-  const current = loadRecentStations(scope);
+function saveRecentItem(scope: string, item: string): string[] {
+  const trimmed = item.trim();
+  const current = loadRecentItems(scope);
   if (typeof window === "undefined" || trimmed.length === 0) return current;
   const lc = trimmed.toLowerCase();
   const next = [trimmed, ...current.filter((s) => s.toLowerCase() !== lc)].slice(0, RECENT_MAX);
@@ -126,7 +145,7 @@ function rankSuggestions(
 
 // ---------- Component ----------
 
-export function StationAutocomplete({
+export function Autocomplete({
   value,
   onValueChange,
   options,
@@ -139,16 +158,16 @@ export function StationAutocomplete({
   id,
   ariaLabel,
   recentScope = "default",
-}: StationAutocompleteProps) {
+}: AutocompleteProps) {
   const [open, setOpen] = React.useState(false);
   const [highlight, setHighlight] = React.useState(0);
-  const [recents, setRecents] = React.useState<string[]>(() => loadRecentStations(recentScope));
+  const [recents, setRecents] = React.useState<string[]>(() => loadRecentItems(recentScope));
   const containerRef = React.useRef<HTMLDivElement>(null);
   const listRef = React.useRef<HTMLUListElement>(null);
-  /** Last station persisted to recents (lowercased) — skip redundant writes on commit/blur duplicate. */
+  /** Last item persisted to recents (lowercased) — skip redundant writes on commit/blur duplicate. */
   const lastSavedLcRef = React.useRef<string>("");
   const isFirstMount = React.useRef(true);
-  const listboxId = `${id ?? "station"}-listbox`;
+  const listboxId = `${id ?? "autocomplete"}-listbox`;
 
   React.useEffect(() => {
     if (isFirstMount.current) {
@@ -156,15 +175,15 @@ export function StationAutocomplete({
       return;
     }
     lastSavedLcRef.current = "";
-    setRecents(loadRecentStations(recentScope));
+    setRecents(loadRecentItems(recentScope));
   }, [recentScope]);
 
   const persistRecent = React.useCallback(
-    (station: string) => {
-      const lc = station.trim().toLowerCase();
+    (item: string) => {
+      const lc = item.trim().toLowerCase();
       if (lc.length === 0 || lc === lastSavedLcRef.current) return;
       lastSavedLcRef.current = lc;
-      setRecents(saveRecentStation(recentScope, station));
+      setRecents(saveRecentItem(recentScope, item));
     },
     [recentScope],
   );
@@ -244,7 +263,7 @@ export function StationAutocomplete({
         aria-autocomplete="list"
         aria-controls={open ? listboxId : undefined}
         aria-activedescendant={
-          open && suggestions[highlight] ? `${id ?? "station"}-opt-${highlight}` : undefined
+          open && suggestions[highlight] ? `${id ?? "autocomplete"}-opt-${highlight}` : undefined
         }
         autoComplete="off"
         spellCheck={false}
@@ -286,7 +305,7 @@ export function StationAutocomplete({
             return (
               <li
                 key={opt}
-                id={`${id ?? "station"}-opt-${i}`}
+                id={`${id ?? "autocomplete"}-opt-${i}`}
                 role="option"
                 aria-selected={isActive}
                 data-index={i}

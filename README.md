@@ -1,8 +1,8 @@
-# TransitSwap
+# JatriSwap
 
 Marketplace web app for **buying and selling unused train and bus tickets**. Sellers list tickets from their dashboard; buyers browse, open listings, and contact your platform via WhatsApp for purchase requests. Built with **React**, **Vite**, **TypeScript**, **Tailwind CSS**, and **Firebase** (Authentication + Firestore).
 
-**Repository:** [github.com/mosabbir-maruf/TransitSwap](https://github.com/mosabbir-maruf/TransitSwap)
+**Repository:** [github.com/mosabbir-maruf/JatriSwap](https://github.com/mosabbir-maruf/JatriSwap)
 
 ## Features
 
@@ -122,7 +122,7 @@ Import the repo with **Vite** (build output **`dist/`**). Root [`vercel.json`](v
 Paths below match what lives in this repo (excluding `node_modules/`, `dist/`, and local-only files such as `.env.local`). UI primitives live under `components/`; feature code under `src/`.
 
 ```
-TransitSwap/
+JatriSwap/
 ├── .env.example              # Template for Vite + Firebase env (copy → .env.local)
 ├── .firebaserc               # Firebase CLI default project
 ├── .gitignore
@@ -192,4 +192,4 @@ TransitSwap/
 
 ---
 
-TransitSwap is **private** in `package.json`. Adjust licensing or repo visibility as needed.
+JatriSwap is **private** in `package.json`. Adjust licensing or repo visibility as needed.

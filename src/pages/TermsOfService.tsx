@@ -27,17 +27,17 @@ export default function TermsOfService() {
               <section>
                 <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">1. Acceptance of Terms</h2>
                 <p className="font-sans text-base leading-relaxed font-bold text-muted-foreground">
-                  By accessing or using TransitSwap, you agree to be bound by these Terms of Service. If you disagree with any part of the terms, you may not access the service. These terms apply to all visitors, users, and others who access or use the application.
+                  By accessing or using JatriSwap, you agree to be bound by these Terms of Service. If you disagree with any part of the terms, you may not access the service. These terms apply to all visitors, users, and others who access or use the application.
                 </p>
               </section>
               
               <section>
                 <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">2. Description of Service</h2>
                 <p className="font-sans text-base leading-relaxed font-bold text-muted-foreground mb-4">
-                  TransitSwap provides an online platform for users to list, buy, and sell train tickets. We act solely as a marketplace and are not a party to any transaction between buyers and sellers.
+                  JatriSwap provides an online platform for users to list, buy, and sell train tickets. We act solely as a marketplace and are not a party to any transaction between buyers and sellers.
                 </p>
                 <p className="font-sans text-base leading-relaxed font-bold text-muted-foreground">
-                  You understand and agree that the Platform is provided "AS-IS" and that TransitSwap assumes no responsibility for the timeliness, deletion, mis-delivery or failure to store any user communications or personalization settings.
+                  You understand and agree that the Platform is provided "AS-IS" and that JatriSwap assumes no responsibility for the timeliness, deletion, mis-delivery or failure to store any user communications or personalization settings.
                 </p>
               </section>
 
@@ -57,14 +57,14 @@ export default function TermsOfService() {
               <section>
                 <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">4. Ticket Authenticity</h2>
                 <p className="font-sans text-base leading-relaxed font-bold text-muted-foreground">
-                  Selling fraudulent, modified, or otherwise invalid tickets is strictly prohibited and will result in immediate account termination. TransitSwap reserves the right to hold escrow funds if a dispute regarding authenticity arises.
+                  Selling fraudulent, modified, or otherwise invalid tickets is strictly prohibited and will result in immediate account termination. JatriSwap reserves the right to hold escrow funds if a dispute regarding authenticity arises.
                 </p>
               </section>
 
               <section>
                 <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">5. Fees and Payments</h2>
                 <p className="font-sans text-base leading-relaxed font-bold text-muted-foreground">
-                  Currently, our platform charges a 0% fee on transactions. All payments are processed securely through our verified escrow partners. TransitSwap holds the funds until the buyer successfully utilizes the ticket or confirms its transfer.
+                  Currently, our platform charges a 0% fee on transactions. All payments are processed securely through our verified escrow partners. JatriSwap holds the funds until the buyer successfully utilizes the ticket or confirms its transfer.
                 </p>
               </section>
             </div>

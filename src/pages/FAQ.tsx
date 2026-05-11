@@ -6,8 +6,8 @@ import { ArrowRight, HelpCircle } from "lucide-react";
 
 const faqs = [
   {
-    question: "What is TransitSwap?",
-    answer: "TransitSwap is a secure, peer-to-peer marketplace designed to help travelers buy and sell train tickets. We use verification systems and escrow payments to ensure both buyers and sellers are protected."
+    question: "What is JatriSwap?",
+    answer: "JatriSwap is a secure, peer-to-peer marketplace designed to help travelers buy and sell train tickets. We use verification systems and escrow payments to ensure both buyers and sellers are protected."
   },
   {
     question: "How does the verification process work?",
@@ -15,7 +15,7 @@ const faqs = [
   },
   {
     question: "What are the fees for buying or selling?",
-    answer: "TransitSwap charges a small flat service fee of 5% on completed transactions to cover our secure escrow payment processing and operational costs. There are no fees to simply list a ticket."
+    answer: "JatriSwap charges a small flat service fee of 5% on completed transactions to cover our secure escrow payment processing and operational costs. There are no fees to simply list a ticket."
   },
   {
     question: "How do Escrow Payments protect me?",
@@ -42,7 +42,7 @@ const FAQ = () => {
                Help <span className="text-primary">&</span> FAQ
              </h1>
              <p className="font-mono text-sm uppercase font-bold tracking-widest text-muted-foreground">
-               Everything you need to know about TransitSwap.
+               Everything you need to know about JatriSwap.
              </p>
            </div>
            <HelpCircle className="w-16 h-16 text-foreground hidden md:block" strokeWidth={1.5} />

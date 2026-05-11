@@ -36,7 +36,7 @@ export const getAuthErrorMessage = (error: any): string => {
       return "Another sign-in popup was already open. Close it and try again.";
     case "auth/invalid-api-key":
       return (
-        "Firebase rejected the API key. On Vercel, confirm all VITE_FIREBASE_* variables match the Firebase project. In Google Cloud Console → Credentials, ensure the browser API key’s HTTP referrer restrictions include your production URL (e.g. https://transitswap.vercel.app/*)."
+        "Firebase rejected the API key. On Vercel, confirm all VITE_FIREBASE_* variables match the Firebase project. In Google Cloud Console → Credentials, ensure the browser API key’s HTTP referrer restrictions include your production URL (e.g. https://jatriswap.vercel.app/*)."
       );
     case "auth/project-not-found":
       return "Firebase project not found. Check VITE_FIREBASE_PROJECT_ID and related env vars on Vercel.";

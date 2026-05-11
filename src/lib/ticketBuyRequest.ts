@@ -26,7 +26,6 @@ function buildPurchasePrefillText(ticket: Ticket, listingUrl: string): string {
     boldField("Travel date", format(new Date(ticket.date), "EEEE, dd MMM yyyy")),
     boldField("Departure time", formatDepartureTimeDisplay(ticket.departureTime)),
     boldField("Class", ticket.seatClass),
-    boldField("Seat", ticket.seatNumber),
     boldField("Passengers", ticket.passengerCount),
     "",
     "*PRICING*",

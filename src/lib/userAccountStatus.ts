@@ -55,7 +55,7 @@ export function moderationAlertPayload(kind: ModerationAlertKind): { title: stri
       return {
         title: "Account banned",
         message:
-          "Your account has been banned from TransitSwap. You cannot sign in. Contact support if you believe this is an error.",
+          "Your account has been banned from JatriSwap. You cannot sign in. Contact support if you believe this is an error.",
       };
     case "unbanned":
       return {

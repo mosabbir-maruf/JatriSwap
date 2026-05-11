@@ -64,7 +64,7 @@ import FAQ from "./pages/FAQ";
 import NotFound from "./pages/NotFound";
 import Unauthorized from "./pages/Unauthorized";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { TransitSwapLogo } from "./components/branding/TransitSwapLogo";
+import { JatriSwapLogo } from "./components/branding/JatriSwapLogo";
 import { FloatingWhatsAppHelp } from "./components/common/FloatingWhatsAppHelp";
 
 const Navbar = () => {
@@ -103,9 +103,9 @@ const Navbar = () => {
           <Link
             to="/"
             className="group flex items-center outline-none transition-[filter] hover:brightness-[1.02] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            aria-label="TransitSwap home"
+            aria-label="JatriSwap home"
           >
-            <TransitSwapLogo variant="header" />
+            <JatriSwapLogo variant="header" />
           </Link>
 
           {/* Desktop Navigation */}
@@ -306,9 +306,9 @@ const Footer = () => {
              <Link
                to="/"
                className="mb-6 inline-flex outline-none transition-opacity hover:opacity-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-foreground"
-               aria-label="TransitSwap home"
+               aria-label="JatriSwap home"
              >
-               <TransitSwapLogo variant="footer" />
+               <JatriSwapLogo variant="footer" />
              </Link>
              <p className="text-muted text-lg font-sans leading-relaxed max-w-sm">
                The premier marketplace for verified public transit tickets. Connect, exchange, and travel securely.
@@ -384,7 +384,7 @@ const Footer = () => {
       
       <div className="pt-8 border-t border-muted/30 font-mono text-[10px] uppercase max-md:tracking-wide md:tracking-widest text-muted flex flex-col md:flex-row md:justify-between md:items-center gap-4 md:gap-0">
         <p className="text-center md:text-left md:mb-0 leading-relaxed">
-          © {new Date().getFullYear()} TransitSwap Inc. All rights reserved.
+          © {new Date().getFullYear()} JatriSwap Inc. All rights reserved.
         </p>
         <div className="flex gap-3 md:gap-4 items-center justify-center md:justify-end flex-wrap min-w-0 px-0 max-md:pb-0.5">
            <div className="w-1.5 h-1.5 shrink-0 rounded-none bg-primary animate-pulse" aria-hidden />

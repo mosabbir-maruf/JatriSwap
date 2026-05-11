@@ -15,7 +15,6 @@ export type SellDraftSnapshot = {
   depTime?: string;
   seatClass?: string;
   passengerCount?: string;
-  seats?: string;
   additionalNotes?: string;
   originalPrice?: string;
   sellingPrice?: string;
@@ -44,7 +43,6 @@ export function sellDraftHasMeaningfulContent(d: SellDraftSnapshot): boolean {
     d.date,
     d.depTime,
     d.seatClass,
-    d.seats,
     d.originalPrice,
     d.sellingPrice,
     d.additionalNotes,

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { motion } from "motion/react";
 import { MapPin, Calendar as CalendarIcon, Search, ArrowRight, ShieldCheck, Ticket, Users, Train, BusFront } from "lucide-react";
 import { STATIONS } from "@/src/constants";
-import { StationAutocomplete } from "@/src/components/common/StationAutocomplete";
+import { Autocomplete } from "@/src/components/common/Autocomplete";
 import { format } from "date-fns";
 import { TicketCard } from "@/src/components/common/TicketCard";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -128,33 +128,33 @@ const Home = () => {
 
                   <div className="space-y-3 w-full flex-1 min-w-0">
                     <Label className="font-mono text-xs uppercase tracking-widest text-foreground font-black">From</Label>
-                    <StationAutocomplete
+                    <Autocomplete
                       id="home-from"
                       ariaLabel="Leaving from"
                       value={origin}
                       onValueChange={setOrigin}
                       options={STATIONS}
-                      placeholder="Leaving from"
+                      placeholder="Type origin station"
                       size="lg"
                       borderClassName="border-4"
                       inputClassName="px-4 text-sm"
-                      recentScope="from"
+                      recentScope="station.from"
                     />
                   </div>
 
                   <div className="space-y-3 w-full flex-1 min-w-0">
                     <Label className="font-mono text-xs uppercase tracking-widest text-foreground font-black">To</Label>
-                    <StationAutocomplete
+                    <Autocomplete
                       id="home-to"
                       ariaLabel="Going to"
                       value={destination}
                       onValueChange={setDestination}
                       options={STATIONS}
-                      placeholder="Going to"
+                      placeholder="Type destination station"
                       size="lg"
                       borderClassName="border-4"
                       inputClassName="px-4 text-sm"
-                      recentScope="to"
+                      recentScope="station.to"
                     />
                   </div>
 
@@ -261,7 +261,7 @@ const Home = () => {
       <section className="py-24 relative border-b border-border overflow-hidden bg-background">
         <div className="page-shell relative z-10">
            <div className="text-center max-w-2xl mx-auto mb-20">
-            <h2 className="font-heading text-4xl md:text-5xl font-black uppercase tracking-tighter mb-4">Why connect with <span className="text-primary">TransitSwap?</span></h2>
+            <h2 className="font-heading text-4xl md:text-5xl font-black uppercase tracking-tighter mb-4">Why connect with <span className="text-primary">JatriSwap?</span></h2>
              <p className="font-mono text-muted-foreground text-sm uppercase tracking-widest font-bold leading-relaxed">We've built a secure environment where your money and tickets are protected.</p>
            </div>
            

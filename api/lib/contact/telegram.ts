@@ -10,7 +10,7 @@ function truncateForTelegram(text: string): string {
 
 export function formatContactTelegramText(payload: SanitizedContactPayload): string {
   const lines = [
-    "TransitSwap — contact form",
+    "JatriSwap — contact form",
     "",
     `Name: ${payload.name}`,
     `Email: ${payload.email}`,

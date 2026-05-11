@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { STATIONS, TRANSPORTS, ALL_SEAT_CLASS_FILTER_OPTIONS, seatClassesForMode } from "@/src/constants";
-import { StationAutocomplete } from "@/src/components/common/StationAutocomplete";
+import { Autocomplete } from "@/src/components/common/Autocomplete";
 import { TicketCard } from "@/src/components/common/TicketCard";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -265,25 +265,25 @@ const Browse = () => {
                      {/* Route */}
                      <div className="space-y-3">
                         <Label className="font-mono text-[10px] uppercase tracking-widest font-bold">Route</Label>
-                        <StationAutocomplete
+                        <Autocomplete
                           id="browse-from"
                           ariaLabel="From station"
                           value={origin}
                           onValueChange={setOrigin}
                           options={STATIONS}
-                          placeholder="From Station"
+                          placeholder="Type from station"
                           size="sm"
-                          recentScope="from"
+                          recentScope="station.from"
                         />
-                        <StationAutocomplete
+                        <Autocomplete
                           id="browse-to"
                           ariaLabel="To station"
                           value={destination}
                           onValueChange={setDestination}
                           options={STATIONS}
-                          placeholder="To Station"
+                          placeholder="Type to station"
                           size="sm"
-                          recentScope="to"
+                          recentScope="station.to"
                         />
                      </div>
 

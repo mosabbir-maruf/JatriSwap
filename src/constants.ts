@@ -205,23 +205,124 @@ export const ALL_SEAT_CLASS_FILTER_OPTIONS: string[] = Array.from(
   new Set<string>([...TRAIN_SEAT_CLASSES, ...BUS_SEAT_CLASSES])
 );
 
-export const TRANSPORTS = [
-  { name: "Subarna Express", type: "Intercity", mode: "train" },
-  { name: "Green Line Paribahan", type: "Bus", mode: "bus" },
-  { name: "Padma Express", type: "Intercity", mode: "train" },
-  { name: "Hanif Enterprise", type: "Bus", mode: "bus" },
-  { name: "Sonar Bangla Express", type: "Intercity", mode: "train" },
-  { name: "Shohagh Paribahan", type: "Bus", mode: "bus" },
-  { name: "Turna Nishitha", type: "Night Express", mode: "train" },
-  { name: "Ena Transport", type: "Bus", mode: "bus" },
-  { name: "SA Paribahan", type: "Bus", mode: "bus" },
-  { name: "Royal Coach", type: "Bus", mode: "bus" },
-  { name: "Desh Travels", type: "Bus", mode: "bus" },
-  { name: "Silk Line", type: "Bus", mode: "bus" },
-  { name: "SR Travels", type: "Bus", mode: "bus" },
-  { name: "Unique Paribahan", type: "Bus", mode: "bus" },
-  { name: "National Travels", type: "Bus", mode: "bus" },
-  { name: "Eagle Paribahan", type: "Bus", mode: "bus" },
-  { name: "Shyamoli NR Travels", type: "Bus", mode: "bus" },
-  { name: "SaintMartin Hyundai", type: "Bus", mode: "bus" }
+/**
+ * Bangladesh Railway intercity/commuter/mail trains, alphabetized + pre-deduplicated.
+ * Single source of truth for the typeahead and the `TRANSPORTS` derived table below.
+ */
+const TRAIN_NAMES_LIST = [
+  "Agnibina Express",
+  "Balaka Commuter",
+  "Banalata Express",
+  "Bangali Express",
+  "Banglabandha Express",
+  "Barendra Express",
+  "Benapole Express",
+  "Bhawal Express",
+  "Bijoy Express",
+  "Brahmaputra Express",
+  "Burimari Express",
+  "Chandpur Express",
+  "Chattala Express",
+  "Chitra Express",
+  "Commuter Express",
+  "Cox's Bazar Express",
+  "Dhumketu Express",
+  "Dolonchapa Express",
+  "Drutajan Express",
+  "Egarosindhur Godhuli",
+  "Egarosindhur Provati",
+  "Ekota Express",
+  "Haor Express",
+  "Jamalpur Express",
+  "Jamuna Express",
+  "Jayantika Express",
+  "Kalni Express",
+  "Kapotaksha Express",
+  "Karnaphuli Express",
+  "Kishoreganj Express",
+  "Kurigram Express",
+  "Lalmoni Express",
+  "Madhumati Express",
+  "Mahananda Express",
+  "Mahanagar Express",
+  "Meghna Express",
+  "Mohanagar Express",
+  "Mohanagar Godhuli",
+  "Mohanagar Provati",
+  "Mohonganj Express",
+  "Nakshikantha Express",
+  "Nilsagar Express",
+  "Padma Express",
+  "Paharika Express",
+  "Panchagarh Express",
+  "Parabat Express",
+  "Parjatak Express",
+  "Ramna Commuter",
+  "Rangpur Express",
+  "Rocket Express",
+  "Rupsha Express",
+  "Sagardari Express",
+  "Samatat Express",
+  "Silk City Express",
+  "Simanta Express",
+  "Sirajganj Express",
+  "Sonar Bangla Express",
+  "Subarna Express",
+  "Sundarban Express",
+  "Surma Mail",
+  "Tista Express",
+  "Titumir Express",
+  "Tungipara Express",
+  "Turag Express",
+  "Turna Nishitha",
+  "Udayan Express",
+  "Upaban Express",
+  "Upakul Express",
+  "Uttara Express",
+] as const;
+
+const BUS_NAMES_LIST = [
+  "Green Line Paribahan",
+  "Hanif Enterprise",
+  "Shohagh Paribahan",
+  "Ena Transport",
+  "SA Paribahan",
+  "Royal Coach",
+  "Desh Travels",
+  "Silk Line",
+  "SR Travels",
+  "Unique Paribahan",
+  "National Travels",
+  "Eagle Paribahan",
+  "Shyamoli NR Travels",
+  "SaintMartin Hyundai",
+] as const;
+
+export const TRAIN_NAMES: readonly string[] = TRAIN_NAMES_LIST;
+export const BUS_NAMES: readonly string[] = BUS_NAMES_LIST;
+
+/** Names available in the autocomplete for the given transport mode (see `Autocomplete`). */
+export function transportNamesForMode(mode: "train" | "bus"): readonly string[] {
+  return mode === "bus" ? BUS_NAMES : TRAIN_NAMES;
+}
+
+interface TransportEntry {
+  readonly name: string;
+  readonly type: string;
+  readonly mode: "train" | "bus";
+}
+
+/**
+ * Derived `{ name, type, mode }` table — `type` defaults to "Intercity" for trains and "Bus" for
+ * buses; the only train kept on its historical type label is `Turna Nishitha` (Night Express). The
+ * runtime UI no longer displays `type`, but Sell / EditTicketDialog still look up `mode` by name
+ * here, so every entry the autocomplete can return must exist in this table.
+ */
+export const TRANSPORTS: readonly TransportEntry[] = [
+  ...TRAIN_NAMES_LIST.map<TransportEntry>((name) => ({
+    name,
+    type: name === "Turna Nishitha" ? "Night Express" : "Intercity",
+    mode: "train",
+  })),
+  ...BUS_NAMES_LIST.map<TransportEntry>((name) => ({ name, type: "Bus", mode: "bus" })),
 ];

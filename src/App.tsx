@@ -65,6 +65,7 @@ import NotFound from "./pages/NotFound";
 import Unauthorized from "./pages/Unauthorized";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { TransitSwapLogo } from "./components/branding/TransitSwapLogo";
+import { FloatingWhatsAppHelp } from "./components/common/FloatingWhatsAppHelp";
 
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -431,6 +432,7 @@ const AppLayout = () => {
         </AnimatePresence>
       </main>
       <Footer />
+      <FloatingWhatsAppHelp />
       <Toaster />
     </div>
   );

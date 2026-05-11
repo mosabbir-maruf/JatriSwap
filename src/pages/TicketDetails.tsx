@@ -313,14 +313,6 @@ const TicketDetails = () => {
                         <span className="font-mono font-black text-sm uppercase">{ticket.passengerCount} Adult</span>
                       </div>
                     </div>
-
-                    <div className="bg-destructive text-destructive-foreground border-4 border-foreground p-5 flex gap-4 shadow-[8px_8px_0_0_rgba(0,0,0,1)] transform -rotate-1">
-                      <AlertCircle className="w-8 h-8 shrink-0 mt-1" />
-                      <div>
-                        <h4 className="font-heading font-black text-xl uppercase mb-1 tracking-tighter">Important Notice</h4>
-                        <p className="font-mono text-xs font-bold uppercase tracking-wide leading-relaxed">Please ensure you carry a valid photo ID matching the passenger age/gender category during the journey. Name changes are subject to railway guidelines.</p>
-                      </div>
-                    </div>
                  </div>
               </div>
 

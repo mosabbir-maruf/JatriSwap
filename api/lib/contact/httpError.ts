@@ -2,6 +2,8 @@
 
 export class ContactHttpError extends Error {
   readonly statusCode: number;
+  /** Stable marker — do not rely on `instanceof Error` or `name` alone (bundlers / chunks can break them). */
+  readonly _contactHttpError = true as const;
 
   constructor(statusCode: number, message: string) {
     super(message);
@@ -10,9 +12,9 @@ export class ContactHttpError extends Error {
   }
 }
 
-/** Works across bundled chunks where `instanceof ContactHttpError` can fail. */
+/** Works across bundled chunks where `instanceof ContactHttpError` / `instanceof Error` can fail. */
 export function isContactHttpError(err: unknown): err is ContactHttpError {
-  if (typeof err !== "object" || err === null || !(err instanceof Error)) return false;
-  const statusCode = (err as { statusCode?: unknown }).statusCode;
-  return err.name === "ContactHttpError" && typeof statusCode === "number";
+  if (typeof err !== "object" || err === null) return false;
+  const o = err as { _contactHttpError?: unknown; statusCode?: unknown };
+  return o._contactHttpError === true && typeof o.statusCode === "number";
 }

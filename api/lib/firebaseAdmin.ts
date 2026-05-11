@@ -67,9 +67,17 @@ export function getOrInitFirebaseAdminApp(): App {
   const existing = getApps()[0];
   if (existing) return existing;
   const serviceAccount = loadServiceAccount();
-  return initializeApp({
-    credential: cert(serviceAccount),
-  });
+  try {
+    return initializeApp({
+      credential: cert(serviceAccount),
+    });
+  } catch (e: unknown) {
+    console.error("[firebaseAdmin] initializeApp failed", e);
+    throw new ContactHttpError(
+      503,
+      "Firebase Admin could not start. Check FIREBASE_SERVICE_ACCOUNT_JSON (valid JSON) and project_id.",
+    );
+  }
 }
 
 /** Deletes Firebase Authentication users server-side (e.g. after Firestore cleanup). */
@@ -87,10 +95,18 @@ export function getContactFirestore(): Firestore {
 
   const app = getOrInitFirebaseAdminApp();
 
-  /** REST transport avoids loading gRPC/proto trees that often break Vercel NFT bundles. */
-  firestore = usesDefaultFirestoreDatabase(databaseId)
-    ? initializeFirestore(app, FIRESTORE_REST_SETTINGS)
-    : initializeFirestore(app, FIRESTORE_REST_SETTINGS, databaseId);
+  try {
+    /** REST transport avoids loading gRPC/proto trees that often break Vercel NFT bundles. */
+    firestore = usesDefaultFirestoreDatabase(databaseId)
+      ? initializeFirestore(app, FIRESTORE_REST_SETTINGS)
+      : initializeFirestore(app, FIRESTORE_REST_SETTINGS, databaseId);
+  } catch (e: unknown) {
+    console.error("[firebaseAdmin] initializeFirestore failed", e);
+    throw new ContactHttpError(
+      503,
+      "Firestore Admin could not start. Check FIRESTORE_DATABASE_ID matches your project.",
+    );
+  }
 
   return firestore;
 }

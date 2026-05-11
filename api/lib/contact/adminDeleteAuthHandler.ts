@@ -1,14 +1,28 @@
+import type { IncomingHttpHeaders } from "node:http";
+
 import type { Firestore } from "firebase-admin/firestore";
 
 import { getContactFirestore, getFirebaseAdminAuth } from "../firebaseAdmin";
 import { ContactHttpError } from "./httpError";
 
+/** Accepts whichever shape Vercel hands the function (Node IncomingMessage or Fetch Request). */
+export type HeadersLike = IncomingHttpHeaders | Headers;
+
 const BEARER_RE = /^Bearer\s+(\S+)$/i;
 const UID_RE = /^[a-zA-Z0-9_-]+$/;
 
-function parseBearerToken(headerValue: string | null): string | null {
-  if (headerValue == null) return null;
-  const trimmed = headerValue.trim();
+function readHeader(headers: HeadersLike, name: string): string | null {
+  if (typeof Headers !== "undefined" && headers instanceof Headers) {
+    return headers.get(name);
+  }
+  const v = (headers as IncomingHttpHeaders)[name.toLowerCase()];
+  if (Array.isArray(v)) return v[0] ?? null;
+  return typeof v === "string" ? v : null;
+}
+
+function parseBearerToken(rawAuthHeader: string | null): string | null {
+  if (rawAuthHeader == null) return null;
+  const trimmed = rawAuthHeader.trim();
   if (trimmed.length === 0) return null;
   const m = BEARER_RE.exec(trimmed);
   const tok = m?.[1]?.trim();
@@ -17,6 +31,20 @@ function parseBearerToken(headerValue: string | null): string | null {
 
 function isValidTargetUid(uid: string): boolean {
   return uid.length > 0 && uid.length <= 128 && UID_RE.test(uid);
+}
+
+function readTargetUid(body: unknown): string {
+  if (body === null) return "";
+  if (typeof body === "string") {
+    try {
+      return readTargetUid(JSON.parse(body));
+    } catch {
+      return "";
+    }
+  }
+  if (typeof body !== "object") return "";
+  const raw = (body as { targetUid?: unknown }).targetUid;
+  return typeof raw === "string" ? raw.trim() : "";
 }
 
 /** Caller must be an active admin (`admins` or `users` doc with `role === 'admin'`). */
@@ -30,19 +58,12 @@ async function assertCallerIsFirestoreAdmin(db: Firestore, callerUid: string): P
   throw new ContactHttpError(403, "Forbidden");
 }
 
-function readTargetUid(body: unknown): string {
-  if (body === null || typeof body !== "object") return "";
-  const raw = (body as { targetUid?: unknown }).targetUid;
-  return typeof raw === "string" ? raw.trim() : "";
-}
-
 /**
  * Verifies the caller's ID token, confirms they are an active admin in Firestore, then deletes the target
- * Firebase Authentication user. Returns `{ ok: true }` on success (including when the user is already gone).
- * Throws `ContactHttpError` for any expected failure — the entry handler maps that to the HTTP response.
+ * Firebase Authentication user. Throws `ContactHttpError` for any expected failure.
  */
-export async function handleAdminDeleteAuthPost(body: unknown, headers: Headers): Promise<{ ok: true }> {
-  const token = parseBearerToken(headers.get("authorization"));
+export async function handleAdminDeleteAuthPost(body: unknown, headers: HeadersLike): Promise<{ ok: true }> {
+  const token = parseBearerToken(readHeader(headers, "authorization"));
   if (!token) throw new ContactHttpError(401, "Missing or invalid Authorization header");
 
   const db = getContactFirestore();

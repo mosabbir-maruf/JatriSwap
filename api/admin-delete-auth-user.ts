@@ -1,51 +1,61 @@
+import type { IncomingMessage, ServerResponse } from "node:http";
+
 import { isContactHttpError } from "./lib/contact/httpError";
 
-function corsHeaders(): Record<string, string> {
-  return {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  };
+/**
+ * Vercel's `@vercel/node` runtime decorates the standard Node request/response with `body` (auto-parsed
+ * when content-type is JSON) and `status()` / `json()` helpers on the response. Typed minimally here so
+ * we don't take a dependency on `@vercel/node` purely for these signatures.
+ */
+type VercelRequest = IncomingMessage & { body?: unknown };
+type VercelResponse = ServerResponse & {
+  status: (code: number) => VercelResponse;
+  json: (body: unknown) => VercelResponse;
+};
+
+const CORS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+function applyCors(res: VercelResponse): void {
+  for (const [k, v] of Object.entries(CORS)) res.setHeader(k, v);
 }
 
 /**
- * Admin-only: deletes Firebase Authentication user `targetUid` after the caller proves they are an
- * active admin. Mirrors `api/contact.ts` — thin entry + dynamic-imported handler under
- * `api/lib/contact/` so Vercel's serverless tracer reliably ships the dependency graph.
+ * Admin-only POST endpoint: deletes a target Firebase Authentication user after the caller proves they
+ * are an active admin. Uses Node-style `(req, res)` so Vercel reliably finalizes the response — earlier
+ * Web-Standard `Request → Response` signature caused timeouts when the runtime fell back to Node mode.
  */
-export default async function adminDeleteAuthUser(request: Request): Promise<Response> {
-  const cors = corsHeaders();
+export default async function adminDeleteAuthUser(
+  req: VercelRequest,
+  res: VercelResponse,
+): Promise<void> {
+  applyCors(res);
 
-  if (request.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: cors });
+  if (req.method === "OPTIONS") {
+    res.statusCode = 204;
+    res.end();
+    return;
   }
 
-  if (request.method !== "POST") {
-    return Response.json(
-      { error: "Method not allowed" },
-      { status: 405, headers: { ...cors, Allow: "POST, OPTIONS" } },
-    );
-  }
-
-  let body: unknown = {};
-  try {
-    body = await request.json();
-  } catch {
-    /* validation in handler will surface a 400 */
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST, OPTIONS");
+    res.status(405).json({ error: "Method not allowed" });
+    return;
   }
 
   try {
     const { handleAdminDeleteAuthPost } = await import("./lib/contact/adminDeleteAuthHandler");
-    const result = await handleAdminDeleteAuthPost(body, request.headers);
-    return Response.json(result, { status: 200, headers: cors });
+    const result = await handleAdminDeleteAuthPost(req.body, req.headers);
+    res.status(200).json(result);
   } catch (err) {
     if (isContactHttpError(err)) {
-      return Response.json({ error: err.message }, { status: err.statusCode, headers: cors });
+      res.status(err.statusCode).json({ error: err.message });
+      return;
     }
     console.error("[admin-delete-auth-user]", err);
-    return Response.json(
-      { error: "Could not complete authentication cleanup." },
-      { status: 500, headers: cors },
-    );
+    res.status(500).json({ error: "Could not complete authentication cleanup." });
   }
 }

@@ -1,51 +1,62 @@
+import type { IncomingMessage, ServerResponse } from "node:http";
+
 import { isContactHttpError } from "./lib/contact/httpError";
 import { logUnexpectedContactError } from "./lib/contact/logUnexpectedContact";
 
-function corsHeaders(): Record<string, string> {
-  return {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-  };
+/**
+ * Vercel's `@vercel/node` runtime decorates the standard Node request/response with `body` (auto-parsed
+ * when content-type is JSON) and `status()` / `json()` helpers on the response. Typed minimally here so
+ * we don't take a dependency on `@vercel/node` purely for these signatures.
+ */
+type VercelRequest = IncomingMessage & { body?: unknown };
+type VercelResponse = ServerResponse & {
+  status: (code: number) => VercelResponse;
+  json: (body: unknown) => VercelResponse;
+};
+
+const CORS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+function applyCors(res: VercelResponse): void {
+  for (const [k, v] of Object.entries(CORS)) res.setHeader(k, v);
 }
 
 /**
- * Single default export — some Vite deployments never invoke named `POST`/`OPTIONS`
- * exports (cold boot → FUNCTION_INVOCATION_FAILED before user code runs).
+ * Contact form → Telegram. Node-style `(req, res)` so Vercel finalizes the response — Web-Standard
+ * `Request → Response` returns were ignored in Node-mode invocations, causing 30s timeouts.
+ *
+ * Body and header parsing happens inside `handleContactPost` / `identity.ts` (both dual-mode).
  */
-export default async function contactApi(request: Request): Promise<Response> {
-  const cors = corsHeaders();
+export default async function contactApi(req: VercelRequest, res: VercelResponse): Promise<void> {
+  applyCors(res);
 
-  if (request.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: cors });
+  if (req.method === "OPTIONS") {
+    res.statusCode = 204;
+    res.end();
+    return;
   }
 
-  if (request.method !== "POST") {
-    return Response.json(
-      { error: "Method not allowed" },
-      { status: 405, headers: { ...cors, Allow: "POST, OPTIONS" } },
-    );
-  }
-
-  let body: unknown = {};
-  try {
-    body = await request.json();
-  } catch {
-    // Malformed JSON — treat as empty; validation yields 400 from sanitize.
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST, OPTIONS");
+    res.status(405).json({ error: "Method not allowed" });
+    return;
   }
 
   try {
     const { handleContactPost } = await import("./lib/contact/httpPost");
-    const result = await handleContactPost(body, request.headers);
-    return Response.json(result, { status: 200, headers: cors });
+    const result = await handleContactPost(req.body, req.headers);
+    res.status(200).json(result);
   } catch (err) {
     if (isContactHttpError(err)) {
-      return Response.json({ error: err.message }, { status: err.statusCode, headers: cors });
+      res.status(err.statusCode).json({ error: err.message });
+      return;
     }
     logUnexpectedContactError("handler", err);
-    return Response.json(
-      { error: "Could not send your message right now. Please try again later." },
-      { status: 500, headers: cors },
-    );
+    res
+      .status(500)
+      .json({ error: "Could not send your message right now. Please try again later." });
   }
 }

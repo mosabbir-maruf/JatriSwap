@@ -66,6 +66,7 @@ import FAQ from "./pages/FAQ";
 import NotFound from "./pages/NotFound";
 import Unauthorized from "./pages/Unauthorized";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { TransitSwapLogo } from "./components/branding/TransitSwapLogo";
 
 /** Matches navbar neo-brutalist styling while Firebase session restores. */
 function NavbarSessionLoadingBars({ dense }: { dense?: boolean }) {
@@ -117,13 +118,12 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-16">
           
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-3 group">
-            <div className="bg-foreground text-background p-1.5 flex items-center justify-center">
-              <Ticket className="w-6 h-6" />
-            </div>
-            <span className="font-heading font-bold text-2xl tracking-tighter text-foreground uppercase">
-              TransitSwap.
-            </span>
+          <Link
+            to="/"
+            className="group flex items-center outline-none transition-[filter] hover:brightness-[1.02] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            aria-label="TransitSwap home"
+          >
+            <TransitSwapLogo variant="header" />
           </Link>
 
           {/* Desktop Navigation */}
@@ -321,13 +321,12 @@ const Footer = () => {
         {/* Brand & Telegram column */}
         <div className="md:col-span-12 lg:col-span-5 space-y-8">
            <div>
-             <Link to="/" className="flex items-center space-x-2 mb-6">
-                <div className="bg-background text-foreground p-1 flex items-center justify-center">
-                  <Ticket className="w-6 h-6" />
-                </div>
-                <span className="font-heading font-bold text-3xl tracking-tighter uppercase">
-                  TransitSwap.
-                </span>
+             <Link
+               to="/"
+               className="mb-6 inline-flex outline-none transition-opacity hover:opacity-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-foreground"
+               aria-label="TransitSwap home"
+             >
+               <TransitSwapLogo variant="footer" />
              </Link>
              <p className="text-muted text-lg font-sans leading-relaxed max-w-sm">
                The premier marketplace for verified public transit tickets. Connect, exchange, and travel securely.

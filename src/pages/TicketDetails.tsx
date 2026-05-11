@@ -22,6 +22,7 @@ import {
   recordBuyerPurchaseRequest,
 } from "@/src/lib/firebase/purchaseRequests";
 import { formatDepartureTimeDisplay } from "@/src/lib/formatDepartureTime";
+import { COPY_TO_CLIPBOARD_FEEDBACK, copyTextWithToast } from "@/src/lib/copyTextWithToast";
 
 const TicketDetails = () => {
   const { firebaseUser, currentUser, loading: authLoading } = useAuth();
@@ -143,13 +144,12 @@ const TicketDetails = () => {
     });
   };
 
-  const handleCopyId = () => {
-    navigator.clipboard.writeText(ticket.id);
-    toast.success("Ticket ID copied to clipboard!");
-  };
-
-  const shareUrl = window.location.origin + `/ticket/${ticket.id}`;
+  const shareUrl = `${window.location.origin}/ticket/${ticket.id}`;
   const shareTitle = `Buy ${ticket.transportName} Ticket on RailSwap!`;
+
+  const handleCopyId = () => {
+    void copyTextWithToast(ticket.id, COPY_TO_CLIPBOARD_FEEDBACK.ticketId);
+  };
 
   const handleShare = (platform: string) => {
     let url = "";
@@ -161,14 +161,13 @@ const TicketDetails = () => {
         url = `fb-messenger://share/?link=${encodeURIComponent(shareUrl)}`;
         break;
       case "whatsapp":
-        url = `https://wa.me/?text=${encodeURIComponent(shareTitle + " " + shareUrl)}`;
+        url = `https://wa.me/?text=${encodeURIComponent(`${shareTitle} ${shareUrl}`)}`;
         break;
       case "telegram":
         url = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareTitle)}`;
         break;
       case "copy":
-        navigator.clipboard.writeText(shareUrl);
-        toast.success("Link copied to clipboard!");
+        void copyTextWithToast(shareUrl, COPY_TO_CLIPBOARD_FEEDBACK.shareLink);
         return;
     }
     if (url) window.open(url, "_blank");
@@ -200,7 +199,9 @@ const TicketDetails = () => {
                         <div className="flex flex-wrap items-center gap-3 mb-4">
                            <Badge className="bg-foreground text-background border-2 border-foreground font-mono font-bold uppercase tracking-widest rounded-none shadow-[2px_2px_0_0_rgba(0,0,0,1)] px-3 py-1 text-[10px] flex items-center">
                              {ticket.mode === 'train' ? <Train className="w-4 h-4 mr-1.5" /> : <Bus className="w-4 h-4 mr-1.5" />}
-                             {ticket.mode === 'train' ? (ticket.transportType.toLowerCase().includes('train') ? ticket.transportType : `${ticket.transportType} Train`) : (ticket.transportType.toLowerCase().includes('bus') ? ticket.transportType : `${ticket.transportType} Bus`)}
+                             {ticket.mode === 'train'
+                               ? (ticket.transportType.toLowerCase().includes('train') ? ticket.transportType : `${ticket.transportType} Train`)
+                               : 'Bus'}
                            </Badge>
                            <Badge className="bg-emerald-400 text-emerald-950 border-2 border-emerald-950 font-mono font-bold uppercase tracking-widest rounded-none shadow-[2px_2px_0_0_rgba(4,120,87,1)] px-3 py-1 text-[10px]">
                              Available
@@ -208,9 +209,23 @@ const TicketDetails = () => {
                         </div>
                         <h1 className="text-4xl md:text-5xl font-heading font-black tracking-tighter uppercase mb-3 bg-primary inline-block px-2 text-primary-foreground border-2 border-foreground">{ticket.transportName}</h1>
                         <div className="flex items-center gap-4 mt-2">
-                          <button onClick={handleCopyId} className="flex items-center gap-2 group hover:opacity-80 transition-opacity" title="Copy Ticket ID">
-                            <span className="text-foreground font-mono font-bold uppercase tracking-widest text-xs cursor-pointer">ID: {ticket.id}</span>
-                          </button>
+                          <div className="flex max-w-full min-w-0 flex-1 items-center gap-2">
+                            <span
+                              className="pointer-events-none shrink-0 select-none font-mono text-xs font-bold uppercase tracking-wide text-muted-foreground sm:tracking-widest"
+                              aria-hidden
+                            >
+                              Ticket ID:
+                            </span>
+                            <button
+                              type="button"
+                              onClick={handleCopyId}
+                              className="group min-w-0 flex-1 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-none border-0 bg-transparent p-0 text-left font-mono text-xs font-bold uppercase tracking-wide text-foreground outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:tracking-widest"
+                              title="Copy ticket ID"
+                              aria-label={`Copy ticket ID ${ticket.id}`}
+                            >
+                              <span className="inline-block whitespace-nowrap">{ticket.id}</span>
+                            </button>
+                          </div>
                           
                           <div className="relative">
                             <Button onClick={() => setShowShare(!showShare)} variant="outline" size="sm" className="h-7 px-3 rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[1px_1px_0_0_rgba(0,0,0,1)] hover:bg-muted font-mono text-[10px] uppercase font-bold tracking-widest transition-all">

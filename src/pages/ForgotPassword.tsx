@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Train, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TransitSwapLogo } from "@/src/components/branding/TransitSwapLogo";
 
 export default function ForgotPassword() {
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -17,10 +18,12 @@ export default function ForgotPassword() {
         </Link>
         
         <div className="flex flex-col items-center mb-6 mt-4">
-            <Link to="/" className="flex items-center gap-2 mb-4">
-                <div className="bg-primary p-2 border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)]">
-                <Train className="w-6 h-6 text-primary-foreground" />
-                </div>
+            <Link
+              to="/"
+              className="mb-4 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              aria-label="TransitSwap home"
+            >
+              <TransitSwapLogo variant="auth" showDot={false} />
             </Link>
             <h1 className="font-heading text-2xl font-black uppercase tracking-tighter text-center">Reset Password</h1>
             <p className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground mt-2 text-center text-balance">

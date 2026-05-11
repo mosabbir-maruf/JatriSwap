@@ -32,7 +32,8 @@ Always read and follow:
 | Skill | Use when |
 |-------|-----------|
 | **firebase** / **firebase-basics** | Auth, Firestore, rules, SDK patterns, deploy/emulator |
-| **debugging-strategies** | Reproducing bugs, narrowing causes, production regressions (**before** deep fixes) |
+| **systematic-debugging** | Any bug, test failure, build/integration issue, or odd behavior — **root cause investigation before fixes** (phased workflow in `.agents/skills/systematic-debugging/SKILL.md`); use especially under time pressure or after quick patches failed |
+| **debugging-strategies** | Reproducing bugs, narrowing causes, production regressions — complements **systematic-debugging** |
 | **api-design** | Designing or reviewing **HTTP REST** APIs (e.g. future Cloud Functions) — not the primary model for raw Firestore access patterns |
 | **performance-investigation** | Perf regressions; **adapt** to this repo (Firestore/query costs, bundle size, React re-renders) — the bundled SKILL may reference unrelated benchmark scripts |
 
@@ -40,7 +41,7 @@ Always read and follow:
 
 * Inspect related files and **`MEMORY.md`** / **`firestore.rules`** before editing
 * Keep fixes scoped and safe; align **`src/types/`** with Firestore usage
-* For elusive failures, follow **debugging-strategies** systematically
+* For failures or regressions, follow **systematic-debugging** (root cause first), then **debugging-strategies** as needed
 
 ## Tooling / repo notes
 

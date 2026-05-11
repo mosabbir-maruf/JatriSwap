@@ -17,10 +17,18 @@ import { subscribeToTickets } from "@/src/lib/firebase/tickets";
 import { Ticket as TicketType } from "@/src/types";
 import { useTicketSellerPrivacy } from "@/src/hooks/useTicketSellerPrivacy";
 import { redactSellerPhonesForViewer } from "@/src/lib/ticketPrivacy";
+import { useCalendarPopoverSelect } from "@/src/hooks/useCalendarPopoverSelect";
+import {
+  BRUTALIST_SINGLE_DAY_CALENDAR_CLASSNAMES,
+  BRUTALIST_SINGLE_DAY_CALENDAR_ROOT_CLASSNAME,
+} from "@/src/lib/brutalistSingleDayCalendar";
+
 const Home = () => {
   const navigate = useNavigate();
   const listingViewer = useTicketSellerPrivacy();
   const [date, setDate] = React.useState<Date | undefined>();
+  const { calendarPopoverOpen, setCalendarPopoverOpen, onCalendarSelect } =
+    useCalendarPopoverSelect(setDate);
   const [transportMode, setTransportMode] = React.useState<"train" | "bus">("train");
   const [homePreviewRaw, setHomePreviewRaw] = React.useState<TicketType[]>([]);
   const [homePreviewReady, setHomePreviewReady] = React.useState(false);
@@ -68,7 +76,7 @@ const Home = () => {
         >
           <div className="mb-8">
             <span className="px-5 py-2.5 font-mono text-xs md:text-sm uppercase tracking-widest font-black border-4 border-foreground bg-primary text-primary-foreground rounded-none shadow-[4px_4px_0_0_rgba(0,0,0,1)] transform -rotate-2 inline-block">
-              Trusted by 50K+ Travelers
+              Your unused ticket deserves a traveler.
             </span>
           </div>
           <h1 className="font-heading text-6xl sm:text-[100px] md:text-[120px] lg:text-[150px] xl:text-[180px] font-black leading-[0.85] tracking-tighter mb-8 text-foreground uppercase drop-shadow-[4px_4px_0_rgba(0,0,0,1)] md:drop-shadow-[6px_6px_0_rgba(0,0,0,1)] text-balance">
@@ -145,7 +153,7 @@ const Home = () => {
                   <div className="space-y-3 w-full flex-1 min-w-0">
                     <Label className="font-mono text-xs uppercase tracking-widest text-foreground font-black">Date</Label>
                      <div className="relative w-full">
-                       <Popover>
+                       <Popover open={calendarPopoverOpen} onOpenChange={setCalendarPopoverOpen}>
                          <PopoverTrigger render={
                            <Button
                              variant={"outline"}
@@ -158,20 +166,18 @@ const Home = () => {
                              {date ? format(date, "MMM dd, yyyy") : <span>Pick a date</span>}
                            </Button>
                          } />
-                         <PopoverContent className="w-auto p-0 rounded-none border-4 border-foreground shadow-[12px_12px_0_0_rgba(0,0,0,1)]" align="start">
+                         <PopoverContent
+                           instantMotion
+                           className="w-auto p-0 rounded-none border-4 border-foreground shadow-[12px_12px_0_0_rgba(0,0,0,1)]"
+                           align="start"
+                         >
                            <Calendar
                              mode="single"
                              selected={date}
-                             onSelect={setDate}
+                             onSelect={onCalendarSelect}
                              initialFocus
-                             className="font-mono bg-background text-foreground"
-                             classNames={{
-                               day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground rounded-none",
-                               day_today: "bg-muted text-muted-foreground rounded-none",
-                               day: "rounded-none w-9 h-9 p-0 font-mono text-sm uppercase font-bold aria-selected:opacity-100",
-                               nav_button_previous: "rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] active:translate-y-[2px] active:shadow-none hover:bg-muted font-bold h-7 w-7 bg-transparent p-0 opacity-100",
-                               nav_button_next: "rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] active:translate-y-[2px] active:shadow-none hover:bg-muted font-bold h-7 w-7 bg-transparent p-0 opacity-100",
-                             }}
+                             className={BRUTALIST_SINGLE_DAY_CALENDAR_ROOT_CLASSNAME}
+                             classNames={BRUTALIST_SINGLE_DAY_CALENDAR_CLASSNAMES}
                            />
                          </PopoverContent>
                        </Popover>

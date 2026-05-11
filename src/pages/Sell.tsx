@@ -2,7 +2,7 @@ import * as React from "react"
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { STATIONS, TRANSPORTS, SEAT_CLASSES } from "@/src/constants";
+import { STATIONS, TRANSPORTS, seatClassesForMode } from "@/src/constants";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,11 @@ import {
   normalizeUserAccountStatus,
   sellListingBlockedMessage,
 } from "@/src/lib/userAccountStatus";
+import { useCalendarPopoverSelect } from "@/src/hooks/useCalendarPopoverSelect";
+import {
+  BRUTALIST_SINGLE_DAY_CALENDAR_CLASSNAMES,
+  BRUTALIST_SINGLE_DAY_CALENDAR_ROOT_CLASSNAME,
+} from "@/src/lib/brutalistSingleDayCalendar";
 
 const steps = [
   "Route & Transport",
@@ -71,11 +76,16 @@ const Sell = () => {
     });
   };
 
+  const { calendarPopoverOpen, setCalendarPopoverOpen, onCalendarSelect } = useCalendarPopoverSelect((d) =>
+    handleInputChange("date", d ? format(d, "yyyy-MM-dd") : ""),
+  );
+
   const setTransportMode = (mode: "train" | "bus") => {
     setFormData((prev) => ({
       ...prev,
       transportMode: mode,
       transportName: "",
+      seatClass: "",
     }));
   };
 
@@ -91,6 +101,8 @@ const Sell = () => {
           TRANSPORTS.filter((t) => t.mode === mode).map((t) => t.name),
         );
         const transportName = rawName && namesForMode.has(rawName) ? rawName : "";
+        const seatRaw = String(parsed.seatClass || "").trim();
+        const seatOk = seatRaw && seatClassesForMode(mode).includes(seatRaw);
 
         setFormData({
           from: parsed.from || "",
@@ -99,7 +111,7 @@ const Sell = () => {
           transportName,
           date: parsed.date || "",
           depTime: parsed.depTime || "",
-          seatClass: parsed.seatClass || "",
+          seatClass: seatOk ? seatRaw : "",
           passengerCount: parsed.passengerCount || "1",
           seats: parsed.seats || "",
           additionalNotes: parsed.additionalNotes || "",
@@ -135,7 +147,14 @@ const Sell = () => {
       }
     }
     if (step === 1) {
-      if (!formData.seatClass || !formData.passengerCount || !formData.seats) {
+      const mode = formData.transportMode === "bus" ? "bus" : "train";
+      const allowedSeat = seatClassesForMode(mode);
+      if (
+        !formData.seatClass ||
+        !allowedSeat.includes(formData.seatClass) ||
+        !formData.passengerCount ||
+        !formData.seats
+      ) {
         toast.error("Please fill in all required ticket details.");
         return false;
       }
@@ -277,6 +296,12 @@ const Sell = () => {
     (t) => t.name === formData.transportName,
   )
     ? formData.transportName
+    : undefined;
+
+  const sellSeatMode = formData.transportMode === "bus" ? "bus" : "train";
+  const sellSeatOptions = seatClassesForMode(sellSeatMode);
+  const sellSeatSelectValue = sellSeatOptions.includes(formData.seatClass)
+    ? formData.seatClass
     : undefined;
 
   if (isSuccess) {
@@ -441,7 +466,10 @@ const Sell = () => {
                                <SelectItem key={`${t.mode}-${t.name}`} value={t.name} className="rounded-none focus:bg-foreground focus:text-background font-mono font-bold text-xs uppercase">
                                  <div className="flex items-center gap-2">
                                    {t.mode === 'bus' ? <BusFront className="w-4 h-4" /> : <Train className="w-4 h-4" />}
-                                   <span>{t.name} ({t.type})</span>
+                                   <span>
+                                     {t.name}
+                                     {t.mode === "train" ? ` (${t.type})` : ""}
+                                   </span>
                                  </div>
                                </SelectItem>
                              ))}
@@ -452,7 +480,7 @@ const Sell = () => {
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-3">
                            <Label className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Journey Date</Label>
-                           <Popover>
+                           <Popover open={calendarPopoverOpen} onOpenChange={setCalendarPopoverOpen}>
                              <PopoverTrigger render={
                                <Button
                                  type="button"
@@ -466,20 +494,18 @@ const Sell = () => {
                                  <span className="truncate">{formData.date ? format(new Date(formData.date), "PPP") : "Pick a date"}</span>
                                </Button>
                              } />
-                             <PopoverContent className="w-auto p-0 rounded-none border-4 border-foreground shadow-[12px_12px_0_0_rgba(0,0,0,1)]" align="start">
+                             <PopoverContent
+                               instantMotion
+                               className="w-auto p-0 rounded-none border-4 border-foreground shadow-[12px_12px_0_0_rgba(0,0,0,1)]"
+                               align="start"
+                             >
                                <Calendar
                                  mode="single"
                                  selected={formData.date ? new Date(formData.date) : undefined}
-                                 onSelect={(date) => handleInputChange("date", date ? format(date, "yyyy-MM-dd") : "")}
+                                 onSelect={onCalendarSelect}
                                  initialFocus
-                                 className="bg-background text-foreground"
-                                 classNames={{
-                                   day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground rounded-none",
-                                   day_today: "bg-muted text-muted-foreground rounded-none",
-                                   day: "rounded-none w-9 h-9 p-0 font-mono text-sm uppercase font-bold aria-selected:opacity-100",
-                                   nav_button_previous: "rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] active:translate-y-[2px] active:shadow-none hover:bg-muted font-bold h-7 w-7 bg-transparent p-0 opacity-100",
-                                   nav_button_next: "rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] active:translate-y-[2px] active:shadow-none hover:bg-muted font-bold h-7 w-7 bg-transparent p-0 opacity-100",
-                                 }}
+                                 className={BRUTALIST_SINGLE_DAY_CALENDAR_ROOT_CLASSNAME}
+                                 classNames={BRUTALIST_SINGLE_DAY_CALENDAR_CLASSNAMES}
                                />
                              </PopoverContent>
                            </Popover>
@@ -503,14 +529,19 @@ const Sell = () => {
                      <h3 className="font-heading text-3xl font-black uppercase tracking-tighter text-foreground mb-8">Ticket Specifics</h3>
                      
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="space-y-3">
+                        <div className="space-y-3" key={`sell-seat-${sellSeatMode}`}>
                           <Label className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Seat Class</Label>
-                          <Select required value={formData.seatClass || null} onValueChange={v => handleInputChange("seatClass", v || "")}>
+                          <Select
+                            value={sellSeatSelectValue}
+                            onValueChange={(v) => handleInputChange("seatClass", v ?? "")}
+                          >
                             <SelectTrigger className="h-14 rounded-none bg-background border-2 border-foreground px-6 font-mono font-bold text-xs uppercase shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
                               <SelectValue placeholder="SELECT CLASS" />
                             </SelectTrigger>
-                            <SelectContent className="rounded-none border-2 border-foreground">
-                               {SEAT_CLASSES.map(s => <SelectItem key={s} value={s} className="rounded-none focus:bg-foreground focus:text-background font-mono font-bold text-xs uppercase">{s}</SelectItem>)}
+                            <SelectContent alignItemWithTrigger={false} className="rounded-none border-2 border-foreground">
+                               {sellSeatOptions.map((s) => (
+                                 <SelectItem key={s} value={s} className="rounded-none focus:bg-foreground focus:text-background font-mono font-bold text-xs uppercase">{s}</SelectItem>
+                               ))}
                             </SelectContent>
                           </Select>
                         </div>

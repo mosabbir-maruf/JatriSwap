@@ -6,6 +6,7 @@ import { MapPin, Train, BusFront, Edit2, Trash2, CheckCircle2, AlertTriangle, Ey
 import { Button } from "@/components/ui/button";
 import { QRCodeSVG } from "qrcode.react";
 import { cn } from "@/lib/utils";
+import { COPY_TO_CLIPBOARD_FEEDBACK, copyTextWithToast } from "@/src/lib/copyTextWithToast";
 import type { Ticket as TicketModel } from "@/src/types";
 import {
   canSellerDeleteListing,
@@ -24,6 +25,15 @@ interface TicketProps {
 }
 
 export const TicketCard: React.FC<TicketProps> = ({ ticket, mode = "default", onEdit, onDelete, onMarkSold, fromDashboard = false }) => {
+
+  const copyTicketId = React.useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      void copyTextWithToast(ticket.id, COPY_TO_CLIPBOARD_FEEDBACK.ticketId);
+    },
+    [ticket.id],
+  );
 
   const computedExpired = new Date() > new Date(`${ticket.date}T${ticket.departureTime || '00:00'}`) || ticket.status === "expired";
   const isSold = ticket.status === "sold";
@@ -77,7 +87,9 @@ export const TicketCard: React.FC<TicketProps> = ({ ticket, mode = "default", on
               </div>
               <div>
                 <h3 className="font-heading font-black text-2xl uppercase tracking-tighter text-foreground leading-none mb-1">{ticket.transportName}</h3>
-                <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest">{ticket.transportType}</p>
+                <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest">
+                  {ticket.mode === "bus" ? "Bus" : ticket.transportType}
+                </p>
               </div>
             </div>
           </div>
@@ -137,16 +149,34 @@ export const TicketCard: React.FC<TicketProps> = ({ ticket, mode = "default", on
       </div>
 
       {/* Bottom Bar Info — outside grayscale wrapper so badges stay red/destructive */}
-      <div className="bg-foreground text-background py-2 px-4 flex justify-between items-center border-[1px] border-foreground shadow-[4px_4px_0_0_rgb(0,0,0)] mt-0 translate-y-[-1px] rounded-b-none shrink-0 min-h-[44px] relative z-30">
-        <div className="font-mono text-[8px] sm:text-[10px] uppercase tracking-widest font-bold flex items-center gap-3 flex-1">
-           <span className="opacity-70 break-all w-24 sm:w-auto">ID: {ticket.id}</span>
-           <div className="bg-white p-0.5 rounded-sm">
-             <QRCodeSVG value={`${window.location.origin}/ticket/${ticket.id}`} size={32} />
-           </div>
+      <div className="bg-foreground text-background py-2 px-3 sm:px-4 flex items-center gap-2 sm:gap-3 border-[1px] border-foreground shadow-[4px_4px_0_0_rgb(0,0,0)] mt-0 translate-y-[-1px] rounded-b-none shrink-0 min-h-[44px] relative z-30 min-w-0">
+        <div className="relative z-40 flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2">
+          <span
+            className="pointer-events-none shrink-0 select-none font-mono text-[8px] font-bold uppercase tracking-wide text-background opacity-70 sm:text-[10px]"
+            aria-hidden
+          >
+            Ticket ID:
+          </span>
+          <button
+            type="button"
+            onClick={copyTicketId}
+            title="Copy ticket ID"
+            aria-label={`Copy ticket ID ${ticket.id}`}
+            className={cn(
+              "min-w-0 flex-1 cursor-pointer rounded-none border-0 bg-transparent p-0 text-left font-mono text-[8px] font-bold uppercase tracking-wide text-background opacity-95 outline-none transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-foreground sm:text-[10px]",
+              sellerHardLocked && "pointer-events-none cursor-not-allowed opacity-60",
+            )}
+          >
+            <span className="block overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <span className="inline-block whitespace-nowrap tabular-nums">{ticket.id}</span>
+            </span>
+          </button>
         </div>
-        
+        <div className="shrink-0 bg-white p-0.5 rounded-sm" aria-hidden>
+          <QRCodeSVG value={`${window.location.origin}/ticket/${ticket.id}`} size={32} />
+        </div>
         {mode === "seller" ? (
-          <div className="flex items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1">
             {isAvailable && <span className="bg-primary text-primary-foreground px-2 py-0.5 font-mono text-[8px] font-black uppercase tracking-widest">Active</span>}
             {isPending && <span className="bg-amber-500 text-amber-950 px-2 py-0.5 font-mono text-[8px] font-black uppercase tracking-widest">Pending</span>}
             {isFlagged && (
@@ -163,7 +193,7 @@ export const TicketCard: React.FC<TicketProps> = ({ ticket, mode = "default", on
             {isExpired && <span className="bg-muted text-muted-foreground border border-muted-foreground px-2 py-0.5 font-mono text-[8px] font-black uppercase tracking-widest">Expired</span>}
           </div>
         ) : (
-          <div>
+          <div className="shrink-0">
             {isAvailable ? (
               <span className="bg-primary text-primary-foreground px-3 py-1 font-mono text-[10px] font-black uppercase tracking-widest shadow-[2px_2px_0_0_rgba(255,255,255,0.3)]">
                 Available

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { STATIONS, SEAT_CLASSES } from "@/src/constants";
+import { STATIONS, TRANSPORTS, ALL_SEAT_CLASS_FILTER_OPTIONS, seatClassesForMode } from "@/src/constants";
 import { TicketCard } from "@/src/components/common/TicketCard";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +22,11 @@ import { Ticket } from "@/src/types";
 import { departureTimeMatchesSearch } from "@/src/lib/formatDepartureTime";
 import { useTicketSellerPrivacy } from "@/src/hooks/useTicketSellerPrivacy";
 import { redactSellerPhonesForViewer } from "@/src/lib/ticketPrivacy";
+import { useCalendarPopoverSelect } from "@/src/hooks/useCalendarPopoverSelect";
+import {
+  BRUTALIST_SINGLE_DAY_CALENDAR_CLASSNAMES,
+  BRUTALIST_SINGLE_DAY_CALENDAR_ROOT_CLASSNAME,
+} from "@/src/lib/brutalistSingleDayCalendar";
 
 const Browse = () => {
   const listingViewer = useTicketSellerPrivacy();
@@ -37,11 +42,28 @@ const Browse = () => {
   const [priceRange, setPriceRange] = useState([100, 10000]);
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [date, setDate] = useState<Date | undefined>(initialDateStr ? new Date(initialDateStr) : undefined);
+  const { calendarPopoverOpen, setCalendarPopoverOpen, onCalendarSelect } =
+    useCalendarPopoverSelect(setDate);
   const [origin, setOrigin] = useState<string>(initialOrigin);
   const [destination, setDestination] = useState<string>(initialDestination);
   const [seatClasses, setSeatClasses] = useState<string[]>([]);
   const [transportTypes, setTransportTypes] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<string>("newest");
+
+  const seatClassFilterOptions = useMemo(() => {
+    if (transportMode === "all") return ALL_SEAT_CLASS_FILTER_OPTIONS;
+    return [...seatClassesForMode(transportMode)];
+  }, [transportMode]);
+
+  const trainTransportTypeFilters = useMemo(
+    () =>
+      Array.from(new Set(TRANSPORTS.filter((x) => x.mode === "train").map((x) => x.type))),
+    [],
+  );
+
+  useEffect(() => {
+    if (transportMode === "bus") setTransportTypes([]);
+  }, [transportMode]);
   const [isLoading, setIsLoading] = useState(true);
   const [ticketsRaw, setTicketsRaw] = useState<Ticket[]>([]);
   const [listCursor, setListCursor] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
@@ -263,7 +285,7 @@ const Browse = () => {
                     {/* Date */}
                      <div className="space-y-3">
                         <Label className="font-mono text-[10px] uppercase tracking-widest font-bold">Date</Label>
-                        <Popover>
+                        <Popover open={calendarPopoverOpen} onOpenChange={setCalendarPopoverOpen}>
                           <PopoverTrigger render={
                             <Button
                               variant={"outline"}
@@ -276,20 +298,18 @@ const Browse = () => {
                               {date ? format(date, "MMM dd, yyyy") : <span>Pick a date</span>}
                             </Button>
                           } />
-                          <PopoverContent className="w-auto p-0 rounded-none border-4 border-foreground shadow-[12px_12px_0_0_rgba(0,0,0,1)]" align="start">
+                          <PopoverContent
+                            instantMotion
+                            className="w-auto p-0 rounded-none border-4 border-foreground shadow-[12px_12px_0_0_rgba(0,0,0,1)]"
+                            align="start"
+                          >
                             <Calendar
                               mode="single"
                               selected={date}
-                              onSelect={setDate}
+                              onSelect={onCalendarSelect}
                               initialFocus
-                              className="bg-background text-foreground"
-                              classNames={{
-                                day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground rounded-none",
-                                day_today: "bg-muted text-muted-foreground rounded-none",
-                                day: "rounded-none w-9 h-9 p-0 font-mono text-sm uppercase font-bold aria-selected:opacity-100",
-                                nav_button_previous: "rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] active:translate-y-[2px] active:shadow-none hover:bg-muted font-bold h-7 w-7 bg-transparent p-0 opacity-100",
-                                nav_button_next: "rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] active:translate-y-[2px] active:shadow-none hover:bg-muted font-bold h-7 w-7 bg-transparent p-0 opacity-100",
-                              }}
+                              className={BRUTALIST_SINGLE_DAY_CALENDAR_ROOT_CLASSNAME}
+                              classNames={BRUTALIST_SINGLE_DAY_CALENDAR_CLASSNAMES}
                             />
                           </PopoverContent>
                         </Popover>
@@ -315,7 +335,7 @@ const Browse = () => {
                     <div className="space-y-3">
                       <Label className="font-mono text-[10px] uppercase tracking-widest font-bold">Seat Class</Label>
                       <div className="flex flex-wrap gap-2">
-                        {SEAT_CLASSES.map(sc => (
+                        {seatClassFilterOptions.map(sc => (
                           <Badge 
                             key={sc} 
                             variant="outline" 
@@ -337,31 +357,33 @@ const Browse = () => {
                       </div>
                     </div>
 
-                    {/* Transport Type */}
-                    <div className="space-y-3">
-                      <Label className="font-mono text-[10px] uppercase tracking-widest font-bold">Transport Type</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {["Intercity", "Night Express", "AC Bus", "Non-AC Bus"].map(type => (
-                          <Badge 
-                            key={type} 
-                            variant="outline" 
-                            className={cn(
-                              "rounded-none border-2 border-foreground cursor-pointer font-mono text-[10px] px-3 py-1.5 uppercase font-bold transition-colors",
-                              transportTypes.includes(type) ? "bg-foreground text-background" : "bg-background hover:bg-muted text-foreground"
-                            )}
-                            onClick={() => {
-                              if (transportTypes.includes(type)) {
-                                setTransportTypes(transportTypes.filter(t => t !== type));
-                              } else {
-                                setTransportTypes([...transportTypes, type]);
-                              }
-                            }}
-                          >
-                            {type}
-                          </Badge>
-                        ))}
+                    {/* Train service type (Intercity / Night Express — bus tier is seat class, not transportType) */}
+                    {transportMode !== "bus" ? (
+                      <div className="space-y-3">
+                        <Label className="font-mono text-[10px] uppercase tracking-widest font-bold">Train service</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {trainTransportTypeFilters.map((type) => (
+                            <Badge
+                              key={type}
+                              variant="outline"
+                              className={cn(
+                                "rounded-none border-2 border-foreground cursor-pointer font-mono text-[10px] px-3 py-1.5 uppercase font-bold transition-colors",
+                                transportTypes.includes(type) ? "bg-foreground text-background" : "bg-background hover:bg-muted text-foreground"
+                              )}
+                              onClick={() => {
+                                if (transportTypes.includes(type)) {
+                                  setTransportTypes(transportTypes.filter((t) => t !== type));
+                                } else {
+                                  setTransportTypes([...transportTypes, type]);
+                                }
+                              }}
+                            >
+                              {type}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    ) : null}
                     
                     <Button 
                       className="w-full rounded-none h-12 text-[10px] mt-8 uppercase tracking-widest font-bold shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all bg-destructive text-destructive-foreground border-2 border-destructive"

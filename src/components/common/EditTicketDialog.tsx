@@ -12,7 +12,7 @@ import { ListingWriteBlockedError } from "@/src/lib/listingWriteGuard";
 import { normalizeUserAccountStatus, sellListingBlockedMessage } from "@/src/lib/userAccountStatus";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { toast } from "sonner";
-import { STATIONS, TRANSPORTS, SEAT_CLASSES } from "@/src/constants";
+import { STATIONS, TRANSPORTS, seatClassesForMode } from "@/src/constants";
 import { Train, BusFront } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -174,8 +174,13 @@ export function EditTicketDialog({
       return;
     }
 
-    if (!formData.seatClass?.trim() || !SEAT_CLASSES.includes(formData.seatClass)) {
-      toast.error("Select a seat class (AC Snigdha, Shovan, etc.).");
+    const seatOpts = seatClassesForMode(mode);
+    if (!formData.seatClass?.trim() || !seatOpts.includes(formData.seatClass)) {
+      toast.error(
+        mode === "bus"
+          ? "Select a bus class (AC, Non-AC, Scania, etc.)."
+          : "Select a train seat class (Shovan, Snigdha, etc.).",
+      );
       return;
     }
 
@@ -222,8 +227,9 @@ export function EditTicketDialog({
     }
   };
 
+  const seatOptionsForUi = seatClassesForMode(uiMode);
   const seatClassValue =
-    formData.seatClass && SEAT_CLASSES.includes(formData.seatClass)
+    formData.seatClass && seatOptionsForUi.includes(formData.seatClass)
       ? formData.seatClass
       : undefined;
 
@@ -309,8 +315,13 @@ export function EditTicketDialog({
                         ) : (
                           <Train className="w-4 h-4 shrink-0" aria-hidden />
                         )}
-                        {t.name}{" "}
-                        <span className="text-muted-foreground normal-case">({t.type})</span>
+                        {t.name}
+                        {t.mode === "train" ? (
+                          <>
+                            {" "}
+                            <span className="text-muted-foreground normal-case">({t.type})</span>
+                          </>
+                        ) : null}
                       </span>
                     </SelectItem>
                   ))}
@@ -323,7 +334,7 @@ export function EditTicketDialog({
             </div>
             
              <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
+              <div className="grid gap-2" key={`edit-seat-${uiMode}`}>
                 <Label className="font-mono text-[10px] uppercase tracking-widest font-bold">Seat class (AC / coach)</Label>
                 <Select
                   value={seatClassValue}
@@ -332,8 +343,11 @@ export function EditTicketDialog({
                   <SelectTrigger className="rounded-none border-2 border-foreground min-h-10 font-mono font-bold text-xs uppercase">
                     <SelectValue placeholder="Select class" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-none border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
-                    {SEAT_CLASSES.map((c) => (
+                  <SelectContent
+                    alignItemWithTrigger={false}
+                    className="rounded-none border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)]"
+                  >
+                    {seatOptionsForUi.map((c) => (
                       <SelectItem key={c} value={c} className="font-mono text-xs uppercase cursor-pointer hover:bg-muted">{c}</SelectItem>
                     ))}
                   </SelectContent>

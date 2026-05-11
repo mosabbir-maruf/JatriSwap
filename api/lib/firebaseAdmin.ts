@@ -2,11 +2,19 @@ import { readFileSync } from "node:fs";
 
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import type { ServiceAccount } from "firebase-admin/app";
-import { getFirestore, type Firestore } from "firebase-admin/firestore";
+import {
+  initializeFirestore,
+  type Firestore,
+  type FirestoreSettings,
+} from "firebase-admin/firestore";
 
 import { ContactHttpError } from "./contact/httpError";
 
 let firestore: Firestore | undefined;
+
+const FIRESTORE_REST_SETTINGS: FirestoreSettings = {
+  preferRest: true,
+};
 
 function misconfigured(): ContactHttpError {
   return new ContactHttpError(
@@ -46,7 +54,7 @@ function loadServiceAccount(): ServiceAccount {
   throw misconfigured();
 }
 
-/** Default Firestore instance — use `getFirestore(app)` without an id (more reliable than passing `(default)`). */
+/** Default Firestore — omit explicit `(default)` id; named DB uses third argument. */
 function usesDefaultFirestoreDatabase(databaseId: string): boolean {
   const id = databaseId.trim().toLowerCase();
   return id === "(default)" || id === "default";
@@ -68,9 +76,10 @@ export function getContactFirestore(): Firestore {
       credential: cert(serviceAccount),
     });
 
+  /** REST transport avoids loading gRPC/proto trees that often break Vercel NFT bundles. */
   firestore = usesDefaultFirestoreDatabase(databaseId)
-    ? getFirestore(app)
-    : getFirestore(app, databaseId);
+    ? initializeFirestore(app, FIRESTORE_REST_SETTINGS)
+    : initializeFirestore(app, FIRESTORE_REST_SETTINGS, databaseId);
 
   return firestore;
 }

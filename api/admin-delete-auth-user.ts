@@ -1,24 +1,21 @@
+import { createPublicKey, sign as cryptoSign, verify as cryptoVerify } from "node:crypto";
 import { readFileSync } from "node:fs";
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "node:http";
 
-import { cert, getApps, initializeApp, type App, type ServiceAccount } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
-import {
-  initializeFirestore,
-  type Firestore,
-  type FirestoreSettings,
-} from "firebase-admin/firestore";
+import { Firestore } from "@google-cloud/firestore";
 
 /**
  * Admin-only POST `/api/admin-delete-auth-user`.
  *
- * Self-contained on purpose: Vercel's serverless tracer repeatedly drops any `./lib/**` imports for
- * this specific function (verified via `ERR_MODULE_NOT_FOUND` on `httpError`, `firebaseAdmin`, and
- * `adminAuthDelete/*`), even when those files are present in source and used by the contact route.
- * Only `node:*` and `firebase-admin/*` (npm) imports are kept — both bundle reliably.
+ * Self-contained — Vercel's serverless tracer repeatedly dropped any `./lib/**` import for this
+ * function. Only `node:*` and `@google-cloud/firestore` (npm) are kept; both bundle reliably.
  *
  * Uses Node-style `(req, res)` so Vercel finalizes the response immediately (Web `Response` returns
  * were ignored by the Node runtime, causing 30s `FUNCTION_INVOCATION_TIMEOUT`).
+ *
+ * Firebase Admin SDK was replaced by native crypto + Firebase Auth REST API to avoid pulling in
+ * `@google-cloud/storage` (the only transitive source of the previously-flagged CVEs that we never
+ * actually used at runtime).
  */
 
 type VercelRequest = IncomingMessage & { body?: unknown };
@@ -46,33 +43,59 @@ function isHttpError(err: unknown): err is HttpError {
   return o._httpError === true && typeof o.statusCode === "number";
 }
 
-// ---------- Firebase Admin bootstrap (cached per warm lambda) ----------
+// ---------- Service account loading ----------
 
-const FIRESTORE_REST_SETTINGS: FirestoreSettings = { preferRest: true };
-let cachedApp: App | undefined;
-let cachedDb: Firestore | undefined;
+interface ServiceAccountFields {
+  client_email: string;
+  private_key: string;
+  project_id: string;
+}
 
-function parseServiceAccountJson(raw: string): ServiceAccount {
+let cachedServiceAccount: ServiceAccountFields | undefined;
+
+function parseServiceAccountJson(raw: string): ServiceAccountFields {
   const trimmed = raw.replace(/^\ufeff/, "").trim();
+  let parsed: unknown;
   try {
-    return JSON.parse(trimmed) as ServiceAccount;
+    parsed = JSON.parse(trimmed);
   } catch {
     throw new HttpError(
       503,
       "FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON. Paste the service account file contents as one line in Vercel env.",
     );
   }
+  if (
+    parsed === null ||
+    typeof parsed !== "object" ||
+    typeof (parsed as { client_email?: unknown }).client_email !== "string" ||
+    typeof (parsed as { private_key?: unknown }).private_key !== "string" ||
+    typeof (parsed as { project_id?: unknown }).project_id !== "string"
+  ) {
+    throw new HttpError(503, "Service account JSON is missing client_email / private_key / project_id.");
+  }
+  const sa = parsed as ServiceAccountFields;
+  return {
+    client_email: sa.client_email,
+    private_key: sa.private_key.replace(/\\n/g, "\n"),
+    project_id: sa.project_id,
+  };
 }
 
-function loadServiceAccount(): ServiceAccount {
+function loadServiceAccount(): ServiceAccountFields {
+  if (cachedServiceAccount) return cachedServiceAccount;
+
   const inline = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
-  if (inline) return parseServiceAccountJson(inline);
+  if (inline) {
+    cachedServiceAccount = parseServiceAccountJson(inline);
+    return cachedServiceAccount;
+  }
   const pathRaw =
     process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim() ||
     process.env.FIREBASE_SERVICE_ACCOUNT_PATH?.trim();
   if (pathRaw) {
     try {
-      return parseServiceAccountJson(readFileSync(pathRaw, "utf8"));
+      cachedServiceAccount = parseServiceAccountJson(readFileSync(pathRaw, "utf8"));
+      return cachedServiceAccount;
     } catch {
       throw new HttpError(503, "Could not read service account file referenced by env path.");
     }
@@ -80,39 +103,228 @@ function loadServiceAccount(): ServiceAccount {
   throw new HttpError(503, "FIREBASE_SERVICE_ACCOUNT_JSON (or path env) is not set on Vercel.");
 }
 
+// ---------- Firestore (admin checks) ----------
+
+let cachedDb: Firestore | undefined;
+
 function isDefaultDatabase(databaseId: string): boolean {
   const id = databaseId.trim().toLowerCase();
   return id === "(default)" || id === "default";
-}
-
-function getApp(): App {
-  if (cachedApp) return cachedApp;
-  try {
-    cachedApp = getApps()[0] ?? initializeApp({ credential: cert(loadServiceAccount()) });
-    return cachedApp;
-  } catch (e) {
-    console.error("[admin-delete-auth-user] initializeApp failed", e);
-    throw new HttpError(503, "Firebase Admin failed to start.");
-  }
 }
 
 function getDb(): Firestore {
   if (cachedDb) return cachedDb;
   const databaseId = process.env.FIRESTORE_DATABASE_ID?.trim();
   if (!databaseId) throw new HttpError(503, "FIRESTORE_DATABASE_ID is not set on Vercel.");
-  const app = getApp();
+  const sa = loadServiceAccount();
   try {
-    cachedDb = isDefaultDatabase(databaseId)
-      ? initializeFirestore(app, FIRESTORE_REST_SETTINGS)
-      : initializeFirestore(app, FIRESTORE_REST_SETTINGS, databaseId);
+    cachedDb = new Firestore({
+      projectId: sa.project_id,
+      credentials: { client_email: sa.client_email, private_key: sa.private_key },
+      ...(isDefaultDatabase(databaseId) ? {} : { databaseId }),
+      preferRest: true,
+    });
     return cachedDb;
   } catch (e) {
-    console.error("[admin-delete-auth-user] initializeFirestore failed", e);
+    console.error("[admin-delete-auth-user] Firestore init failed", e);
     throw new HttpError(503, "Firestore Admin failed to start.");
   }
 }
 
-// ---------- Request parsing (dual-mode) ----------
+// ---------- Firebase ID token verification (native RS256 + JWKS) ----------
+
+const FIREBASE_JWKS_URL =
+  "https://www.googleapis.com/robot/v1/metadata/x509/securetoken%40system.gserviceaccount.com";
+
+interface JwksCache {
+  keys: Map<string, string>;
+  expiresAt: number;
+}
+let jwksCache: JwksCache | undefined;
+
+function base64UrlDecode(str: string): Buffer {
+  let s = str.replace(/-/g, "+").replace(/_/g, "/");
+  while (s.length % 4 !== 0) s += "=";
+  return Buffer.from(s, "base64");
+}
+
+function base64UrlEncode(buf: Buffer): string {
+  return buf.toString("base64").replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+async function getFirebaseJwks(): Promise<Map<string, string>> {
+  const now = Date.now();
+  if (jwksCache && jwksCache.expiresAt > now) return jwksCache.keys;
+
+  const res = await fetch(FIREBASE_JWKS_URL);
+  if (!res.ok) throw new HttpError(503, "Could not fetch Firebase signing keys.");
+
+  // Respect Cache-Control max-age if present, otherwise 1h
+  let ttlMs = 60 * 60 * 1000;
+  const cc = res.headers.get("cache-control");
+  if (cc) {
+    const m = /max-age=(\d+)/i.exec(cc);
+    if (m) ttlMs = Number(m[1]) * 1000;
+  }
+
+  const raw = (await res.json()) as Record<string, string>;
+  const keys = new Map<string, string>(Object.entries(raw));
+  jwksCache = { keys, expiresAt: now + ttlMs };
+  return keys;
+}
+
+interface FirebaseIdTokenClaims {
+  iss?: unknown;
+  aud?: unknown;
+  sub?: unknown;
+  iat?: unknown;
+  exp?: unknown;
+  auth_time?: unknown;
+}
+
+async function verifyFirebaseIdToken(token: string, projectId: string): Promise<string> {
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new HttpError(401, "Malformed ID token");
+
+  const [headerB64, payloadB64, signatureB64] = parts;
+  let header: { alg?: unknown; kid?: unknown };
+  let claims: FirebaseIdTokenClaims;
+  try {
+    header = JSON.parse(base64UrlDecode(headerB64).toString("utf8"));
+    claims = JSON.parse(base64UrlDecode(payloadB64).toString("utf8"));
+  } catch {
+    throw new HttpError(401, "Could not decode ID token");
+  }
+
+  if (header.alg !== "RS256") throw new HttpError(401, "Unexpected token algorithm");
+  if (typeof header.kid !== "string" || header.kid.length === 0) {
+    throw new HttpError(401, "Token missing key id");
+  }
+
+  const jwks = await getFirebaseJwks();
+  const cert = jwks.get(header.kid);
+  if (!cert) throw new HttpError(401, "Token signed by unknown key");
+
+  const publicKey = createPublicKey(cert);
+  const signedData = Buffer.from(`${headerB64}.${payloadB64}`, "utf8");
+  const signature = base64UrlDecode(signatureB64);
+
+  if (!cryptoVerify("RSA-SHA256", signedData, publicKey, signature)) {
+    throw new HttpError(401, "Invalid token signature");
+  }
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  const exp = typeof claims.exp === "number" ? claims.exp : 0;
+  const iat = typeof claims.iat === "number" ? claims.iat : 0;
+  const sub = typeof claims.sub === "string" ? claims.sub : "";
+
+  if (exp <= nowSec) throw new HttpError(401, "Token expired");
+  if (iat > nowSec + 60) throw new HttpError(401, "Token issued in the future");
+  if (claims.aud !== projectId) throw new HttpError(401, "Token has wrong audience");
+  if (claims.iss !== `https://securetoken.google.com/${projectId}`) {
+    throw new HttpError(401, "Token has wrong issuer");
+  }
+  if (sub.length === 0 || sub.length > 128) throw new HttpError(401, "Token subject is invalid");
+
+  return sub;
+}
+
+// ---------- Service-account → Google OAuth access token ----------
+
+const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const ADMIN_SCOPES = [
+  "https://www.googleapis.com/auth/firebase",
+  "https://www.googleapis.com/auth/cloud-platform",
+  "https://www.googleapis.com/auth/identitytoolkit",
+].join(" ");
+
+interface AccessTokenCache {
+  token: string;
+  expiresAt: number;
+}
+let cachedAccessToken: AccessTokenCache | undefined;
+
+async function getGoogleAccessToken(): Promise<string> {
+  const now = Date.now();
+  // Refresh 60s before expiry to avoid mid-flight expiration.
+  if (cachedAccessToken && cachedAccessToken.expiresAt > now + 60_000) {
+    return cachedAccessToken.token;
+  }
+
+  const sa = loadServiceAccount();
+  const nowSec = Math.floor(now / 1000);
+  const header = base64UrlEncode(Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT" })));
+  const payload = base64UrlEncode(
+    Buffer.from(
+      JSON.stringify({
+        iss: sa.client_email,
+        sub: sa.client_email,
+        aud: GOOGLE_TOKEN_URL,
+        scope: ADMIN_SCOPES,
+        iat: nowSec,
+        exp: nowSec + 3600,
+      }),
+    ),
+  );
+  const signature = base64UrlEncode(
+    cryptoSign("RSA-SHA256", Buffer.from(`${header}.${payload}`, "utf8"), sa.private_key),
+  );
+  const assertion = `${header}.${payload}.${signature}`;
+
+  const res = await fetch(GOOGLE_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion,
+    }).toString(),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    console.error("[admin-delete-auth-user] OAuth token exchange failed", { status: res.status, text });
+    throw new HttpError(503, "Could not acquire Google access token.");
+  }
+
+  const data = (await res.json()) as { access_token?: unknown; expires_in?: unknown };
+  if (typeof data.access_token !== "string" || typeof data.expires_in !== "number") {
+    throw new HttpError(503, "Malformed Google access token response.");
+  }
+  cachedAccessToken = {
+    token: data.access_token,
+    expiresAt: now + data.expires_in * 1000,
+  };
+  return cachedAccessToken.token;
+}
+
+// ---------- Firebase Auth user delete (REST) ----------
+
+async function deleteFirebaseAuthUser(targetUid: string): Promise<void> {
+  const accessToken = await getGoogleAccessToken();
+  const sa = loadServiceAccount();
+  const res = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/projects/${encodeURIComponent(sa.project_id)}/accounts:delete`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ localId: targetUid }),
+    },
+  );
+
+  if (res.ok) return;
+
+  const text = await res.text().catch(() => "");
+  // Identity Toolkit returns USER_NOT_FOUND when the user is already gone — treat as success.
+  if (/USER_NOT_FOUND/.test(text)) return;
+
+  console.error("[admin-delete-auth-user] REST deleteUser failed", { status: res.status, text });
+  throw new HttpError(502, "Could not delete authentication record");
+}
+
+// ---------- Request parsing (dual-mode headers) ----------
 
 const BEARER_RE = /^Bearer\s+(\S+)$/i;
 const UID_RE = /^[a-zA-Z0-9_-]+$/;
@@ -193,36 +405,15 @@ export default async function adminDeleteAuthUser(
     const token = parseBearerToken(readHeader(req.headers, "authorization"));
     if (!token) throw new HttpError(401, "Missing or invalid Authorization header");
 
-    const db = getDb();
-    const adminAuth = getAuth(getApp());
-
-    let callerUid: string;
-    try {
-      const decoded = await adminAuth.verifyIdToken(token, true);
-      callerUid = decoded.uid;
-    } catch {
-      throw new HttpError(401, "Invalid or expired ID token");
-    }
+    const sa = loadServiceAccount();
+    const callerUid = await verifyFirebaseIdToken(token, sa.project_id);
 
     const targetUid = readTargetUid(req.body);
     if (!isValidTargetUid(targetUid)) throw new HttpError(400, "Invalid targetUid");
     if (callerUid === targetUid) throw new HttpError(403, "Cannot delete your own authentication record");
 
-    await assertCallerIsAdmin(db, callerUid);
-
-    try {
-      await adminAuth.deleteUser(targetUid);
-    } catch (err: unknown) {
-      const code =
-        typeof err === "object" && err !== null && "code" in err
-          ? String((err as { code?: unknown }).code)
-          : "";
-      // Already gone counts as success — fall through to the single 200 response below.
-      if (code !== "auth/user-not-found") {
-        console.error("[admin-delete-auth-user] deleteUser failed", err);
-        throw new HttpError(502, "Could not delete authentication record");
-      }
-    }
+    await assertCallerIsAdmin(getDb(), callerUid);
+    await deleteFirebaseAuthUser(targetUid);
 
     res.status(200).json({ ok: true });
   } catch (err) {

@@ -2,8 +2,8 @@ import type {
   DocumentReference,
   Firestore,
   Timestamp,
-} from "firebase-admin/firestore";
-import { FieldValue, Timestamp as AdminTimestamp } from "firebase-admin/firestore";
+} from "@google-cloud/firestore";
+import { FieldValue, Timestamp as AdminTimestamp } from "@google-cloud/firestore";
 
 import {
   CONTACT_DEDUPE_MS,

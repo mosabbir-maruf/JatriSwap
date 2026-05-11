@@ -1,20 +1,16 @@
 import { readFileSync } from "node:fs";
 
-import { cert, getApps, initializeApp } from "firebase-admin/app";
-import type { App, ServiceAccount } from "firebase-admin/app";
-import {
-  initializeFirestore,
-  type Firestore,
-  type FirestoreSettings,
-} from "firebase-admin/firestore";
+import { Firestore } from "@google-cloud/firestore";
 
 import { ContactHttpError } from "./contact/httpError";
 
 let firestore: Firestore | undefined;
 
-const FIRESTORE_REST_SETTINGS: FirestoreSettings = {
-  preferRest: true,
-};
+interface ServiceAccountFields {
+  client_email: string;
+  private_key: string;
+  project_id: string;
+}
 
 function misconfigured(): ContactHttpError {
   return new ContactHttpError(
@@ -23,16 +19,32 @@ function misconfigured(): ContactHttpError {
   );
 }
 
-function parseServiceAccountJson(raw: string): ServiceAccount {
+function parseServiceAccountJson(raw: string): ServiceAccountFields {
   const trimmed = raw.replace(/^\ufeff/, "").trim();
+  let parsed: unknown;
   try {
-    return JSON.parse(trimmed) as ServiceAccount;
+    parsed = JSON.parse(trimmed);
   } catch {
     throw misconfigured();
   }
+  if (
+    parsed === null ||
+    typeof parsed !== "object" ||
+    typeof (parsed as { client_email?: unknown }).client_email !== "string" ||
+    typeof (parsed as { private_key?: unknown }).private_key !== "string" ||
+    typeof (parsed as { project_id?: unknown }).project_id !== "string"
+  ) {
+    throw misconfigured();
+  }
+  const sa = parsed as ServiceAccountFields;
+  return {
+    client_email: sa.client_email,
+    private_key: sa.private_key.replace(/\\n/g, "\n"),
+    project_id: sa.project_id,
+  };
 }
 
-function loadServiceAccount(): ServiceAccount {
+function loadServiceAccount(): ServiceAccountFields {
   const inline = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
   if (inline) return parseServiceAccountJson(inline);
 
@@ -51,25 +63,9 @@ function loadServiceAccount(): ServiceAccount {
   throw misconfigured();
 }
 
-/** Default Firestore — omit explicit `(default)` id; named DB uses third argument. */
-function usesDefaultFirestoreDatabase(databaseId: string): boolean {
+function isDefaultDatabase(databaseId: string): boolean {
   const id = databaseId.trim().toLowerCase();
   return id === "(default)" || id === "default";
-}
-
-/** Shared Admin SDK app (private — `getContactFirestore` is the only callsite). */
-function getOrInitFirebaseAdminApp(): App {
-  const existing = getApps()[0];
-  if (existing) return existing;
-  try {
-    return initializeApp({ credential: cert(loadServiceAccount()) });
-  } catch (e: unknown) {
-    console.error("[firebaseAdmin] initializeApp failed", e);
-    throw new ContactHttpError(
-      503,
-      "Firebase Admin could not start. Check FIREBASE_SERVICE_ACCOUNT_JSON (valid JSON) and project_id.",
-    );
-  }
 }
 
 export function getContactFirestore(): Firestore {
@@ -78,15 +74,17 @@ export function getContactFirestore(): Firestore {
   const databaseId = process.env.FIRESTORE_DATABASE_ID?.trim();
   if (!databaseId) throw misconfigured();
 
-  const app = getOrInitFirebaseAdminApp();
+  const sa = loadServiceAccount();
 
   try {
-    /** REST transport avoids loading gRPC/proto trees that often break Vercel NFT bundles. */
-    firestore = usesDefaultFirestoreDatabase(databaseId)
-      ? initializeFirestore(app, FIRESTORE_REST_SETTINGS)
-      : initializeFirestore(app, FIRESTORE_REST_SETTINGS, databaseId);
+    firestore = new Firestore({
+      projectId: sa.project_id,
+      credentials: { client_email: sa.client_email, private_key: sa.private_key },
+      ...(isDefaultDatabase(databaseId) ? {} : { databaseId }),
+      preferRest: true,
+    });
   } catch (e: unknown) {
-    console.error("[firebaseAdmin] initializeFirestore failed", e);
+    console.error("[firebaseAdmin] Firestore init failed", e);
     throw new ContactHttpError(
       503,
       "Firestore Admin could not start. Check FIRESTORE_DATABASE_ID matches your project.",

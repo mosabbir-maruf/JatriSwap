@@ -65,14 +65,12 @@ function parseServiceAccountJson(raw: string): ServiceAccount {
 }
 
 function loadServiceAccount(): ServiceAccount {
-  const inline = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  if (typeof inline === "string" && inline.trim().length > 0) {
-    return parseServiceAccountJson(inline);
-  }
+  const inline = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
+  if (inline) return parseServiceAccountJson(inline);
   const pathRaw =
     process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim() ||
     process.env.FIREBASE_SERVICE_ACCOUNT_PATH?.trim();
-  if (pathRaw && pathRaw.length > 0) {
+  if (pathRaw) {
     try {
       return parseServiceAccountJson(readFileSync(pathRaw, "utf8"));
     } catch {
@@ -89,13 +87,8 @@ function isDefaultDatabase(databaseId: string): boolean {
 
 function getApp(): App {
   if (cachedApp) return cachedApp;
-  const existing = getApps()[0];
-  if (existing) {
-    cachedApp = existing;
-    return existing;
-  }
   try {
-    cachedApp = initializeApp({ credential: cert(loadServiceAccount()) });
+    cachedApp = getApps()[0] ?? initializeApp({ credential: cert(loadServiceAccount()) });
     return cachedApp;
   } catch (e) {
     console.error("[admin-delete-auth-user] initializeApp failed", e);
@@ -106,9 +99,7 @@ function getApp(): App {
 function getDb(): Firestore {
   if (cachedDb) return cachedDb;
   const databaseId = process.env.FIRESTORE_DATABASE_ID?.trim();
-  if (!databaseId || databaseId.length === 0) {
-    throw new HttpError(503, "FIRESTORE_DATABASE_ID is not set on Vercel.");
-  }
+  if (!databaseId) throw new HttpError(503, "FIRESTORE_DATABASE_ID is not set on Vercel.");
   const app = getApp();
   try {
     cachedDb = isDefaultDatabase(databaseId)
@@ -138,11 +129,8 @@ function readHeader(headers: IncomingHttpHeaders | Headers | undefined, name: st
 
 function parseBearerToken(rawAuthHeader: string | null): string | null {
   if (rawAuthHeader == null) return null;
-  const trimmed = rawAuthHeader.trim();
-  if (trimmed.length === 0) return null;
-  const m = BEARER_RE.exec(trimmed);
-  const tok = m?.[1]?.trim();
-  return tok && tok.length > 0 ? tok : null;
+  const m = BEARER_RE.exec(rawAuthHeader.trim());
+  return m?.[1] ?? null;
 }
 
 function isValidTargetUid(uid: string): boolean {
@@ -229,12 +217,11 @@ export default async function adminDeleteAuthUser(
         typeof err === "object" && err !== null && "code" in err
           ? String((err as { code?: unknown }).code)
           : "";
-      if (code === "auth/user-not-found") {
-        res.status(200).json({ ok: true });
-        return;
+      // Already gone counts as success — fall through to the single 200 response below.
+      if (code !== "auth/user-not-found") {
+        console.error("[admin-delete-auth-user] deleteUser failed", err);
+        throw new HttpError(502, "Could not delete authentication record");
       }
-      console.error("[admin-delete-auth-user] deleteUser failed", err);
-      throw new HttpError(502, "Could not delete authentication record");
     }
 
     res.status(200).json({ ok: true });

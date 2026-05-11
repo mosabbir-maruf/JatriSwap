@@ -2,8 +2,6 @@ import { readFileSync } from "node:fs";
 
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import type { App, ServiceAccount } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
-import type { Auth } from "firebase-admin/auth";
 import {
   initializeFirestore,
   type Firestore,
@@ -35,19 +33,16 @@ function parseServiceAccountJson(raw: string): ServiceAccount {
 }
 
 function loadServiceAccount(): ServiceAccount {
-  const inline = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  if (typeof inline === "string" && inline.trim().length > 0) {
-    return parseServiceAccountJson(inline);
-  }
+  const inline = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
+  if (inline) return parseServiceAccountJson(inline);
 
   const pathRaw =
     process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim() ||
     process.env.FIREBASE_SERVICE_ACCOUNT_PATH?.trim();
 
-  if (pathRaw && pathRaw.length > 0) {
+  if (pathRaw) {
     try {
-      const buf = readFileSync(pathRaw, "utf8");
-      return parseServiceAccountJson(buf);
+      return parseServiceAccountJson(readFileSync(pathRaw, "utf8"));
     } catch {
       throw misconfigured();
     }
@@ -62,15 +57,12 @@ function usesDefaultFirestoreDatabase(databaseId: string): boolean {
   return id === "(default)" || id === "default";
 }
 
-/** Shared Admin SDK app (Firestore + Auth). */
-export function getOrInitFirebaseAdminApp(): App {
+/** Shared Admin SDK app (private — `getContactFirestore` is the only callsite). */
+function getOrInitFirebaseAdminApp(): App {
   const existing = getApps()[0];
   if (existing) return existing;
-  const serviceAccount = loadServiceAccount();
   try {
-    return initializeApp({
-      credential: cert(serviceAccount),
-    });
+    return initializeApp({ credential: cert(loadServiceAccount()) });
   } catch (e: unknown) {
     console.error("[firebaseAdmin] initializeApp failed", e);
     throw new ContactHttpError(
@@ -80,18 +72,11 @@ export function getOrInitFirebaseAdminApp(): App {
   }
 }
 
-/** Deletes Firebase Authentication users server-side (e.g. after Firestore cleanup). */
-export function getFirebaseAdminAuth(): Auth {
-  return getAuth(getOrInitFirebaseAdminApp());
-}
-
 export function getContactFirestore(): Firestore {
   if (firestore) return firestore;
 
   const databaseId = process.env.FIRESTORE_DATABASE_ID?.trim();
-  if (!databaseId || databaseId.length === 0) {
-    throw misconfigured();
-  }
+  if (!databaseId) throw misconfigured();
 
   const app = getOrInitFirebaseAdminApp();
 

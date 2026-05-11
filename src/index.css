@@ -57,9 +57,6 @@
 }
 
 @layer base {
-  html {
-    scrollbar-gutter: stable;
-  }
   * {
     @apply border-border outline-ring/50;
   }
@@ -150,24 +147,44 @@
     --radius: 0px;
 }
 
-/* Custom Neobrutalist Scrollbar */
-::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
+/*
+ * Scrollbars: touch/narrow viewports hide them (scroll still works).
+ * md+ keeps gutter + neo-brutalist styling — one place, no JS.
+ */
+@media (max-width: 767.98px) {
+  html {
+    scrollbar-gutter: auto;
+  }
+  * {
+    scrollbar-width: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+  }
 }
 
-::-webkit-scrollbar-track {
-  background: var(--background);
-  border-left: 2px solid var(--foreground);
-}
+@media (min-width: 768px) {
+  html {
+    scrollbar-gutter: stable;
+  }
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
 
-::-webkit-scrollbar-thumb {
-  background: var(--foreground);
-  border: 2px solid var(--background);
-}
+  ::-webkit-scrollbar-track {
+    background: var(--background);
+    border-left: 2px solid var(--foreground);
+  }
 
-::-webkit-scrollbar-corner {
-  background: var(--background);
+  ::-webkit-scrollbar-thumb {
+    background: var(--foreground);
+    border: 2px solid var(--background);
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: var(--background);
+  }
 }
 
 .dark {

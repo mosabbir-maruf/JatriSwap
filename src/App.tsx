@@ -295,7 +295,7 @@ const Footer = () => {
   const telegramUrl = (import.meta.env.VITE_PUBLIC_TELEGRAM_URL ?? "").trim();
 
   return (
-  <footer className="bg-foreground text-background mt-auto relative pt-16 pb-8 border-t border-border">
+  <footer className="bg-foreground text-background mt-auto relative pt-16 pb-8 max-md:pb-[calc(2.75rem+env(safe-area-inset-bottom,0px))] border-t border-border">
     <div className="page-shell-md relative z-10">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-12 lg:gap-8 mb-16">
         
@@ -340,44 +340,56 @@ const Footer = () => {
            </div>
         </div>
 
-        {/* Links Columns */}
-        <div className="md:col-span-4 lg:col-span-2 lg:col-start-7">
-          <h4 className="font-mono text-sm tracking-widest uppercase font-bold text-background mb-6">Marketplace</h4>
-          <ul className="space-y-4 font-mono text-[11px] uppercase tracking-wider text-muted">
-            <li><Link to="/browse" className="hover:text-background transition-colors">Browse Tickets</Link></li>
-            <li><Link to="/sell" className="hover:text-background transition-colors">Sell a Ticket</Link></li>
-            <li><Link to="/" className="hover:text-background transition-colors">Popular Routes</Link></li>
-          </ul>
-        </div>
+        {/* Links — mobile: 3-column grid (sections stay readable); md+: nested 12-col / lg 6-col as before */}
+        <div className="max-md:grid max-md:grid-cols-3 max-md:gap-x-3 max-md:gap-y-8 md:col-span-12 md:grid md:grid-cols-12 lg:col-span-7 lg:col-start-7 lg:grid-cols-6">
+          <div className="min-w-0 md:col-span-4 lg:col-span-2">
+            <h4 className="font-mono max-md:text-[10px] max-md:tracking-wide md:text-sm md:tracking-widest uppercase font-bold text-background mb-4 md:mb-6">
+              Marketplace
+            </h4>
+            <ul className="flex flex-col gap-4 font-mono text-[11px] uppercase tracking-wider text-muted">
+              <li><Link to="/browse" className="hover:text-background transition-colors max-md:break-words">Browse Tickets</Link></li>
+              <li><Link to="/sell" className="hover:text-background transition-colors max-md:break-words">Sell a Ticket</Link></li>
+              <li><Link to="/" className="hover:text-background transition-colors max-md:break-words">Popular Routes</Link></li>
+            </ul>
+          </div>
 
-        <div className="md:col-span-4 lg:col-span-2">
-          <h4 className="font-mono text-sm tracking-widest uppercase font-bold text-background mb-6">Support</h4>
-          <ul className="space-y-4 font-mono text-[11px] uppercase tracking-wider text-muted">
-            <li><Link to="/" className="hover:text-background transition-colors">Refund Policy</Link></li>
-            <li><Link to="/faq" className="hover:text-background transition-colors">FAQ</Link></li>
-            <li><Link to="/contact" className="hover:text-background transition-colors">Contact Us</Link></li>
-            {currentUser?.role === 'admin' && (
-              <li><Link to="/admin" className="hover:text-amber-400 text-amber-500 transition-colors flex items-center gap-1"><Shield className="w-3 h-3"/> Admin</Link></li>
-            )}
-          </ul>
-        </div>
+          <div className="min-w-0 md:col-span-4 lg:col-span-2">
+            <h4 className="font-mono max-md:text-[10px] max-md:tracking-wide md:text-sm md:tracking-widest uppercase font-bold text-background mb-4 md:mb-6">
+              Support
+            </h4>
+            <ul className="flex flex-col gap-4 font-mono text-[11px] uppercase tracking-wider text-muted">
+              <li><Link to="/" className="hover:text-background transition-colors max-md:break-words">Refund Policy</Link></li>
+              <li><Link to="/faq" className="hover:text-background transition-colors max-md:break-words">FAQ</Link></li>
+              <li><Link to="/contact" className="hover:text-background transition-colors max-md:break-words">Contact Us</Link></li>
+              {currentUser?.role === 'admin' && (
+                <li><Link to="/admin" className="hover:text-amber-400 text-amber-500 transition-colors inline-flex items-center gap-1 max-md:break-words"><Shield className="w-3 h-3 shrink-0"/> Admin</Link></li>
+              )}
+            </ul>
+          </div>
 
-        <div className="md:col-span-4 lg:col-span-2">
-          <h4 className="font-mono text-sm tracking-widest uppercase font-bold text-background mb-6">Legal</h4>
-          <ul className="space-y-4 font-mono text-[11px] uppercase tracking-wider text-muted">
-            <li><Link to="/terms" className="hover:text-background transition-colors">Terms of Service</Link></li>
-            <li><Link to="/privacy" className="hover:text-background transition-colors">Privacy Policy</Link></li>
-            <li><Link to="/cookie" className="hover:text-background transition-colors">Cookie Policy</Link></li>
-          </ul>
+          <div className="min-w-0 md:col-span-4 lg:col-span-2">
+            <h4 className="font-mono max-md:text-[10px] max-md:tracking-wide md:text-sm md:tracking-widest uppercase font-bold text-background mb-4 md:mb-6">
+              Legal
+            </h4>
+            <ul className="flex flex-col gap-4 font-mono text-[11px] uppercase tracking-wider text-muted">
+              <li><Link to="/terms" className="hover:text-background transition-colors max-md:break-words">Terms of Service</Link></li>
+              <li><Link to="/privacy" className="hover:text-background transition-colors max-md:break-words">Privacy Policy</Link></li>
+              <li><Link to="/cookie" className="hover:text-background transition-colors max-md:break-words">Cookie Policy</Link></li>
+            </ul>
+          </div>
         </div>
 
       </div>
       
-      <div className="pt-8 border-t border-muted/30 font-mono text-[10px] uppercase tracking-widest text-muted flex flex-col md:flex-row justify-between items-center">
-        <p className="mb-4 md:mb-0">© {new Date().getFullYear()} TransitSwap Inc. All rights reserved.</p>
-        <div className="flex gap-4 items-center">
-           <div className="w-1.5 h-1.5 rounded-none bg-primary animate-pulse" />
-           <span className="font-bold text-background">All systems operational</span>
+      <div className="pt-8 border-t border-muted/30 font-mono text-[10px] uppercase max-md:tracking-wide md:tracking-widest text-muted flex flex-col md:flex-row md:justify-between md:items-center gap-4 md:gap-0">
+        <p className="text-center md:text-left md:mb-0 leading-relaxed">
+          © {new Date().getFullYear()} TransitSwap Inc. All rights reserved.
+        </p>
+        <div className="flex gap-3 md:gap-4 items-center justify-center md:justify-end flex-wrap min-w-0 px-0 max-md:pb-0.5">
+           <div className="w-1.5 h-1.5 shrink-0 rounded-none bg-primary animate-pulse" aria-hidden />
+           <span className="font-bold text-background text-center leading-normal max-md:max-w-full">
+             All systems operational
+           </span>
         </div>
       </div>
     </div>

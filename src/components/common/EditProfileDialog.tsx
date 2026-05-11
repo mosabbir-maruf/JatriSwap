@@ -10,6 +10,7 @@ import { updateProfile, updateEmail, updatePassword, EmailAuthProvider, reauthen
 import { toast } from "sonner";
 import { Key, User, Mail, ShieldAlert, Trash2 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
+import { deleteUserData } from "@/src/lib/firebase/users";
 
 interface EditProfileDialogProps {
   open: boolean;
@@ -62,7 +63,6 @@ export function EditProfileDialog({ open, onOpenChange, dialogTitle = "Edit Prof
         }
         
         // Delete all user data from Firestore
-        const { deleteUserData } = await import("@/src/lib/firebase/users");
         await deleteUserData(user.uid);
         
         // Delete user auth record

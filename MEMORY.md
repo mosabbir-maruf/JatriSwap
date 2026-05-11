@@ -93,7 +93,7 @@ Concise long-term reference for **TransitSwap** (transit ticket marketplace). Fu
 
 ## Hosting (Vercel)
 
-- **[`vercel.json`](vercel.json)** adds one **rewrite** so navigations that have **no matching static file** serve **`index.html`** — React Router handles the path client-side (fixes refresh **404** on `/browse`, `/admin`, etc.).
+- **[`vercel.json`](vercel.json)** adds a **SPA fallback** rewrite (paths **not** under **`/api/*`**) so document requests without a matching static file serve **`index.html`** — React Router handles the path client-side (fixes refresh **404** on `/browse`, `/admin`, etc.); **`/api/*`** stays on serverless handlers.
 - That logic runs **only at the edge/router** when the browser requests a document — **not** in your JS bundle. It does **not** add components, listeners, or extra React reconciliation versus any other static host SPA setup.
 - Vercel serves **existing files under `dist/` first** (e.g. **`/assets/*`** hashed chunks from Vite, files from **`public/`**). The rewrite applies when there is **no** such file; keeping a single **`/(.*)` → `/index.html`** rule is standard and avoids misrouting **`/favicon.ico`** or root **`public`** assets that a narrower regex might accidentally capture.
 

@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { User as FirebaseUser, onAuthStateChanged, onIdTokenChanged, signOut } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { toast } from 'sonner';
@@ -31,6 +31,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
+  /** True after we have seen `users/{uid}` exist at least once this session (avoids sign-out during signup race). */
+  const userProfileEverExistedRef = useRef(false);
+  /** True after we have seen `admins/{uid}` exist at least once this session. */
+  const adminProfileEverExistedRef = useRef(false);
+  const remoteSignOutInFlightRef = useRef(false);
 
   const refreshFirebaseUser = useCallback(async () => {
     const u = auth.currentUser;
@@ -55,6 +60,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (user) {
         // After logout, `loading` is false; avoid a flash of Unauthorized while user/admin docs load.
         setLoading(true);
+        userProfileEverExistedRef.current = false;
+        adminProfileEverExistedRef.current = false;
+        remoteSignOutInFlightRef.current = false;
 
         if (unsubscribeUser) unsubscribeUser();
         if (unsubscribeAdmin) unsubscribeAdmin();
@@ -70,9 +78,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         };
 
+        const maybeSignOutIfProfileRemovedRemotely = () => {
+          if (!initialUserLoadDone || !initialAdminLoadDone) return;
+          if (remoteSignOutInFlightRef.current) return;
+          if (auth.currentUser?.uid !== user.uid) return;
+          if (userDocExists || adminDocExists) return;
+          if (!userProfileEverExistedRef.current && !adminProfileEverExistedRef.current) return;
+          remoteSignOutInFlightRef.current = true;
+          void signOut(auth)
+            .then(() => {
+              toast.info("Your account is no longer available. You have been signed out.");
+            })
+            .catch((e: unknown) => {
+              console.error("AuthContext signOut after remote profile delete:", e);
+              remoteSignOutInFlightRef.current = false;
+            });
+        };
+
         unsubscribeUser = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
           initialUserLoadDone = true;
           if (docSnap.exists()) {
+            userProfileEverExistedRef.current = true;
             const data = docSnap.data();
             const st = normalizeUserAccountStatus(data.status);
             if (accountIsBanned(st) && auth.currentUser?.uid === user.uid) {
@@ -89,6 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!adminDocExists && initialAdminLoadDone) {
                setCurrentUser(null);
             }
+            maybeSignOutIfProfileRemovedRemotely();
           }
           maybeSetLoadingFalse();
         }, (error) => {
@@ -100,6 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         unsubscribeAdmin = onSnapshot(doc(db, "admins", user.uid), (docSnap) => {
           initialAdminLoadDone = true;
           if (docSnap.exists()) {
+            adminProfileEverExistedRef.current = true;
             adminDocExists = true;
             setCurrentUser({ ...docSnap.data(), id: docSnap.id } as User);
           } else {
@@ -107,6 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!userDocExists && initialUserLoadDone) {
                setCurrentUser(null);
             }
+            maybeSignOutIfProfileRemovedRemotely();
           }
           maybeSetLoadingFalse();
         }, (error) => {

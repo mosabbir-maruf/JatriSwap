@@ -23,7 +23,7 @@ interface ImportMetaEnv {
   /**
    * Optional — origin of the deployed API when the Contact page is not served from the same host
    * (e.g. local Vite dev calling a preview deployment). Example: `https://your-app.vercel.app`
-   * (no trailing slash). When unset, the client posts to same-origin `/api/contact`.
+   * (no trailing slash). When unset, the client posts to same-origin `/api/contact` and `/api/admin-delete-auth-user`.
    */
   readonly VITE_CONTACT_API_URL?: string;
 }

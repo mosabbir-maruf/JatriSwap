@@ -4,6 +4,7 @@ import { toast } from "sonner";
 export const COPY_TO_CLIPBOARD_FEEDBACK = {
   ticketId: { success: "Ticket ID copied", error: "Could not copy ticket ID" },
   shareLink: { success: "Link copied to clipboard!", error: "Could not copy link" },
+  userId: { success: "User ID copied", error: "Could not copy user ID" },
 } as const;
 
 /**

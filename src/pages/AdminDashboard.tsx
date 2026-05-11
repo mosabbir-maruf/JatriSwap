@@ -43,6 +43,7 @@ import {
 } from "@/src/lib/firebase/tickets";
 import { aggregateSellerTicketStatsFromTickets } from "@/src/lib/aggregateSellerTicketStats";
 import { scheduleTicketDeleteWithUndo } from "@/src/lib/ticketDeleteUndo";
+import { scheduleUserDeleteWithUndo } from "@/src/lib/userDeleteUndo";
 import {
   fetchTicketAdminNotesForIds,
   saveTicketAdminNote,
@@ -50,6 +51,8 @@ import {
 } from "@/src/lib/firebase/ticketAdminNotes";
 import { enqueueSellerAdminTicketNotification } from "@/src/lib/firebase/sellerTicketNotifications";
 import { phoneDisplayToTelHref } from "@/src/lib/env/publicContact";
+import { COPY_TO_CLIPBOARD_FEEDBACK, copyTextWithToast } from "@/src/lib/copyTextWithToast";
+import { deleteTargetUserAuthRecord } from "@/src/lib/firebase/adminDeleteTargetAuth";
 import { getAllUsers, deleteUserData } from "@/src/lib/firebase/users";
 import { updateUserModerationStatus } from "@/src/lib/firebase/userModeration";
 import { createNotification } from "@/src/lib/firebase/notifications";
@@ -888,7 +891,10 @@ export default function AdminDashboard() {
   };
 
   const handleActionClick = (actionName: string) => {
-    if (adminRole === "Support Agent" && ["Ban User", "Delete Ticket", "Suspend User"].includes(actionName)) {
+    if (
+      adminRole === "Support Agent" &&
+      ["Ban User", "Delete Ticket", "Suspend User", "Delete User"].includes(actionName)
+    ) {
       toast.error("Permission Denied", { description: "Support Agents cannot perform this action." });
       return false;
     }
@@ -1028,19 +1034,69 @@ export default function AdminDashboard() {
     );
   };
 
-  const handleHardDeleteUser = async (id: string) => {
-    if (window.confirm("WARNING: This will permanently delete the user's profile, tickets, notifications, and all associated data. This action cannot be undone. \n\nNote: For complete deletion, Firebase Authentication records may need to be deleted separately in the Firebase Console.\n\nAre you sure you want to proceed?")) {
-      void deleteUserData(id)
-        .then(() => {
-          setUsers(users.filter((u) => u.id !== id));
-          addLog("User Hard Deleted", `User ${id} and all their data was permanently deleted`);
-          toast.success("User data successfully deleted");
-        })
-        .catch((err: unknown) => {
-          console.error(err);
-          toast.error("Failed to delete user data");
-        });
+  const handleHardDeleteUser = (id: string) => {
+    if (!handleActionClick("Delete User")) return;
+    if (id === firebaseUser?.uid) {
+      toast.error("You cannot delete your own account from the dashboard.");
+      return;
     }
+    const removedUser = users.find((u) => u.id === id);
+    if (!removedUser) {
+      toast.error("User is not in the loaded directory. Refresh and try again.");
+      return;
+    }
+    const removedTickets = tickets.filter((t) => t.sellerId === id);
+
+    setUsers((prev) => prev.filter((u) => u.id !== id));
+    setTickets((prev) => prev.filter((t) => t.sellerId !== id));
+
+    const restoreRemoved = () => {
+      setUsers((prev) => (prev.some((u) => u.id === id) ? prev : [...prev, removedUser]));
+      setTickets((prev) => {
+        const existingIds = new Set(prev.map((t) => t.id));
+        const toMerge = removedTickets.filter((t) => !existingIds.has(t.id));
+        if (toMerge.length === 0) return prev;
+        return [...prev, ...toMerge].sort((a, b) => ticketPostedAtMs(b) - ticketPostedAtMs(a));
+      });
+    };
+
+    scheduleUserDeleteWithUndo({
+      userId: id,
+      message: "User will be permanently deleted (listings, requests, reports, alerts).",
+      onUndo: restoreRemoved,
+      commitDelete: async () => {
+        await deleteUserData(id);
+        try {
+          await deleteTargetUserAuthRecord(id);
+        } catch (authErr: unknown) {
+          console.error(authErr);
+          toast.warning("Firestore deleted; login record may still exist", {
+            description:
+              authErr instanceof Error
+                ? authErr.message
+                : "Check Vercel `/api/admin-delete-auth-user` configuration or remove the user in Firebase Console.",
+          });
+        }
+      },
+      onCommitted: () => {
+        addLog(
+          "User Hard Deleted",
+          `User ${id} — Firestore profile, listings, purchase requests, reports, and notifications removed`,
+        );
+        toast.success("User data deleted.");
+        setAdminsList((prev) => prev.filter((a) => a.id !== id));
+        setPendingAdmins((prev) => prev.filter((a) => a.id !== id));
+        void getTicketReports()
+          .then(setTicketReports)
+          .catch(() => {});
+        syncBuyerPurchaseOverviewFromServer();
+      },
+      onCommitFailed: (err: unknown) => {
+        console.error(err);
+        toast.error("Failed to delete user data.");
+        restoreRemoved();
+      },
+    });
   };
 
   const handleSaveTicketAdminNote = async (ticketId: string, note: string): Promise<boolean> => {
@@ -1559,7 +1615,19 @@ export default function AdminDashboard() {
                       return (
                       <tr key={user.id} className={`border-2 border-t-0 border-foreground ${i % 2 === 0 ? "bg-muted/10" : "bg-background"} hover:bg-muted/50 transition-colors`}>
                         <td className="p-3 font-bold border-r-2 border-foreground">
-                           <p>{user.id}</p>
+                           <button
+                             type="button"
+                             onClick={(e) => {
+                               e.preventDefault();
+                               e.stopPropagation();
+                               void copyTextWithToast(user.id, COPY_TO_CLIPBOARD_FEEDBACK.userId);
+                             }}
+                             title="Click to copy user ID"
+                             aria-label={`Copy user ID ${user.id}`}
+                             className="cursor-pointer border-0 bg-transparent p-0 text-left font-mono font-bold text-blue-600 break-all outline-none transition-colors hover:text-blue-800 focus-visible:text-blue-800 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-1"
+                           >
+                             {user.id}
+                           </button>
                            <p className="text-[9px] text-muted-foreground font-normal">
                              Joined: {formatJoinedAtDisplay(user.joinedAt)}
                            </p>
@@ -1647,7 +1715,7 @@ export default function AdminDashboard() {
                              >
                                {accountRowStatus === "banned" ? <CheckCircle2 className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
                              </Button>
-                             <Button onClick={() => handleHardDeleteUser(user.id)} size="icon" variant="outline" className="w-8 h-8 rounded-none border-2 border-destructive bg-destructive/10 shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none transition-all text-destructive hover:bg-destructive hover:text-destructive-foreground" title="Hard Delete User">
+                             <Button onClick={() => handleHardDeleteUser(user.id)} size="icon" variant="outline" className="w-8 h-8 rounded-none border-2 border-destructive bg-destructive/10 shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none transition-all text-destructive hover:bg-destructive hover:text-destructive-foreground" title="Delete user (30s undo)">
                                 <Trash2 className="w-4 h-4" />
                              </Button>
                           </div>

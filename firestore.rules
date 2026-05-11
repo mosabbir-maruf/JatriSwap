@@ -259,6 +259,7 @@ service cloud.firestore {
         (isOwner(adminId) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatar'])) ||
         (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatar', 'role']))
       );
+      allow delete: if isAdmin();
     }
 
     match /users/{userId} {
@@ -277,6 +278,7 @@ service cloud.firestore {
           isValidUserModerationStatus(incoming().get('status', existing().get('status', 'active')))
         )
       );
+      allow delete: if isAdmin() || isOwner(userId);
     }
 
     match /tickets/{ticketId} {

@@ -1,7 +1,9 @@
 import { readFileSync } from "node:fs";
 
 import { cert, getApps, initializeApp } from "firebase-admin/app";
-import type { ServiceAccount } from "firebase-admin/app";
+import type { App, ServiceAccount } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import type { Auth } from "firebase-admin/auth";
 import {
   initializeFirestore,
   type Firestore,
@@ -60,6 +62,21 @@ function usesDefaultFirestoreDatabase(databaseId: string): boolean {
   return id === "(default)" || id === "default";
 }
 
+/** Shared Admin SDK app (Firestore + Auth). */
+export function getOrInitFirebaseAdminApp(): App {
+  const existing = getApps()[0];
+  if (existing) return existing;
+  const serviceAccount = loadServiceAccount();
+  return initializeApp({
+    credential: cert(serviceAccount),
+  });
+}
+
+/** Deletes Firebase Authentication users server-side (e.g. after Firestore cleanup). */
+export function getFirebaseAdminAuth(): Auth {
+  return getAuth(getOrInitFirebaseAdminApp());
+}
+
 export function getContactFirestore(): Firestore {
   if (firestore) return firestore;
 
@@ -68,13 +85,7 @@ export function getContactFirestore(): Firestore {
     throw misconfigured();
   }
 
-  const serviceAccount = loadServiceAccount();
-
-  const app =
-    getApps()[0] ??
-    initializeApp({
-      credential: cert(serviceAccount),
-    });
+  const app = getOrInitFirebaseAdminApp();
 
   /** REST transport avoids loading gRPC/proto trees that often break Vercel NFT bundles. */
   firestore = usesDefaultFirestoreDatabase(databaseId)

@@ -2,6 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
     "api/contact.ts": {
+      "runtime": "nodejs22.x",
       "memory": 1024,
       "maxDuration": 30,
       "includeFiles": "{shared/**,node_modules/firebase-admin/**,node_modules/google-gax/**,node_modules/@google-cloud/firestore/**}"

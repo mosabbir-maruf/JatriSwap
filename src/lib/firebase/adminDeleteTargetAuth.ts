@@ -26,12 +26,15 @@ export async function deleteTargetUserAuthRecord(targetUid: string): Promise<voi
   });
 
   if (!res.ok) {
-    let message = `Request failed (${res.status})`;
+    let message = `Authentication cleanup failed (HTTP ${res.status})`;
     try {
       const data = (await res.json()) as { error?: unknown };
-      if (typeof data.error === "string" && data.error.length > 0) message = data.error;
+      if (typeof data.error === "string" && data.error.length > 0) message = `${message}: ${data.error}`;
     } catch {
       /* ignore */
+    }
+    if (res.status === 404) {
+      message += " — API route missing? Deploy the Vercel serverless app or run `vercel dev` locally.";
     }
     throw new Error(message);
   }

@@ -1065,25 +1065,15 @@ export default function AdminDashboard() {
       message: "User will be permanently deleted (listings, requests, reports, alerts).",
       onUndo: restoreRemoved,
       commitDelete: async () => {
+        await deleteTargetUserAuthRecord(id);
         await deleteUserData(id);
-        try {
-          await deleteTargetUserAuthRecord(id);
-        } catch (authErr: unknown) {
-          console.error(authErr);
-          toast.warning("Firestore deleted; login record may still exist", {
-            description:
-              authErr instanceof Error
-                ? authErr.message
-                : "Check Vercel `/api/admin-delete-auth-user` configuration or remove the user in Firebase Console.",
-          });
-        }
       },
       onCommitted: () => {
         addLog(
           "User Hard Deleted",
-          `User ${id} — Firestore profile, listings, purchase requests, reports, and notifications removed`,
+          `User ${id} — Firebase Authentication removed, then Firestore (profile, listings, requests, reports, notifications)`,
         );
-        toast.success("User data deleted.");
+        toast.success("User deleted (sign-in and data removed).");
         setAdminsList((prev) => prev.filter((a) => a.id !== id));
         setPendingAdmins((prev) => prev.filter((a) => a.id !== id));
         void getTicketReports()
@@ -1093,7 +1083,13 @@ export default function AdminDashboard() {
       },
       onCommitFailed: (err: unknown) => {
         console.error(err);
-        toast.error("Failed to delete user data.");
+        const hint =
+          err instanceof Error && /fetch|network|Failed to fetch|404|401|403|502/i.test(err.message)
+            ? " If this persists, confirm Vercel has deployed `/api/admin-delete-auth-user` and the same Firebase Admin env as `/api/contact`."
+            : "";
+        toast.error(`Failed to delete user.${hint}`, {
+          description: err instanceof Error ? err.message : undefined,
+        });
         restoreRemoved();
       },
     });

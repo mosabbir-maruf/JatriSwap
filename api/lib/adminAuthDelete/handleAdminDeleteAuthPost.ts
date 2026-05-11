@@ -49,7 +49,13 @@ export async function handleAdminDeleteAuthPost(body: unknown, headers: Headers)
   }
 
   const adminSnap = await db.collection("admins").doc(callerUid).get();
-  if (!adminSnap.exists || adminSnap.data()?.role !== "admin") {
+  const fromAdmins = adminSnap.exists && adminSnap.data()?.role === "admin";
+  let fromUsers = false;
+  if (!fromAdmins) {
+    const userSnap = await db.collection("users").doc(callerUid).get();
+    fromUsers = userSnap.exists && userSnap.data()?.role === "admin";
+  }
+  if (!fromAdmins && !fromUsers) {
     throw new ContactHttpError(403, "Forbidden");
   }
 

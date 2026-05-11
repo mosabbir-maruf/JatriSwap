@@ -86,34 +86,33 @@ export const getAllUsers = async (): Promise<User[]> => {
 export const deleteUserData = async (userId: string): Promise<void> => {
   const path = `deleteUserData(${userId})`;
   try {
-    const ticketSnap = await getDocs(query(collection(db, 'tickets'), where('sellerId', '==', userId)));
+    const [
+      ticketSnap,
+      reportSellerSnap,
+      reportReporterSnap,
+      prSellerSnap,
+      prBuyerSnap,
+      notificationsSnap,
+    ] = await Promise.all([
+      getDocs(query(collection(db, "tickets"), where("sellerId", "==", userId))),
+      getDocs(query(collection(db, "ticketReports"), where("sellerId", "==", userId))),
+      getDocs(query(collection(db, "ticketReports"), where("reporterId", "==", userId))),
+      getDocs(query(collection(db, "purchaseRequests"), where("sellerId", "==", userId))),
+      getDocs(query(collection(db, "purchaseRequests"), where("buyerUserId", "==", userId))),
+      getDocs(query(collection(db, "notifications"), where("userId", "==", userId))),
+    ]);
+
     const ticketIds = ticketSnap.docs.map((d) => d.id);
 
-    const reportSellerSnap = await getDocs(
-      query(collection(db, 'ticketReports'), where('sellerId', '==', userId)),
-    );
-    const reportReporterSnap = await getDocs(
-      query(collection(db, 'ticketReports'), where('reporterId', '==', userId)),
-    );
     const reportRefsByPath = new Map<string, DocumentReference>();
     for (const d of [...reportSellerSnap.docs, ...reportReporterSnap.docs]) {
       reportRefsByPath.set(d.ref.path, d.ref);
     }
 
-    const prSellerSnap = await getDocs(
-      query(collection(db, 'purchaseRequests'), where('sellerId', '==', userId)),
-    );
-    const prBuyerSnap = await getDocs(
-      query(collection(db, 'purchaseRequests'), where('buyerUserId', '==', userId)),
-    );
     const prRefsByPath = new Map<string, DocumentReference>();
     for (const d of [...prSellerSnap.docs, ...prBuyerSnap.docs]) {
       prRefsByPath.set(d.ref.path, d.ref);
     }
-
-    const notificationsSnap = await getDocs(
-      query(collection(db, 'notifications'), where('userId', '==', userId)),
-    );
 
     const ticketRefs: DocumentReference[] = [];
     for (const tid of ticketIds) {
@@ -121,9 +120,11 @@ export const deleteUserData = async (userId: string): Promise<void> => {
       ticketRefs.push(doc(db, 'tickets', tid));
     }
 
-    await deleteRefsInBatches([...reportRefsByPath.values()]);
-    await deleteRefsInBatches([...prRefsByPath.values()]);
-    await deleteRefsInBatches(notificationsSnap.docs.map((d) => d.ref));
+    await Promise.all([
+      deleteRefsInBatches([...reportRefsByPath.values()]),
+      deleteRefsInBatches([...prRefsByPath.values()]),
+      deleteRefsInBatches(notificationsSnap.docs.map((d) => d.ref)),
+    ]);
     await deleteRefsInBatches(ticketRefs);
 
     const adminRef = doc(db, 'admins', userId);

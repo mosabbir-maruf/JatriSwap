@@ -42,8 +42,7 @@ import {
   fetchTicketsRecentOverview,
 } from "@/src/lib/firebase/tickets";
 import { aggregateSellerTicketStatsFromTickets } from "@/src/lib/aggregateSellerTicketStats";
-import { scheduleTicketDeleteWithUndo } from "@/src/lib/ticketDeleteUndo";
-import { scheduleUserDeleteWithUndo } from "@/src/lib/userDeleteUndo";
+import { scheduleTicketDeleteWithUndo, scheduleUserDeleteWithUndo } from "@/src/lib/scheduledDeleteUndo";
 import {
   fetchTicketAdminNotesForIds,
   saveTicketAdminNote,

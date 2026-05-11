@@ -1,3 +1,4 @@
+import { assertCallerIsFirestoreAdmin } from "../assertCallerIsFirestoreAdmin";
 import { ContactHttpError } from "../contact/httpError";
 import { getContactFirestore, getFirebaseAdminAuth } from "../firebaseAdmin";
 
@@ -13,8 +14,8 @@ function isValidTargetUid(uid: string): boolean {
 }
 
 /**
- * Verifies caller is an active admin (`admins/{uid}.role === 'admin'`) and deletes the target Auth user.
- * Firestore for that uid should already be removed by the client; this only clears Authentication.
+ * Verifies caller is an active admin (see `assertCallerIsFirestoreAdmin`) and deletes the target Auth user.
+ * Client should remove Firestore for the target after this succeeds (Auth-first flow).
  */
 export async function handleAdminDeleteAuthPost(body: unknown, headers: Headers): Promise<{ ok: true }> {
   const token = parseBearerToken(headers.get("authorization"));
@@ -48,16 +49,7 @@ export async function handleAdminDeleteAuthPost(body: unknown, headers: Headers)
     throw new ContactHttpError(403, "Cannot delete your own authentication record");
   }
 
-  const adminSnap = await db.collection("admins").doc(callerUid).get();
-  const fromAdmins = adminSnap.exists && adminSnap.data()?.role === "admin";
-  let fromUsers = false;
-  if (!fromAdmins) {
-    const userSnap = await db.collection("users").doc(callerUid).get();
-    fromUsers = userSnap.exists && userSnap.data()?.role === "admin";
-  }
-  if (!fromAdmins && !fromUsers) {
-    throw new ContactHttpError(403, "Forbidden");
-  }
+  await assertCallerIsFirestoreAdmin(db, callerUid);
 
   try {
     await adminAuth.deleteUser(rawTarget);

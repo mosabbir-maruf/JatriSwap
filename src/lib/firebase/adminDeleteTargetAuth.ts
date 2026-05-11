@@ -1,11 +1,5 @@
+import { vercelDeployApiUrl } from "@/src/lib/vercelDeployApiUrl";
 import { auth } from "@/src/lib/firebase/firebase";
-
-function resolveAdminDeleteAuthUrl(): string {
-  const raw = import.meta.env.VITE_CONTACT_API_URL;
-  const trimmed = typeof raw === "string" ? raw.trim() : "";
-  if (trimmed.length > 0) return `${trimmed}/api/admin-delete-auth-user`;
-  return "/api/admin-delete-auth-user";
-}
 
 /**
  * Calls Vercel `/api/admin-delete-auth-user` with the signed-in admin's ID token.
@@ -16,7 +10,7 @@ export async function deleteTargetUserAuthRecord(targetUid: string): Promise<voi
   if (!user) throw new Error("You must be signed in.");
 
   const token = await user.getIdToken();
-  const res = await fetch(resolveAdminDeleteAuthUrl(), {
+  const res = await fetch(vercelDeployApiUrl("/api/admin-delete-auth-user"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

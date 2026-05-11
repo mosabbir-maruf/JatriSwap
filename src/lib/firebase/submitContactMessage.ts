@@ -1,3 +1,5 @@
+import { vercelDeployApiUrl } from "@/src/lib/vercelDeployApiUrl";
+
 export type ContactFormPayload = {
   name: string;
   email: string;
@@ -18,10 +20,7 @@ export class ContactSubmitError extends Error {
 }
 
 function contactEndpointUrl(): string {
-  const raw = import.meta.env.VITE_CONTACT_API_URL;
-  const trimmed = typeof raw === "string" ? raw.trim().replace(/\/$/, "") : "";
-  if (trimmed.length > 0) return `${trimmed}/api/contact`;
-  return "/api/contact";
+  return vercelDeployApiUrl("/api/contact");
 }
 
 type ContactApiBody = { ok?: unknown; error?: unknown };

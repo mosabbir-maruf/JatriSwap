@@ -23,7 +23,7 @@ import { useAuth } from "@/src/contexts/AuthContext";
 import { needsEmailVerification } from "@/src/lib/firebase/authVerification";
 import { Ticket as TicketType, Notification as NotificationType, BuyerPurchaseRequest } from "@/src/types";
 import { subscribeToSellerTickets, deleteTicket, updateTicketStatus } from "@/src/lib/firebase/tickets";
-import { scheduleTicketDeleteWithUndo } from "@/src/lib/ticketDeleteUndo";
+import { scheduleTicketDeleteWithUndo } from "@/src/lib/scheduledDeleteUndo";
 import {
   canSellerDeleteListing,
   canSellerEditListingFields,

@@ -15,14 +15,19 @@ function misconfigured(): ContactHttpError {
   );
 }
 
+function parseServiceAccountJson(raw: string): ServiceAccount {
+  const trimmed = raw.replace(/^\ufeff/, "").trim();
+  try {
+    return JSON.parse(trimmed) as ServiceAccount;
+  } catch {
+    throw misconfigured();
+  }
+}
+
 function loadServiceAccount(): ServiceAccount {
-  const inline = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
-  if (inline && inline.length > 0) {
-    try {
-      return JSON.parse(inline) as ServiceAccount;
-    } catch {
-      throw misconfigured();
-    }
+  const inline = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (typeof inline === "string" && inline.trim().length > 0) {
+    return parseServiceAccountJson(inline);
   }
 
   const pathRaw =
@@ -32,13 +37,19 @@ function loadServiceAccount(): ServiceAccount {
   if (pathRaw && pathRaw.length > 0) {
     try {
       const buf = readFileSync(pathRaw, "utf8");
-      return JSON.parse(buf) as ServiceAccount;
+      return parseServiceAccountJson(buf);
     } catch {
       throw misconfigured();
     }
   }
 
   throw misconfigured();
+}
+
+/** Default Firestore instance — use `getFirestore(app)` without an id (more reliable than passing `(default)`). */
+function usesDefaultFirestoreDatabase(databaseId: string): boolean {
+  const id = databaseId.trim().toLowerCase();
+  return id === "(default)" || id === "default";
 }
 
 export function getContactFirestore(): Firestore {
@@ -57,6 +68,9 @@ export function getContactFirestore(): Firestore {
       credential: cert(serviceAccount),
     });
 
-  firestore = getFirestore(app, databaseId);
+  firestore = usesDefaultFirestoreDatabase(databaseId)
+    ? getFirestore(app)
+    : getFirestore(app, databaseId);
+
   return firestore;
 }

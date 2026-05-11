@@ -21,8 +21,38 @@ function applyCors(res: VercelResponse): void {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 }
 
+/** Vercel may supply `body` as an object or as a raw JSON string depending on runtime/content-type. */
+function normalizeJsonBody(body: unknown): Record<string, unknown> {
+  if (body === undefined || body === null) return {};
+  if (typeof body === "string") {
+    const t = body.trim();
+    if (t.length === 0) return {};
+    try {
+      const parsed: unknown = JSON.parse(t);
+      return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : {};
+    } catch {
+      return {};
+    }
+  }
+  if (typeof body === "object" && !Array.isArray(body)) {
+    return body as Record<string, unknown>;
+  }
+  return {};
+}
+
+function logUnexpectedContactError(context: string, err: unknown): void {
+  const code =
+    err && typeof err === "object" && "code" in err
+      ? String((err as { code: unknown }).code)
+      : undefined;
+  const msg = err instanceof Error ? err.message.slice(0, 240) : typeof err;
+  console.error(`contact.${context}`, { code: code ?? "none", msg });
+}
+
 async function handleContactPost(body: unknown, headers: IncomingHttpHeaders): Promise<{ ok: true }> {
-  const data = (typeof body === "object" && body !== null ? body : {}) as RawContactPayload;
+  const data = normalizeJsonBody(body) as RawContactPayload;
 
   if (isContactHoneypotTripped(data)) {
     return { ok: true };
@@ -39,7 +69,19 @@ async function handleContactPost(body: unknown, headers: IncomingHttpHeaders): P
   }
 
   const payload = sanitizeContactPayload(data);
-  const db = getContactFirestore();
+
+  let db;
+  try {
+    db = getContactFirestore();
+  } catch (err) {
+    if (err instanceof ContactHttpError) throw err;
+    logUnexpectedContactError("firestore_init", err);
+    throw new ContactHttpError(
+      503,
+      "Contact delivery is not configured yet. Please use WhatsApp or phone.",
+    );
+  }
+
   const clientKey = contactClientKeyFromIp(clientIpFromHeaders(headers));
   const submissionKey = contactSubmissionKey(
     contactSubmissionContentHash(payload),
@@ -47,7 +89,17 @@ async function handleContactPost(body: unknown, headers: IncomingHttpHeaders): P
   );
   const nowMs = Date.now();
 
-  const reserved = await reserveContactSlot(db, { submissionKey, clientKey, nowMs });
+  let reserved;
+  try {
+    reserved = await reserveContactSlot(db, { submissionKey, clientKey, nowMs });
+  } catch (err) {
+    if (err instanceof ContactHttpError) throw err;
+    logUnexpectedContactError("firestore_reserve", err);
+    throw new ContactHttpError(
+      503,
+      "Contact delivery is temporarily unavailable. Please try again later or use WhatsApp.",
+    );
+  }
 
   if (reserved.kind === "duplicate_silent") {
     return { ok: true };
@@ -65,9 +117,7 @@ async function handleContactPost(body: unknown, headers: IncomingHttpHeaders): P
     return { ok: true };
   } catch (err) {
     await rollbackContactReservation(db, dedupeRef, rateRef);
-    console.error("contact.telegram_failed", {
-      code: err instanceof Error ? err.name : "unknown",
-    });
+    logUnexpectedContactError("telegram_send", err);
     throw new ContactHttpError(
       500,
       "Could not deliver your message right now. Please try again in a few minutes.",
@@ -96,6 +146,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       res.status(err.statusCode).json({ error: err.message });
       return;
     }
+    logUnexpectedContactError("handler", err);
     res.status(500).json({ error: "Could not send your message right now. Please try again later." });
   }
 }

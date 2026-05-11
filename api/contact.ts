@@ -10,15 +10,22 @@ function corsHeaders(): Record<string, string> {
 }
 
 /**
- * Named HTTP exports match Vercel’s documented shape for non-Next `/api/*.ts` routes.
- * `export default { fetch }` can fail invocation with some Vite + ESM builds.
+ * Single default export — some Vite deployments never invoke named `POST`/`OPTIONS`
+ * exports (cold boot → FUNCTION_INVOCATION_FAILED before user code runs).
  */
-export async function OPTIONS(): Promise<Response> {
-  return new Response(null, { status: 204, headers: corsHeaders() });
-}
-
-export async function POST(request: Request): Promise<Response> {
+export default async function contactApi(request: Request): Promise<Response> {
   const cors = corsHeaders();
+
+  if (request.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: cors });
+  }
+
+  if (request.method !== "POST") {
+    return Response.json(
+      { error: "Method not allowed" },
+      { status: 405, headers: { ...cors, Allow: "POST, OPTIONS" } },
+    );
+  }
 
   let body: unknown = {};
   try {

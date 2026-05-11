@@ -3,11 +3,13 @@
   "functions": {
     "api/contact.ts": {
       "memory": 1024,
-      "maxDuration": 30
+      "maxDuration": 30,
+      "includeFiles": "api/lib/**"
     },
     "api/admin-delete-auth-user.ts": {
       "memory": 1024,
-      "maxDuration": 30
+      "maxDuration": 30,
+      "includeFiles": "api/lib/**"
     }
   },
   "rewrites": [

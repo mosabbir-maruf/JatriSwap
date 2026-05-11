@@ -1,3 +1,4 @@
+import { handleAdminDeleteAuthPost } from "./lib/adminAuthDelete/handleAdminDeleteAuthPost";
 import { isContactHttpError } from "./lib/contact/httpError";
 
 function corsHeaders(): Record<string, string> {
@@ -33,7 +34,6 @@ export default async function adminDeleteAuthUser(request: Request): Promise<Res
   }
 
   try {
-    const { handleAdminDeleteAuthPost } = await import("./lib/adminAuthDelete/handleAdminDeleteAuthPost");
     const result = await handleAdminDeleteAuthPost(body, request.headers);
     return Response.json(result, { status: 200, headers: cors });
   } catch (err) {

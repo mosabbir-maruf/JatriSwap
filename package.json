@@ -15,7 +15,7 @@
   ],
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": "22.x"
   },
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
@@ -27,7 +27,6 @@
   "dependencies": {
     "@base-ui/react": "^1.4.1",
     "@fontsource/space-grotesk": "^5.2.10",
-    "@google-cloud/firestore": "^8.5.0",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
     "class-variance-authority": "^0.7.1",

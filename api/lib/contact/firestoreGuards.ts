@@ -1,9 +1,10 @@
-import type {
-  DocumentReference,
-  Firestore,
+import {
+  FieldValue,
   Timestamp,
-} from "@google-cloud/firestore";
-import { FieldValue, Timestamp as AdminTimestamp } from "@google-cloud/firestore";
+  Timestamp as AdminTimestamp,
+  type DocumentReference,
+  type Firestore,
+} from "./firestoreRest";
 
 import {
   CONTACT_DEDUPE_MS,

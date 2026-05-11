@@ -2,20 +2,15 @@ import { createPublicKey, sign as cryptoSign, verify as cryptoVerify } from "nod
 import { readFileSync } from "node:fs";
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "node:http";
 
-import { Firestore } from "@google-cloud/firestore";
-
 /**
  * Admin-only POST `/api/admin-delete-auth-user`.
  *
- * Self-contained — Vercel's serverless tracer repeatedly dropped any `./lib/**` import for this
- * function. Only `node:*` and `@google-cloud/firestore` (npm) are kept; both bundle reliably.
+ * Fully self-contained — only `node:*` imports. Vercel's serverless tracer repeatedly dropped any
+ * `./lib/**` import for this function, so all helpers live in this file. Net effect: zero npm deps
+ * (firebase-admin and @google-cloud/firestore are no longer needed for this route either).
  *
  * Uses Node-style `(req, res)` so Vercel finalizes the response immediately (Web `Response` returns
  * were ignored by the Node runtime, causing 30s `FUNCTION_INVOCATION_TIMEOUT`).
- *
- * Firebase Admin SDK was replaced by native crypto + Firebase Auth REST API to avoid pulling in
- * `@google-cloud/storage` (the only transitive source of the previously-flagged CVEs that we never
- * actually used at runtime).
  */
 
 type VercelRequest = IncomingMessage & { body?: unknown };
@@ -103,32 +98,38 @@ function loadServiceAccount(): ServiceAccountFields {
   throw new HttpError(503, "FIREBASE_SERVICE_ACCOUNT_JSON (or path env) is not set on Vercel.");
 }
 
-// ---------- Firestore (admin checks) ----------
+// ---------- Firestore REST (admin role check only) ----------
 
-let cachedDb: Firestore | undefined;
-
-function isDefaultDatabase(databaseId: string): boolean {
-  const id = databaseId.trim().toLowerCase();
-  return id === "(default)" || id === "default";
+interface FirestoreStringValue {
+  stringValue?: string;
+}
+interface FirestoreDocResponse {
+  fields?: Record<string, FirestoreStringValue>;
 }
 
-function getDb(): Firestore {
-  if (cachedDb) return cachedDb;
+function firestoreDocsBase(projectId: string): string {
   const databaseId = process.env.FIRESTORE_DATABASE_ID?.trim();
   if (!databaseId) throw new HttpError(503, "FIRESTORE_DATABASE_ID is not set on Vercel.");
-  const sa = loadServiceAccount();
-  try {
-    cachedDb = new Firestore({
-      projectId: sa.project_id,
-      credentials: { client_email: sa.client_email, private_key: sa.private_key },
-      ...(isDefaultDatabase(databaseId) ? {} : { databaseId }),
-      preferRest: true,
-    });
-    return cachedDb;
-  } catch (e) {
-    console.error("[admin-delete-auth-user] Firestore init failed", e);
-    throw new HttpError(503, "Firestore Admin failed to start.");
+  return `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(
+    projectId,
+  )}/databases/${encodeURIComponent(databaseId)}/documents`;
+}
+
+/** Returns the `role` field value for `<collection>/<uid>`, or null when the doc is missing. */
+async function readDocRole(
+  accessToken: string,
+  projectId: string,
+  collection: string,
+  uid: string,
+): Promise<string | null> {
+  const url = `${firestoreDocsBase(projectId)}/${collection}/${encodeURIComponent(uid)}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    throw new HttpError(503, `Firestore read failed (${res.status})`);
   }
+  const json = (await res.json()) as FirestoreDocResponse;
+  return json.fields?.role?.stringValue ?? null;
 }
 
 // ---------- Firebase ID token verification (native RS256 + JWKS) ----------
@@ -363,11 +364,11 @@ function readTargetUid(body: unknown): string {
   return typeof raw === "string" ? raw.trim() : "";
 }
 
-async function assertCallerIsAdmin(db: Firestore, callerUid: string): Promise<void> {
-  const adminSnap = await db.collection("admins").doc(callerUid).get();
-  if (adminSnap.exists && adminSnap.data()?.role === "admin") return;
-  const userSnap = await db.collection("users").doc(callerUid).get();
-  if (userSnap.exists && userSnap.data()?.role === "admin") return;
+async function assertCallerIsAdmin(callerUid: string): Promise<void> {
+  const accessToken = await getGoogleAccessToken();
+  const sa = loadServiceAccount();
+  if ((await readDocRole(accessToken, sa.project_id, "admins", callerUid)) === "admin") return;
+  if ((await readDocRole(accessToken, sa.project_id, "users", callerUid)) === "admin") return;
   throw new HttpError(403, "Forbidden");
 }
 
@@ -412,7 +413,7 @@ export default async function adminDeleteAuthUser(
     if (!isValidTargetUid(targetUid)) throw new HttpError(400, "Invalid targetUid");
     if (callerUid === targetUid) throw new HttpError(403, "Cannot delete your own authentication record");
 
-    await assertCallerIsAdmin(getDb(), callerUid);
+    await assertCallerIsAdmin(callerUid);
     await deleteFirebaseAuthUser(targetUid);
 
     res.status(200).json({ ok: true });

@@ -2,11 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
     "api/contact.ts": {
-      "memory": 1024,
       "maxDuration": 30
     },
     "api/admin-delete-auth-user.ts": {
-      "memory": 1024,
       "maxDuration": 30
     }
   },

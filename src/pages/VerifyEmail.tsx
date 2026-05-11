@@ -9,6 +9,7 @@ import { useAuth } from "@/src/contexts/AuthContext";
 import { needsEmailVerification } from "@/src/lib/firebase/authVerification";
 import { getAuthErrorMessage } from "@/src/lib/firebase/authErrors";
 import { TransitSwapLogo } from "@/src/components/branding/TransitSwapLogo";
+import { BrutalistLoadingPlaceholder } from "@/src/components/common/AuthLoadingPlaceholder";
 
 export default function VerifyEmail() {
   const navigate = useNavigate();
@@ -69,9 +70,12 @@ export default function VerifyEmail() {
 
   if (loading || !firebaseUser) {
     return (
-      <div className="flex-1 min-h-screen pt-24 pb-16 flex items-center justify-center px-4 font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
-        Loading…
-      </div>
+      <BrutalistLoadingPlaceholder
+        layout="viewport"
+        message="Loading…"
+        srLabel="Loading verification status"
+        className="flex-1 pt-24 pb-16"
+      />
     );
   }
 

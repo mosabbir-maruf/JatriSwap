@@ -4,7 +4,8 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Clock, Calendar, ShieldCheck, AlertCircle, ArrowLeft, Ticket, Flag, Train, Bus, Copy, Share2, Facebook, MessageCircle, Send, Loader2 } from "lucide-react";
+import { Clock, Calendar, ShieldCheck, AlertCircle, ArrowLeft, Ticket, Flag, Train, Bus, Copy, Share2, Facebook, MessageCircle, Send } from "lucide-react";
+import { BrutalistLoadingPlaceholder } from "@/src/components/common/AuthLoadingPlaceholder";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -39,11 +40,11 @@ const TicketDetails = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col justify-center items-center gap-3 text-muted-foreground px-4">
-        <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
-        <p className="font-mono font-bold uppercase tracking-widest text-[10px] text-center">Loading ticket…</p>
-        <span className="sr-only">Loading ticket details</span>
-      </div>
+      <BrutalistLoadingPlaceholder
+        layout="viewport"
+        message="Loading ticket…"
+        srLabel="Loading ticket details"
+      />
     );
   }
 
@@ -56,11 +57,7 @@ const TicketDetails = () => {
 
   if (detailHiddenFromBuyer && authLoading) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3 px-4 text-muted-foreground">
-        <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
-        <p className="text-center font-mono text-[10px] font-bold uppercase tracking-widest">Loading…</p>
-        <span className="sr-only">Checking access</span>
-      </div>
+      <BrutalistLoadingPlaceholder layout="viewport" message="Loading…" srLabel="Checking access" />
     );
   }
 

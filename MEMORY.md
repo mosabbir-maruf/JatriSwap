@@ -8,7 +8,8 @@ Concise long-term reference for **TransitSwap** (transit ticket marketplace). Fu
 - **UI**: Tailwind CSS v4 (`@tailwindcss/vite`), shadcn-style primitives under `components/ui/` (Base UI–based where applicable), `@/` alias resolves to **repository root** (not `src/`).
 - **Motion / UX**: `motion`, `sonner`, lucide icons; route transitions and scroll-to-top in `App.tsx`.
 - **Fonts**: **Space Grotesk** (headings / `font-heading`) ships via **`@fontsource/space-grotesk/latin.css`** imported in [`src/main.tsx`](src/main.tsx) **before** [`src/index.css`](src/index.css). **Inter** and **JetBrains Mono** still load from the Google Fonts **`@import`** in `index.css` only — avoids late swap/reflow on the home hero. **`@fontsource-variable/geist`** remains in `package.json` but is not required for the shipped heading stack.
-- **Backend**: Firebase **client SDK only** in-repo — Auth, Firestore, Storage (`src/lib/firebase/firebase.ts`). No Firebase Cloud Functions (or other server) source tree in this project; `express` / `dotenv` are dependencies but unused under `src/` today.
+- **Backend (Firebase)**: Client SDK for Auth, Firestore, Storage (`src/lib/firebase/firebase.ts`).
+- **Backend (contact → Telegram)**: Vercel serverless **`/api/contact`** under **`api/`** (deployed with the SPA). Uses **`firebase-admin`** + env secrets for Telegram and Firestore guard collections **`_svcContactDedupe`** / **`_svcContactRate`**. Validation lives in **`shared/contactValidation.ts`** (shared with the Contact UI). **No Firebase Cloud Functions** for this flow.
 
 ## Backend structure (Firestore)
 

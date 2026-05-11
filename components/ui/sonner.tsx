@@ -1,10 +1,14 @@
 import * as React from "react"
 import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
-import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
+import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon } from "lucide-react"
+
+import { Spinner } from "@/components/ui/spinner"
 
 /** Default visibility before auto-dismiss (ms). Applied globally unless a toast overrides `duration`. */
 export const TOAST_DURATION_MS = 4500
+
+const toastLoadingIcon = <Spinner size="sm" className="shrink-0" aria-hidden />
 
 const Toaster = ({ duration = TOAST_DURATION_MS, ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme()
@@ -28,9 +32,7 @@ const Toaster = ({ duration = TOAST_DURATION_MS, ...props }: ToasterProps) => {
         error: (
           <OctagonXIcon className="size-4" />
         ),
-        loading: (
-          <Loader2Icon className="size-4 animate-spin" />
-        ),
+        loading: toastLoadingIcon,
       }}
       style={
         {

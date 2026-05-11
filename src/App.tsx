@@ -19,6 +19,8 @@ import { signOut } from "firebase/auth";
 import { auth } from "./lib/firebase/firebase";
 
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { BrutalistIdleLoader } from "@/src/components/common/AuthLoadingPlaceholder";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -51,11 +53,7 @@ const AdminRegister = lazy(() => import("./pages/AdminRegister"));
 function AdminRouteSuspense({ children }: { children: ReactNode }) {
   return (
     <Suspense
-      fallback={
-        <div className="min-h-[50vh] flex items-center justify-center font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
-          Loading…
-        </div>
-      }
+      fallback={<BrutalistIdleLoader className="min-h-[50vh] gap-3" />}
     >
       {children}
     </Suspense>
@@ -67,23 +65,6 @@ import NotFound from "./pages/NotFound";
 import Unauthorized from "./pages/Unauthorized";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { TransitSwapLogo } from "./components/branding/TransitSwapLogo";
-
-/** Matches navbar neo-brutalist styling while Firebase session restores. */
-function NavbarSessionLoadingBars({ dense }: { dense?: boolean }) {
-  const w = dense ? "w-[3px]" : "w-1";
-  const heights = dense ? ["h-2", "h-[14px]", "h-2"] : ["h-2.5", "h-4", "h-2.5"];
-  const delays = ["", "[animation-delay:120ms]", "[animation-delay:240ms]"];
-  return (
-    <span className="inline-flex gap-[3px] items-end justify-center" aria-hidden>
-      {heights.map((h, i) => (
-        <span
-          key={i}
-          className={`${w} ${h} shrink-0 bg-foreground border border-foreground shadow-[1px_1px_0_0_rgba(0,0,0,1)] animate-pulse ${delays[i] ?? ""}`}
-        />
-      ))}
-    </span>
-  );
-}
 
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -162,7 +143,7 @@ const Navbar = () => {
                      aria-busy="true"
                      aria-label="Verifying session"
                    >
-                     <NavbarSessionLoadingBars dense />
+                     <Spinner size="sm" />
                    </div>
                  ) : isLoggedIn ? (
                    <div className="flex items-center gap-4 hidden sm:flex">
@@ -245,7 +226,7 @@ const Navbar = () => {
                     </span>
                     <span className="truncate leading-tight">Verifying session</span>
                   </span>
-                  <NavbarSessionLoadingBars />
+                  <Spinner size="md" />
                 </div>
               ) : isLoggedIn ? (
                 <>

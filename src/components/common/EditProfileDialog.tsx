@@ -8,7 +8,8 @@ import { auth, db } from "@/src/lib/firebase/firebase";
 import { doc, updateDoc } from "firebase/firestore";
 import { updateProfile, updateEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential, deleteUser } from "firebase/auth";
 import { toast } from "sonner";
-import { Loader2, Key, User, Mail, ShieldAlert, Trash2 } from "lucide-react";
+import { Key, User, Mail, ShieldAlert, Trash2 } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 
 interface EditProfileDialogProps {
   open: boolean;
@@ -229,7 +230,7 @@ export function EditProfileDialog({ open, onOpenChange, dialogTitle = "Edit Prof
                 disabled={isSubmitting || isDeleting}
                 className="flex-1 rounded-none border-2 border-foreground bg-primary text-primary-foreground h-12 font-mono text-xs font-bold uppercase tracking-widest shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all"
               >
-                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Changes"}
+                {isSubmitting ? <Spinner size="sm" /> : "Save Changes"}
               </Button>
             </div>
             
@@ -241,7 +242,7 @@ export function EditProfileDialog({ open, onOpenChange, dialogTitle = "Edit Prof
                 disabled={isSubmitting || isDeleting}
                 className="w-full rounded-none border-2 border-destructive text-destructive bg-destructive/5 h-12 font-mono text-xs font-bold uppercase tracking-widest shadow-[4px_4px_0_0_rgba(220,38,38,1)] hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(220,38,38,1)] hover:bg-destructive hover:text-destructive-foreground transition-all flex items-center justify-center gap-2"
               >
-                {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                {isDeleting ? <Spinner size="sm" /> : <Trash2 className="w-4 h-4" />}
                 {isDeleting ? "Deleting..." : "Permanently Delete Account"}
               </Button>
             </div>

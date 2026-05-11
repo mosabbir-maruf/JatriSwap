@@ -1,5 +1,6 @@
 import { useState, type ComponentProps } from "react";
-import { CheckCheck, Loader2 } from "lucide-react";
+import { CheckCheck } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { markAllNotificationsReadForUser } from "@/src/lib/firebase/notifications";
@@ -55,7 +56,7 @@ export function MarkAllNotificationsReadButton({
       }}
     >
       {busy ? (
-        <Loader2 className="w-4 h-4 animate-spin" aria-hidden />
+        <Spinner size="sm" aria-hidden />
       ) : (
         <CheckCheck className="w-4 h-4" aria-hidden />
       )}

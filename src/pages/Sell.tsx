@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, CheckCircle2, ChevronRight, ChevronLeft, FileText, X, Save, CalendarIcon, Train, BusFront, Loader2 } from "lucide-react";
+import { Upload, CheckCircle2, ChevronRight, ChevronLeft, FileText, X, Save, CalendarIcon, Train, BusFront } from "lucide-react";
+import { AuthLoadingPlaceholder } from "@/src/components/common/AuthLoadingPlaceholder";
 import Unauthorized from "./Unauthorized";
 import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -232,13 +233,7 @@ const Sell = () => {
   };
 
   if (authLoading) {
-    return (
-      <div className="flex-1 bg-background min-h-screen pt-32 flex flex-col items-center justify-center gap-3 text-muted-foreground px-4">
-        <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
-        <p className="font-mono text-[10px] uppercase tracking-widest font-bold text-center">Loading session…</p>
-        <span className="sr-only">Loading account session</span>
-      </div>
-    );
+    return <AuthLoadingPlaceholder />;
   }
 
   if (!currentUser) {

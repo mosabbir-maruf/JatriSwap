@@ -8,6 +8,20 @@ import {
   getPublicWhatsAppLink,
   supportPhoneTelHref,
 } from "@/src/lib/env/publicContact";
+import {
+  contactSubmitErrorMessage,
+  submitContactMessage,
+} from "@/src/lib/firebase/submitContactMessage";
+import {
+  CONTACT_EMAIL_MAX,
+  CONTACT_MESSAGE_MAX,
+  CONTACT_MESSAGE_MIN,
+  CONTACT_NAME_MAX,
+  CONTACT_SUBJECT_MAX,
+  validateContactForm,
+} from "@/src/lib/contact/contactForm";
+import { toast } from "sonner";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,18 +59,29 @@ const Contact = () => {
     name: "",
     email: "",
     subject: "",
-    message: ""
+    message: "",
+    hp: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const checked = validateContactForm(formData);
+    if (checked.ok === false) {
+      toast.error(checked.message);
+      return;
+    }
     setIsSubmitting(true);
-    // Directly submit since there's no real API
-    setIsSubmitting(false);
-    setIsSuccess(true);
-    setFormData({ name: "", email: "", subject: "", message: "" });
+    try {
+      await submitContactMessage(checked.value);
+      setIsSuccess(true);
+      setFormData({ name: "", email: "", subject: "", message: "", hp: "" });
+    } catch (err) {
+      toast.error(contactSubmitErrorMessage(err));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -153,7 +178,19 @@ const Contact = () => {
                       </Button>
                     </div>
                  ) : (
-                   <form onSubmit={handleSubmit} className="space-y-6">
+                   <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+                      {/* Honeypot — not labeled for assistive tech; kept off-screen and unfocusable */}
+                      <input
+                        type="text"
+                        name="companyUrl"
+                        tabIndex={-1}
+                        autoComplete="off"
+                        aria-hidden
+                        value={formData.hp}
+                        onChange={(e) => setFormData({ ...formData, hp: e.target.value })}
+                        className="fixed left-[-9999px] top-auto h-px w-px overflow-hidden"
+                      />
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                          <div className="space-y-3">
                            <Label htmlFor="name" className="font-mono text-xs uppercase tracking-widest font-black">Full Name</Label>
@@ -163,6 +200,7 @@ const Contact = () => {
                              value={formData.name}
                              onChange={(e) => setFormData({...formData, name: e.target.value})}
                              placeholder="John Doe" 
+                             maxLength={CONTACT_NAME_MAX}
                              className="rounded-none h-14 border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] focus-visible:ring-0 focus-visible:border-primary px-4 bg-muted/30"
                            />
                          </div>
@@ -175,6 +213,7 @@ const Contact = () => {
                              value={formData.email}
                              onChange={(e) => setFormData({...formData, email: e.target.value})}
                              placeholder="john@example.com" 
+                             maxLength={CONTACT_EMAIL_MAX}
                              className="rounded-none h-14 border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] focus-visible:ring-0 focus-visible:border-primary px-4 bg-muted/30"
                            />
                          </div>
@@ -188,6 +227,7 @@ const Contact = () => {
                            value={formData.subject}
                            onChange={(e) => setFormData({...formData, subject: e.target.value})}
                            placeholder="How can we help?" 
+                           maxLength={CONTACT_SUBJECT_MAX}
                            className="rounded-none h-14 border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] focus-visible:ring-0 focus-visible:border-primary px-4 bg-muted/30"
                          />
                       </div>
@@ -200,6 +240,8 @@ const Contact = () => {
                            value={formData.message}
                            onChange={(e) => setFormData({...formData, message: e.target.value})}
                            placeholder="Provide details about your inquiry..." 
+                           minLength={CONTACT_MESSAGE_MIN}
+                           maxLength={CONTACT_MESSAGE_MAX}
                            className="rounded-none min-h-[200px] border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] focus-visible:ring-0 focus-visible:border-primary p-4 bg-muted/30 font-sans resize-none"
                          />
                       </div>
@@ -207,9 +249,17 @@ const Contact = () => {
                       <Button 
                         type="submit" 
                         disabled={isSubmitting}
+                        aria-busy={isSubmitting}
                         className="w-full h-16 rounded-none font-mono text-sm uppercase tracking-widest font-black bg-foreground text-background shadow-[8px_8px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-all disabled:opacity-70"
                       >
-                         {isSubmitting ? "Sending..." : "Send Message"}
+                         {isSubmitting ? (
+                           <span className="inline-flex items-center justify-center gap-2">
+                             <Spinner size="sm" className="text-background" />
+                             Sending…
+                           </span>
+                         ) : (
+                           "Send Message"
+                         )}
                       </Button>
                    </form>
                  )}

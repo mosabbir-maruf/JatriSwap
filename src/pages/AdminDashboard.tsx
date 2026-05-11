@@ -1,6 +1,10 @@
 import * as React from "react";
 import { useState, useEffect, useMemo, useCallback, memo, type ReactNode } from "react";
-import { Users, AlertTriangle, Shield, CheckCircle2, Ticket as TicketIcon, XCircle, Search, Edit, Trash2, Activity, Plus, TrendingUp, Star, Clock, AlertCircle, FileText, Ban, Settings, LogOut, Check, Phone, Eye, Mail, MessageCircle, Loader2 } from "lucide-react";
+import { Users, AlertTriangle, Shield, CheckCircle2, Ticket as TicketIcon, XCircle, Search, Edit, Trash2, Activity, Plus, TrendingUp, Star, Clock, AlertCircle, FileText, Ban, Settings, LogOut, Check, Phone, Eye, Mail, MessageCircle } from "lucide-react";
+import {
+  BrutalistIdleLoader,
+  BrutalistInlineButtonLoading,
+} from "@/src/components/common/AuthLoadingPlaceholder";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -165,10 +169,7 @@ function AdminPagedOverviewDialog({
         </DialogHeader>
         <div className="flex-1 overflow-y-auto min-h-0 p-6 pt-4 space-y-3">
           {showInitialSpinner ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground font-mono text-xs font-bold uppercase">
-              <Loader2 className="w-8 h-8 animate-spin" aria-hidden />
-              Loading…
-            </div>
+            <BrutalistIdleLoader className="py-16" />
           ) : itemCount === 0 ? (
             <p className="font-mono text-xs font-bold text-muted-foreground">{emptyMessage}</p>
           ) : (
@@ -185,10 +186,7 @@ function AdminPagedOverviewDialog({
               onClick={onLoadMore}
             >
               {loading ? (
-                <span className="inline-flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin shrink-0" aria-hidden />
-                  Loading…
-                </span>
+                <BrutalistInlineButtonLoading />
               ) : (
                 "Load more"
               )}

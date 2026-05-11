@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,7 +15,6 @@ import {
   Bell,
   LogOut,
   User as UserIcon,
-  Loader2,
   FileText,
   ArrowRight,
   MessageCircle,
@@ -258,7 +258,7 @@ const Dashboard = () => {
               <div className="flex items-center justify-center md:justify-start gap-8 flex-wrap">
                 {!sellerTicketsReady ? (
                   <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
-                    <Loader2 className="h-5 w-5 animate-spin shrink-0" aria-hidden />
+                    <Spinner size="sm" className="shrink-0" />
                     <span>Loading listing stats…</span>
                   </div>
                 ) : (
@@ -275,7 +275,7 @@ const Dashboard = () => {
                     <div className="w-px h-12 bg-border border-r-2 border-border hidden md:block" />
                     <div className="flex flex-col items-center md:items-start text-center md:text-left gap-1">
                       {!inboundPurchaseRequestsReady ? (
-                        <Loader2 className="h-10 w-10 animate-spin text-muted-foreground shrink-0" aria-hidden />
+                        <Spinner size="lg" variant="muted" className="shrink-0" />
                       ) : (
                         <span className="font-heading text-4xl font-black text-emerald-700 dark:text-emerald-400">
                           {DASHBOARD_STATS.purchaseLeadCount}

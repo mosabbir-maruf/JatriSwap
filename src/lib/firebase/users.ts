@@ -84,7 +84,7 @@ export const getAllUsers = async (): Promise<User[]> => {
  * Firebase Authentication must still be removed separately (e.g. user-facing account settings uses `deleteUser`).
  */
 export const deleteUserData = async (userId: string): Promise<void> => {
-  const path = `users/${userId}/data`;
+  const path = `deleteUserData(${userId})`;
   try {
     const ticketSnap = await getDocs(query(collection(db, 'tickets'), where('sellerId', '==', userId)));
     const ticketIds = ticketSnap.docs.map((d) => d.id);

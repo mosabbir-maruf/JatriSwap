@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { STATIONS, TRANSPORTS, ALL_SEAT_CLASS_FILTER_OPTIONS, seatClassesForMode } from "@/src/constants";
+import { StationAutocomplete } from "@/src/components/common/StationAutocomplete";
 import { TicketCard } from "@/src/components/common/TicketCard";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -264,22 +265,26 @@ const Browse = () => {
                      {/* Route */}
                      <div className="space-y-3">
                         <Label className="font-mono text-[10px] uppercase tracking-widest font-bold">Route</Label>
-                        <Select value={origin} onValueChange={setOrigin}>
-                          <SelectTrigger className="w-full bg-background rounded-none border-2 border-foreground focus:ring-0 focus:border-foreground font-mono text-xs uppercase shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
-                            <SelectValue placeholder="From Station" />
-                          </SelectTrigger>
-                          <SelectContent className="rounded-none border-2 border-foreground">
-                             {STATIONS.map(s => <SelectItem key={s} value={s} className="rounded-none focus:bg-foreground focus:text-background font-mono text-xs uppercase">{s}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                        <Select value={destination} onValueChange={setDestination}>
-                          <SelectTrigger className="w-full bg-background rounded-none border-2 border-foreground focus:ring-0 focus:border-foreground font-mono text-xs uppercase shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
-                            <SelectValue placeholder="To Station" />
-                          </SelectTrigger>
-                          <SelectContent className="rounded-none border-2 border-foreground">
-                             {STATIONS.map(s => <SelectItem key={s} value={s} className="rounded-none focus:bg-foreground focus:text-background font-mono text-xs uppercase">{s}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
+                        <StationAutocomplete
+                          id="browse-from"
+                          ariaLabel="From station"
+                          value={origin}
+                          onValueChange={setOrigin}
+                          options={STATIONS}
+                          placeholder="From Station"
+                          size="sm"
+                          recentScope="from"
+                        />
+                        <StationAutocomplete
+                          id="browse-to"
+                          ariaLabel="To station"
+                          value={destination}
+                          onValueChange={setDestination}
+                          options={STATIONS}
+                          placeholder="To Station"
+                          size="sm"
+                          recentScope="to"
+                        />
                      </div>
 
                     {/* Date */}

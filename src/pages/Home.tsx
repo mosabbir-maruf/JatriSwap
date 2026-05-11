@@ -5,8 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { motion } from "motion/react";
 import { MapPin, Calendar as CalendarIcon, Search, ArrowRight, ShieldCheck, Ticket, Users, Train, BusFront } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { STATIONS } from "@/src/constants";
+import { StationAutocomplete } from "@/src/components/common/StationAutocomplete";
 import { format } from "date-fns";
 import { TicketCard } from "@/src/components/common/TicketCard";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -128,26 +128,34 @@ const Home = () => {
 
                   <div className="space-y-3 w-full flex-1 min-w-0">
                     <Label className="font-mono text-xs uppercase tracking-widest text-foreground font-black">From</Label>
-                    <Select value={origin} onValueChange={setOrigin}>
-                      <SelectTrigger className="rounded-none h-16 bg-background border-4 border-foreground focus:ring-0 focus:border-foreground px-4 font-mono font-bold text-sm shadow-[4px_4px_0_0_rgba(0,0,0,1)] w-full text-left">
-                        <SelectValue placeholder="Leaving from" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-none border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)]">
-                        {STATIONS.map(s => <SelectItem key={s} value={s} className="rounded-none focus:bg-foreground focus:text-background font-mono font-bold text-sm uppercase">{s}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <StationAutocomplete
+                      id="home-from"
+                      ariaLabel="Leaving from"
+                      value={origin}
+                      onValueChange={setOrigin}
+                      options={STATIONS}
+                      placeholder="Leaving from"
+                      size="lg"
+                      borderClassName="border-4"
+                      inputClassName="px-4 text-sm"
+                      recentScope="from"
+                    />
                   </div>
 
                   <div className="space-y-3 w-full flex-1 min-w-0">
                     <Label className="font-mono text-xs uppercase tracking-widest text-foreground font-black">To</Label>
-                    <Select value={destination} onValueChange={setDestination}>
-                      <SelectTrigger className="rounded-none h-16 bg-background border-4 border-foreground focus:ring-0 focus:border-foreground px-4 font-mono font-bold text-sm shadow-[4px_4px_0_0_rgba(0,0,0,1)] w-full text-left">
-                        <SelectValue placeholder="Going to" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-none border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)]">
-                        {STATIONS.map(s => <SelectItem key={s} value={s} className="rounded-none focus:bg-foreground focus:text-background font-mono font-bold text-sm uppercase">{s}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <StationAutocomplete
+                      id="home-to"
+                      ariaLabel="Going to"
+                      value={destination}
+                      onValueChange={setDestination}
+                      options={STATIONS}
+                      placeholder="Going to"
+                      size="lg"
+                      borderClassName="border-4"
+                      inputClassName="px-4 text-sm"
+                      recentScope="to"
+                    />
                   </div>
 
                   <div className="space-y-3 w-full flex-1 min-w-0">

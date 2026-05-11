@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { STATIONS, TRANSPORTS, seatClassesForMode } from "@/src/constants";
+import { StationAutocomplete } from "@/src/components/common/StationAutocomplete";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -395,25 +396,31 @@ const Sell = () => {
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-3">
                           <Label className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground">From Station</Label>
-                          <Select required value={formData.from || null} onValueChange={(v) => handleInputChange("from", v || "")}>
-                            <SelectTrigger className="h-14 rounded-none bg-background border-2 border-foreground px-6 font-mono font-bold text-xs uppercase shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
-                              <SelectValue placeholder="SELECT ORIGIN" />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-none border-2 border-foreground">
-                               {STATIONS.map(s => <SelectItem key={s} value={s} className="rounded-none focus:bg-foreground focus:text-background font-mono font-bold text-xs uppercase">{s}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
+                          <StationAutocomplete
+                            id="sell-from"
+                            ariaLabel="From station"
+                            value={formData.from ?? ""}
+                            onValueChange={(v) => handleInputChange("from", v)}
+                            options={STATIONS}
+                            placeholder="SELECT ORIGIN"
+                            required
+                            inputClassName="px-6"
+                            recentScope="from"
+                          />
                         </div>
                         <div className="space-y-3">
                           <Label className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground">To Station</Label>
-                          <Select required value={formData.to || null} onValueChange={(v) => handleInputChange("to", v || "")}>
-                            <SelectTrigger className="h-14 rounded-none bg-background border-2 border-foreground px-6 font-mono font-bold text-xs uppercase shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
-                              <SelectValue placeholder="SELECT DESTINATION" />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-none border-2 border-foreground">
-                               {STATIONS.map(s => <SelectItem key={s} value={s} className="rounded-none focus:bg-foreground focus:text-background font-mono font-bold text-xs uppercase">{s}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
+                          <StationAutocomplete
+                            id="sell-to"
+                            ariaLabel="To station"
+                            value={formData.to ?? ""}
+                            onValueChange={(v) => handleInputChange("to", v)}
+                            options={STATIONS}
+                            placeholder="SELECT DESTINATION"
+                            required
+                            inputClassName="px-6"
+                            recentScope="to"
+                          />
                         </div>
                      </div>
 

@@ -13,6 +13,7 @@ import { normalizeUserAccountStatus, sellListingBlockedMessage } from "@/src/lib
 import { useAuth } from "@/src/contexts/AuthContext";
 import { toast } from "sonner";
 import { STATIONS, TRANSPORTS, seatClassesForMode } from "@/src/constants";
+import { StationAutocomplete } from "@/src/components/common/StationAutocomplete";
 import { Train, BusFront } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -54,30 +55,32 @@ function resolveEditMode(ticket: Ticket): Ticket["mode"] {
   return "train";
 }
 
-const StationSelect = React.memo(function StationSelect({
+const StationField = React.memo(function StationField({
   label,
+  idPrefix,
+  recentScope,
   value,
   onChange,
 }: {
   label: string;
+  idPrefix: string;
+  recentScope: "from" | "to";
   value: string | undefined;
   onChange: (v: string) => void;
 }) {
   return (
     <div className="grid gap-2">
       <Label className="font-mono text-[10px] uppercase tracking-widest font-bold">{label}</Label>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="rounded-none border-2 border-foreground">
-          <SelectValue placeholder={label} />
-        </SelectTrigger>
-        <SelectContent className="rounded-none border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
-          {STATIONS.map((s) => (
-            <SelectItem key={s} value={s} className="font-mono text-xs uppercase cursor-pointer hover:bg-muted">
-              {s}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <StationAutocomplete
+        id={`${idPrefix}-station`}
+        ariaLabel={label}
+        value={value ?? ""}
+        onValueChange={onChange}
+        options={STATIONS}
+        placeholder={label}
+        size="md"
+        recentScope={recentScope}
+      />
     </div>
   );
 });
@@ -329,8 +332,8 @@ export function EditTicketDialog({
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <StationSelect label="From" value={formData.from} onChange={handleFromStationChange} />
-              <StationSelect label="To" value={formData.to} onChange={handleToStationChange} />
+              <StationField label="From" idPrefix="edit-from" recentScope="from" value={formData.from} onChange={handleFromStationChange} />
+              <StationField label="To" idPrefix="edit-to" recentScope="to" value={formData.to} onChange={handleToStationChange} />
             </div>
             
              <div className="grid grid-cols-2 gap-4">

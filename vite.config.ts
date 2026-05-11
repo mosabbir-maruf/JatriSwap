@@ -30,7 +30,6 @@ export default defineConfig({
           )
             return 'vendor-react';
           if (id.includes('motion')) return 'vendor-motion';
-          if (id.includes('recharts')) return 'vendor-recharts';
           return 'vendor-misc';
         },
       },

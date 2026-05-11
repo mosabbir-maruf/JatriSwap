@@ -104,13 +104,18 @@ const Contact = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 lg:gap-8">
-           
+           {/*
+             Left column: stack Get in Touch + FAQ in one grid cell on lg so FAQ sits under the
+             info card — not under row-1’s full height (which matches the tall form).
+             Below lg, `contents` lets Info + FAQ stay separate grid items; order is Get in Touch → form → FAQ.
+           */}
+           <div className="max-lg:contents lg:flex lg:flex-col lg:col-span-1 lg:gap-8">
            {/* Contact Info */}
            <motion.div 
              initial={{ opacity: 0, y: 20 }}
              animate={{ opacity: 1, y: 0 }}
              transition={{ duration: 0.5 }}
-             className="lg:col-span-1 space-y-8"
+             className="max-lg:order-1 lg:order-none"
            >
               <div className="bg-muted border-4 border-foreground p-8 shadow-[8px_8px_0_0_rgba(0,0,0,1)]">
                  <h3 className="font-heading text-2xl font-black uppercase tracking-tighter mb-8">Get in Touch</h3>
@@ -146,22 +151,35 @@ const Contact = () => {
                     </ContactChannelRow>
                  </div>
               </div>
+           </motion.div>
 
+           {/* FAQ: after form below lg; under Get in Touch on lg (same column) */}
+           <motion.div
+             initial={{ opacity: 0, y: 20 }}
+             animate={{ opacity: 1, y: 0 }}
+             transition={{ duration: 0.5, delay: 0.25 }}
+             className="max-lg:order-3 lg:order-none"
+           >
               <div className="bg-primary text-primary-foreground border-4 border-foreground p-8 shadow-[8px_8px_0_0_rgba(0,0,0,1)]">
                  <h3 className="font-heading text-xl font-black uppercase tracking-tighter mb-4">FAQ</h3>
                  <p className="font-mono text-xs font-bold leading-relaxed mb-6">Find quick answers to common questions about buying, selling, and verifications.</p>
-                 <Button variant="outline" className="w-full h-12 rounded-none font-mono text-xs uppercase tracking-widest font-black border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all bg-background text-foreground">
-                    Visit Help Center
+                 <Button
+                   variant="outline"
+                   render={<Link to="/faq" />}
+                   className="w-full h-12 rounded-none font-mono text-xs uppercase tracking-widest font-black border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all bg-background text-foreground"
+                 >
+                   See All FAQs 
                  </Button>
               </div>
            </motion.div>
+           </div>
 
            {/* Contact Form */}
            <motion.div 
              initial={{ opacity: 0, y: 20 }}
              animate={{ opacity: 1, y: 0 }}
              transition={{ duration: 0.5, delay: 0.2 }}
-             className="lg:col-span-2"
+             className="max-lg:order-2 lg:order-none lg:col-span-2"
            >
               <div className="bg-background border-4 border-foreground p-8 md:p-12 shadow-[16px_16px_0_0_rgba(0,0,0,1)]">
                  <h2 className="font-heading text-3xl font-black uppercase tracking-tighter mb-8">Send a Message</h2>

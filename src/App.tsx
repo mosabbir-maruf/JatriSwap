@@ -64,6 +64,7 @@ function AdminRouteSuspense({ children }: { children: ReactNode }) {
 }
 import Contact from "./pages/Contact";
 import FAQ from "./pages/FAQ";
+import Transit from "./pages/Transit";
 import NotFound from "./pages/NotFound";
 import Unauthorized from "./pages/Unauthorized";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -362,7 +363,7 @@ const Footer = () => {
             <ul className="flex flex-col gap-4 font-mono text-[11px] uppercase tracking-wider text-muted">
               <li><Link to="/browse" className="hover:text-background transition-colors max-md:break-words">Browse Tickets</Link></li>
               <li><Link to="/sell" className="hover:text-background transition-colors max-md:break-words">Sell a Ticket</Link></li>
-              <li><Link to="/" className="hover:text-background transition-colors max-md:break-words">Transit</Link></li>
+              <li><Link to="/transit" className="hover:text-background transition-colors max-md:break-words">Transit</Link></li>
             </ul>
           </div>
 
@@ -504,6 +505,7 @@ export default function App() {
             />
             <Route path="contact" element={<Contact />} />
             <Route path="faq" element={<FAQ />} />
+            <Route path="transit" element={<Transit />} />
             
             {/* Built-in unauthorized testing state optionally or catch-all */}
             <Route path="unauthorized" element={<Unauthorized />} />

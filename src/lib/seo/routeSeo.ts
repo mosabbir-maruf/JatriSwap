@@ -45,6 +45,11 @@ const STATIC_ROUTES: Record<string, RouteSeo> = {
     description:
       "Answers about how JatriSwap works, verification, fees, escrow, refunds, and receiving your ticket after purchase.",
   },
+  "/transit": {
+    title: `Transit directory - ${BRAND}`,
+    description:
+      "Stations, train names, and bus operators used in JatriSwap search and listings across Bangladesh.",
+  },
   "/terms": {
     title: `Terms of Service - ${BRAND}`,
     description: "Terms of Service for using the JatriSwap marketplace and related policies.",

@@ -8,6 +8,7 @@ export const SITEMAP_PUBLIC_PATHS = [
   "/sell",
   "/contact",
   "/faq",
+  "/transit",
   "/terms",
   "/privacy",
   "/cookie",

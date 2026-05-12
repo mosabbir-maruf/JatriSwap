@@ -1589,7 +1589,19 @@ export default function AdminDashboard() {
                 id="admin-dashboard-section"
                 className="w-full min-h-[3.5rem] h-14 px-4 rounded-none border-4 border-foreground bg-background font-mono text-sm uppercase font-bold tracking-widest shadow-[6px_6px_0_0_rgba(0,0,0,1)] hover:bg-muted/40 [&_svg]:size-5 [&_svg]:opacity-100"
               >
-                <SelectValue placeholder="Choose section" />
+                <span className="min-w-0 flex-1 whitespace-normal text-left leading-tight">
+                  {activeTab === "overview"
+                    ? "Analytics & Overview"
+                    : activeTab === "tickets"
+                      ? "Manage Tickets"
+                      : activeTab === "users"
+                        ? "Manage Users"
+                        : activeTab === "reports"
+                          ? "Scam & Reports"
+                          : activeTab === "logs"
+                            ? "Audit Logs"
+                            : "Admins & Roles"}
+                </span>
               </SelectTrigger>
               <SelectContent className="rounded-none border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] max-h-[min(70vh,420px)]">
                 <SelectItem value="overview" className="rounded-none font-mono text-sm uppercase font-bold py-3.5 min-h-12">

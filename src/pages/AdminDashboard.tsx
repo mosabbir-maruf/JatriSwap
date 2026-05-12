@@ -708,7 +708,9 @@ function AdminSellerListingMailRow({
         title={`Email ${email}`}
       >
         <Mail className="w-3 h-3 shrink-0" aria-hidden />
-        <span className="truncate min-w-0">{email}</span>
+        <span className="min-w-0 max-sm:whitespace-normal max-sm:break-words max-sm:[overflow-wrap:anywhere] sm:truncate sm:whitespace-nowrap">
+          {email}
+        </span>
       </a>
     );
   }
@@ -754,36 +756,47 @@ const RecentTicketPostRow = memo(function RecentTicketPostRow({
           className="mt-1 block font-mono text-[10px] font-black uppercase tracking-widest text-primary underline-offset-2 hover:underline break-all max-w-full"
         />
       </div>
-      <div className="flex min-w-0 w-full flex-col gap-0.5 border-t border-foreground/15 pt-3 max-md:text-left max-md:items-stretch md:w-auto md:max-w-[58%] md:shrink-0 md:border-t-0 md:pt-0 md:text-right md:items-end">
-        <p className="font-heading text-xl font-black tracking-tighter text-emerald-600">৳{ticket.sellingPrice}</p>
-        <AdminSellerProfileLink
-          ticket={ticket}
-          sellerRow={sellerRow}
-          profileTab="overview"
-          linkClassName="font-mono text-[10px] font-bold text-primary underline-offset-2 hover:underline max-w-full text-left md:truncate md:text-right"
-          noSellerIdClassName="font-mono text-[10px] font-bold text-muted-foreground max-w-full text-left break-words md:truncate md:text-right"
-        />
-        <div className="font-mono text-[10px] mt-0.5 max-w-full flex justify-start md:justify-end">
-          <AdminSellerListingMailRow
-            ticket={ticket}
-            sellerRow={sellerRow}
-            linkClassName={`${adminTelLinkClass} justify-start max-md:[&_span]:overflow-visible max-md:[&_span]:whitespace-normal max-md:[&_span]:break-all md:justify-end max-w-full min-w-0`}
-            fallbackClassName="text-muted-foreground font-normal text-left break-words md:text-right"
-            emptyLabel="No email on file"
+      <div className="flex min-w-0 w-full flex-col gap-0.5 border-t border-foreground/15 pt-3 max-md:text-left max-md:items-stretch md:w-auto md:max-w-[58%] md:shrink-0 md:border-t-0 md:pt-0 md:items-end">
+        <div className="flex w-full items-start gap-2 md:max-w-full md:justify-end">
+          <AdminUserFirestoreAvatar
+            avatar={sellerRow?.avatar}
+            googleAvatarUrl={sellerRow?.googleAvatarUrl}
+            name={sellerRow?.name ?? ticket.sellerName}
+            className="size-8 shrink-0 rounded-none border border-foreground shadow-[1px_1px_0_0_rgba(0,0,0,1)]"
+            fallbackClassName="text-[9px]"
           />
+          <div className="min-w-0 flex flex-1 flex-col gap-0.5 max-md:text-left md:items-end md:text-right">
+            <p className="font-heading text-xl font-black tracking-tighter text-emerald-600">৳{ticket.sellingPrice}</p>
+            <AdminSellerProfileLink
+              ticket={ticket}
+              sellerRow={sellerRow}
+              profileTab="overview"
+              linkClassName="font-mono text-[10px] font-bold text-primary underline-offset-2 hover:underline max-w-full text-left md:truncate md:text-right"
+              noSellerIdClassName="font-mono text-[10px] font-bold text-muted-foreground max-w-full text-left break-words md:truncate md:text-right"
+            />
+            <div className="font-mono text-[10px] mt-0.5 max-w-full flex justify-start md:justify-end">
+              <AdminSellerListingMailRow
+                ticket={ticket}
+                sellerRow={sellerRow}
+                linkClassName={`${adminTelLinkClass} justify-start max-md:[&_span]:overflow-visible max-md:[&_span]:whitespace-normal max-md:[&_span]:break-all md:justify-end max-w-full min-w-0`}
+                fallbackClassName="text-muted-foreground font-normal text-left break-words md:text-right"
+                emptyLabel="No email on file"
+              />
+            </div>
+            {sellerPhone ? (
+              <a
+                href={phoneDisplayToTelHref(sellerPhone)}
+                className={`font-mono text-[10px] text-muted-foreground mt-1 flex justify-start md:justify-end ${adminTelLinkClass} max-w-full min-w-0`}
+                title="Call seller"
+              >
+                <Phone className="w-3 h-3 shrink-0" aria-hidden />
+                <span className="min-w-0 max-md:whitespace-normal max-md:break-all md:truncate">{sellerPhone}</span>
+              </a>
+            ) : (
+              <p className="font-mono text-[10px] text-muted-foreground/70 mt-1 italic">No phone on file</p>
+            )}
+          </div>
         </div>
-        {sellerPhone ? (
-          <a
-            href={phoneDisplayToTelHref(sellerPhone)}
-            className={`font-mono text-[10px] text-muted-foreground mt-1 flex justify-start md:justify-end ${adminTelLinkClass} max-w-full min-w-0`}
-            title="Call seller"
-          >
-            <Phone className="w-3 h-3 shrink-0" aria-hidden />
-            <span className="min-w-0 max-md:whitespace-normal max-md:break-all md:truncate">{sellerPhone}</span>
-          </a>
-        ) : (
-          <p className="font-mono text-[10px] text-muted-foreground/70 mt-1 italic">No phone on file</p>
-        )}
       </div>
     </div>
   );
@@ -1853,7 +1866,7 @@ export default function AdminDashboard() {
                     <tr>
                       <th className={cn(adminTableTdBase, "whitespace-nowrap")}>Ticket & Route</th>
                       <th className={cn(adminTableTdBase, "w-[5.5rem]")}>Price</th>
-                      <th className={cn(adminTableTdBase, "max-w-[200px]")}>User</th>
+                      <th className={cn(adminTableTdBase, "max-sm:max-w-none sm:max-w-[200px]")}>User</th>
                       <th className={cn(adminTableTdBase, "min-w-[10rem] max-w-[220px]")}>
                         <span className="block">Meta</span>
                         <span className="block text-[8px] font-normal opacity-90 normal-case tracking-normal font-sans font-medium mt-1 leading-snug">
@@ -1887,7 +1900,16 @@ export default function AdminDashboard() {
                         <td className={cn(adminTableTdBase, "font-bold text-emerald-600 text-sm whitespace-nowrap")}>
                           ৳{ticket.sellingPrice}
                         </td>
-                        <td className={cn(adminTableTdBase, "min-w-0 max-w-[200px]")}>
+                        <td className={cn(adminTableTdBase, "min-w-0 max-sm:max-w-none sm:max-w-[200px]")}>
+                          <div className="flex items-start gap-2">
+                            <AdminUserFirestoreAvatar
+                              avatar={sellerRow?.avatar}
+                              googleAvatarUrl={sellerRow?.googleAvatarUrl}
+                              name={sellerRow?.name ?? ticket.sellerName}
+                              className="size-8 shrink-0 rounded-none border border-foreground shadow-[1px_1px_0_0_rgba(0,0,0,1)]"
+                              fallbackClassName="text-[9px]"
+                            />
+                            <div className="min-w-0 flex-1">
                           <p className="font-bold truncate max-w-full" title={ticketSellerDisplayName(ticket, sellerRow)}>
                             <AdminSellerProfileLink
                               ticket={ticket}
@@ -1901,8 +1923,8 @@ export default function AdminDashboard() {
                             <AdminSellerListingMailRow
                               ticket={ticket}
                               sellerRow={sellerRow}
-                              linkClassName={`${adminTelLinkClass} font-normal text-[10px] xl:text-xs max-w-full`}
-                              fallbackClassName="text-muted-foreground text-[10px] xl:text-xs truncate block"
+                              linkClassName={`${adminTelLinkClass} flex-wrap items-start font-normal text-[10px] xl:text-xs max-w-full`}
+                              fallbackClassName="text-muted-foreground text-[10px] xl:text-xs max-sm:whitespace-normal max-sm:break-words sm:truncate sm:block"
                               fallbackTitle={String(sellerRow?.email || ticket.sellerId)}
                             />
                           </div>
@@ -1916,6 +1938,8 @@ export default function AdminDashboard() {
                               <span className="truncate min-w-0">{ticket.sellerPhone}</span>
                             </a>
                           )}
+                            </div>
+                          </div>
                         </td>
                         <td className={cn(adminTableTdBase, "min-w-0 max-w-[220px]")}>
                            <div className="space-y-2 text-[10px] text-muted-foreground leading-snug">
@@ -2133,11 +2157,13 @@ export default function AdminDashboard() {
                               href={adminBanModerationMailtoHref(user.email, {
                                 recipientDisplayName: user.name || "there",
                               })}
-                              className={`text-[10px] text-muted-foreground font-bold ${adminTelLinkClass} inline-flex items-center gap-1 max-w-full mt-0.5`}
+                              className={`text-[10px] text-muted-foreground font-bold ${adminTelLinkClass} inline-flex flex-wrap items-start gap-1 max-w-full mt-0.5`}
                               title="Compose moderation email"
                             >
                               <Mail className="w-3 h-3 shrink-0" aria-hidden />
-                              <span className="truncate min-w-0">{user.email}</span>
+                              <span className="min-w-0 max-sm:whitespace-normal max-sm:break-words max-sm:[overflow-wrap:anywhere] sm:truncate sm:whitespace-nowrap">
+                                {user.email}
+                              </span>
                             </a>
                           ) : (
                             <p className="text-[10px] text-muted-foreground font-bold">{user.email}</p>

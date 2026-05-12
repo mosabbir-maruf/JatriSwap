@@ -16,6 +16,8 @@ import {
   resolveAdminProfileReturnTab,
 } from "@/src/lib/adminDashboardTab";
 import { ticketDisplayStatus } from "@/src/lib/ticketExpiration";
+import { cn } from "@/lib/utils";
+import { adminTableTdBase, adminTableTdMobileMin12 } from "@/src/lib/adminTableUi";
 
 const adminTelLinkClass =
   "underline-offset-4 hover:underline hover:text-foreground text-primary inline-flex items-center gap-1 max-w-full min-w-0 break-all";
@@ -325,10 +327,10 @@ export default function AdminUserProfile() {
               <table className="w-full text-left font-mono text-[10px] xl:text-xs">
                 <thead className="bg-foreground text-background uppercase tracking-widest font-black border-y-2 border-foreground">
                   <tr>
-                    <th className="p-3 border-r-2 border-foreground">Listing</th>
-                    <th className="p-3 border-r-2 border-foreground">Route</th>
-                    <th className="p-3 border-r-2 border-foreground">Posted</th>
-                    <th className="p-3 border-r-2 border-foreground">Status</th>
+                    <th className={cn(adminTableTdBase, "whitespace-nowrap")}>Listing</th>
+                    <th className={cn(adminTableTdBase, "whitespace-nowrap")}>Route</th>
+                    <th className={cn(adminTableTdBase, "whitespace-nowrap")}>Posted</th>
+                    <th className="p-3 align-top whitespace-nowrap">Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -337,17 +339,24 @@ export default function AdminUserProfile() {
                       key={t.id}
                       className={`border-b-2 border-foreground ${i % 2 === 0 ? "bg-muted/10" : "bg-background"}`}
                     >
-                      <td className="p-3 border-r-2 border-foreground align-top">
-                        <Link to={`/ticket/${t.id}`} className="font-bold text-primary underline-offset-2 hover:underline break-all">
-                          {t.id}
+                      <td className={cn(adminTableTdBase, adminTableTdMobileMin12)}>
+                        <Link
+                          to={`/ticket/${t.id}`}
+                          className="font-bold text-primary underline-offset-2 hover:underline inline-block max-w-full"
+                        >
+                          <span className="inline-block whitespace-nowrap font-mono">{t.id}</span>
                         </Link>
-                        <p className="font-heading font-bold uppercase mt-1">{t.transportName}</p>
+                        <p className="font-heading font-bold uppercase mt-1 break-words">{t.transportName}</p>
                       </td>
-                      <td className="p-3 border-r-2 border-foreground align-top">
-                        {t.from} → {t.to}
+                      <td className={cn(adminTableTdBase, adminTableTdMobileMin12)}>
+                        <span className="inline-block whitespace-nowrap">
+                          {t.from} → {t.to}
+                        </span>
                       </td>
-                      <td className="p-3 border-r-2 border-foreground align-top whitespace-nowrap">{formatTicketPostedAtAmPm(t.postedAt)}</td>
-                      <td className="p-3 align-top font-bold uppercase">{labelStatus(ticketDisplayStatus(t))}</td>
+                      <td className={cn(adminTableTdBase, "whitespace-nowrap")}>
+                        {formatTicketPostedAtAmPm(t.postedAt)}
+                      </td>
+                      <td className="p-3 align-top font-bold uppercase whitespace-nowrap">{labelStatus(ticketDisplayStatus(t))}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -96,6 +96,7 @@ import {
   normalizeAdminDashboardTab,
   type AdminDashboardTab,
 } from "@/src/lib/adminDashboardTab";
+import { adminTableTdBase, adminTableTdMobileMin12, adminTableTdMobileMin13 } from "@/src/lib/adminTableUi";
 
 const AVAILABLE_PERMISSIONS = [
   { id: "manage_users", label: "Manage users", category: "User Management" },
@@ -132,13 +133,6 @@ const adminTelLinkClass =
 /** Brutalist mono outline control (Load more, View all, small dialogs). */
 const adminBrutalistOutlineMono10 =
   "rounded-none border-2 border-foreground font-mono text-[10px] font-black uppercase tracking-widest shadow-[4px_4px_0_0_rgba(0,0,0,1)]";
-
-/** Shared `<td>` padding + borders (Manage Tickets + User Management). */
-const adminTableTdBase = "p-3 border-r-2 border-foreground align-top";
-
-/** Mobile: keep route / perf / UID readable; table scrolls horizontally. */
-const adminTableTdMobileMin12 = "min-w-0 max-md:min-w-[12rem]";
-const adminTableTdMobileMin13 = "min-w-0 max-md:min-w-[13rem]";
 
 const adminUserRowIconButtonBaseClass =
   "w-8 h-8 rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none transition-all";
@@ -1875,7 +1869,8 @@ export default function AdminDashboard() {
                              ) : null}
                            </Button>
                         </td>
-                        <td className={adminTableTdBase}>
+                        <td className={cn(adminTableTdBase, "whitespace-nowrap")}>
+                          <AdminTicketStatusBadge ticket={ticket} />
                         </td>
                         <td className="p-3 align-top">
                           <div className="flex flex-wrap gap-1">

@@ -1670,7 +1670,7 @@ export default function AdminDashboard() {
                                <span>{ticket.views ?? 0} views</span>
                              </p>
                              <p>
-                               <span className="font-black uppercase tracking-wider text-foreground/85 block mb-0.5">Trip</span>
+                               <span className="font-black uppercase tracking-wider text-foreground/85 block mb-0.5">Departure</span>
                                <span className="font-mono">{formatTripLineForAdmin(ticket.date, ticket.departureTime)}</span>
                              </p>
                            </div>

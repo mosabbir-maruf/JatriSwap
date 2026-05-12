@@ -14,6 +14,7 @@ import {
   User,
   LogOut,
   Bell,
+  ChevronDown,
 } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { auth } from "./lib/firebase/firebase";
@@ -149,9 +150,10 @@ const Navbar = () => {
                    </div>
                  ) : isLoggedIn ? (
                    <div className="flex items-center gap-4 hidden sm:flex">
-                     <DropdownMenu>
-                       <DropdownMenuTrigger className="w-9 h-9 xl:w-10 xl:h-10 border-2 border-foreground bg-muted flex items-center justify-center hover:bg-foreground hover:text-background transition-colors shadow-[2px_2px_0_0_rgba(0,0,0,1)] outline-none">
+                      <DropdownMenu>
+                       <DropdownMenuTrigger className="h-9 xl:h-10 border-2 border-foreground bg-muted flex items-center justify-center gap-1.5 px-2.5 xl:px-3 hover:bg-foreground hover:text-background transition-colors shadow-[2px_2px_0_0_rgba(0,0,0,1)] outline-none">
                          {currentUser?.role === 'admin' ? <Shield className="w-4 h-4 xl:w-5 xl:h-5" /> : <User className="w-4 h-4 xl:w-5 xl:h-5" />}
+                         <ChevronDown className="h-3 w-3 opacity-80" aria-hidden />
                        </DropdownMenuTrigger>
                        <DropdownMenuContent align="end" className="w-48 bg-background border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] rounded-none p-0 mt-2">
                          <DropdownMenuItem onClick={() => navigate(currentUser?.role === 'admin' ? '/admin' : '/dashboard')} className="rounded-none px-4 py-3 font-mono text-[10px] xl:text-xs uppercase font-bold tracking-widest cursor-pointer hover:bg-muted focus:bg-muted focus:text-foreground">

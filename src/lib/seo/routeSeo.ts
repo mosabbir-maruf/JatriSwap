@@ -3,7 +3,7 @@ import { isAdminAppRoute } from "@/src/lib/isAdminAppRoute";
 const BRAND = "JatriSwap";
 
 const DEFAULT_DESCRIPTION =
-  "Browse, list, and buy or sell verified train and bus tickets on JatriSwap — a peer-to-peer public transit ticket marketplace for Bangladesh.";
+  "The premier marketplace to buy and sell unused train & bus tickets. Your unused ticket deserves a traveler - JatriSwap";
 
 const STAFF_ONLY_DESCRIPTION =
   "JatriSwap staff tools for authorized team members only. Not indexed for public search.";

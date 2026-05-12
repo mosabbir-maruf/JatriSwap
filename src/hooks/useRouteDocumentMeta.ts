@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom";
 import { applyDocumentMeta } from "@/src/lib/seo/applyDocumentMeta";
 import { resolveSeoOrigin } from "@/src/lib/seo/publicOrigin";
 import { isAdminAppRoute } from "@/src/lib/isAdminAppRoute";
-import { ADMIN_STAFF_ROBOTS, getRouteSeo } from "@/src/lib/seo/routeSeo";
+import { ADMIN_STAFF_ROBOTS, DEFAULT_DESCRIPTION, getRouteSeo } from "@/src/lib/seo/routeSeo";
 
 const HOME_JSON_LD_ID = "jatriswap-home-jsonld";
 
@@ -24,8 +24,7 @@ function injectHomeJsonLd(siteUrl: string) {
         "@id": `${siteUrl}/#website`,
         name: "JatriSwap",
         url: siteUrl,
-        description:
-          "Peer-to-peer marketplace to buy and sell verified train and bus tickets in Bangladesh.",
+        description: DEFAULT_DESCRIPTION,
       },
       {
         "@type": "Organization",

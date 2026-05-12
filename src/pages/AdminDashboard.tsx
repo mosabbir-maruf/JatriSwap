@@ -584,8 +584,8 @@ const RecentTicketPostRow = memo(function RecentTicketPostRow({
 }) {
   const sellerPhone = ticket.sellerPhone || sellerRow?.phone;
   return (
-    <div className="flex justify-between items-center border-l-4 border-primary p-3 bg-muted/20 gap-3">
-      <div className="min-w-0">
+    <div className="flex max-md:flex-col max-md:gap-3 max-md:overflow-x-hidden justify-between items-stretch border-l-4 border-primary p-3 bg-muted/20 gap-3 md:items-center">
+      <div className="min-w-0 w-full">
         <div className="flex flex-wrap items-center gap-2">
           <AdminTicketStatusBadge ticket={ticket} />
         </div>
@@ -596,7 +596,7 @@ const RecentTicketPostRow = memo(function RecentTicketPostRow({
           <span className="text-muted-foreground/90">Departure</span> ·{" "}
           {formatTripLineForAdmin(ticket.date, ticket.departureTime)}
         </p>
-        <p className="font-heading font-bold text-lg uppercase leading-none mt-1">{ticket.transportName}</p>
+        <p className="font-heading font-bold text-lg uppercase leading-none mt-1 break-words">{ticket.transportName}</p>
         <p className="font-mono text-xs text-muted-foreground mt-1">
           {ticket.from} → {ticket.to}
         </p>
@@ -605,32 +605,32 @@ const RecentTicketPostRow = memo(function RecentTicketPostRow({
           className="mt-1 block font-mono text-[10px] font-black uppercase tracking-widest text-primary underline-offset-2 hover:underline break-all max-w-full"
         />
       </div>
-      <div className="text-right flex flex-col items-end gap-0.5 min-w-0 max-w-[58%] shrink-0">
+      <div className="flex min-w-0 w-full flex-col gap-0.5 border-t border-foreground/15 pt-3 max-md:text-left max-md:items-stretch md:w-auto md:max-w-[58%] md:shrink-0 md:border-t-0 md:pt-0 md:text-right md:items-end">
         <p className="font-heading text-xl font-black tracking-tighter text-emerald-600">৳{ticket.sellingPrice}</p>
         <AdminSellerProfileLink
           ticket={ticket}
           sellerRow={sellerRow}
           profileTab="overview"
-          linkClassName="font-mono text-[10px] font-bold text-primary underline-offset-2 hover:underline truncate max-w-full text-right"
-          noSellerIdClassName="font-mono text-[10px] font-bold text-muted-foreground truncate max-w-full"
+          linkClassName="font-mono text-[10px] font-bold text-primary underline-offset-2 hover:underline max-w-full text-left md:truncate md:text-right"
+          noSellerIdClassName="font-mono text-[10px] font-bold text-muted-foreground max-w-full text-left break-words md:truncate md:text-right"
         />
-        <div className="font-mono text-[10px] mt-0.5 max-w-full flex justify-end">
+        <div className="font-mono text-[10px] mt-0.5 max-w-full flex justify-start md:justify-end">
           <AdminSellerListingMailRow
             ticket={ticket}
             sellerRow={sellerRow}
-            linkClassName={`${adminTelLinkClass} justify-end max-w-full`}
-            fallbackClassName="text-muted-foreground truncate font-normal text-right"
+            linkClassName={`${adminTelLinkClass} justify-start max-md:[&_span]:overflow-visible max-md:[&_span]:whitespace-normal max-md:[&_span]:break-all md:justify-end max-w-full min-w-0`}
+            fallbackClassName="text-muted-foreground font-normal text-left break-words md:text-right"
             emptyLabel="No email on file"
           />
         </div>
         {sellerPhone ? (
           <a
             href={phoneDisplayToTelHref(sellerPhone)}
-            className={`font-mono text-[10px] text-muted-foreground mt-1 justify-end ${adminTelLinkClass} max-w-full`}
+            className={`font-mono text-[10px] text-muted-foreground mt-1 flex justify-start md:justify-end ${adminTelLinkClass} max-w-full min-w-0`}
             title="Call seller"
           >
             <Phone className="w-3 h-3 shrink-0" aria-hidden />
-            <span className="truncate min-w-0">{sellerPhone}</span>
+            <span className="min-w-0 max-md:whitespace-normal max-md:break-all md:truncate">{sellerPhone}</span>
           </a>
         ) : (
           <p className="font-mono text-[10px] text-muted-foreground/70 mt-1 italic">No phone on file</p>
@@ -1462,10 +1462,12 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Daily/Weekly Stats */}
               <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 lg:col-span-2">
-                <div className="mb-6 flex flex-wrap items-start justify-between gap-3 border-b-4 border-foreground pb-4">
-                  <div className="flex flex-wrap items-center gap-2 min-w-0">
-                    <h3 className="font-heading text-2xl font-black uppercase tracking-tighter">Recent Ticket Posts</h3>
-                    <Badge className="rounded-none bg-primary text-primary-foreground border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] font-mono text-[10px] tracking-widest font-black uppercase shrink-0">
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b-4 border-foreground pb-4">
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <h3 className="order-2 font-heading text-xl font-black uppercase leading-tight tracking-tighter sm:text-2xl">
+                      Recent Ticket Posts
+                    </h3>
+                    <Badge className="order-1 self-start rounded-none bg-primary text-primary-foreground border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] font-mono text-[10px] tracking-widest font-black uppercase whitespace-nowrap">
                       Live Updates
                     </Badge>
                   </div>

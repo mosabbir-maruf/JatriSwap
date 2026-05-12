@@ -1,11 +1,19 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { BuyerPurchaseRequestCard } from "@/src/components/common/BuyerPurchaseRequestCard";
 import { TicketCard } from "@/src/components/common/TicketCard";
 import {
@@ -62,6 +70,7 @@ import { persistProfileDisplayAvatar } from "@/src/lib/avatar";
 
 /** Sidebar shows newest subset; full history on `/alerts`. */
 const ALERTS_SIDEBAR_PREVIEW_LIMIT = 4;
+type DashboardTab = "listings" | "requests" | "drafts";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -78,6 +87,7 @@ const Dashboard = () => {
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
   /** Bump when localStorage draft may have changed (other tab or revisiting drafts tab). */
   const [sellDraftRevision, setSellDraftRevision] = useState(0);
+  const [dashboardTab, setDashboardTab] = useState<DashboardTab>("listings");
 
   useEffect(() => {
     if (searchParams.get("action") === "profile") {
@@ -263,6 +273,11 @@ const Dashboard = () => {
   }
 
   const profileUiLabel = currentUser.role === "admin" ? "Profile" : "Edit Profile";
+  const handleDashboardTabChange = (value: string) => {
+    const nextTab = value as DashboardTab;
+    setDashboardTab(nextTab);
+    if (nextTab === "drafts") setSellDraftRevision((r) => r + 1);
+  };
 
   const DASHBOARD_STATS = {
     ...currentUser,
@@ -468,13 +483,39 @@ const Dashboard = () => {
           {/* Main Content Area */}
           <div className="lg:col-span-3">
              <Tabs
-               defaultValue="listings"
+               value={dashboardTab}
                className="w-full"
-               onValueChange={(v) => {
-                 if (v === 'drafts') setSellDraftRevision((r) => r + 1);
-               }}
+               onValueChange={handleDashboardTabChange}
              >
-               <TabsList className="bg-muted p-2 rounded-none border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] h-auto overflow-x-auto justify-start w-full gap-2 relative mb-8">
+               <div className="mb-8 space-y-2 md:hidden">
+                 <Label
+                   htmlFor="dashboard-section"
+                   className="font-mono text-[11px] uppercase tracking-widest font-black text-muted-foreground"
+                 >
+                   Dashboard section
+                 </Label>
+                 <Select value={dashboardTab} onValueChange={handleDashboardTabChange}>
+                   <SelectTrigger
+                     id="dashboard-section"
+                     className="w-full min-h-[3.5rem] h-14 px-4 rounded-none border-4 border-foreground bg-background font-mono text-sm uppercase font-bold tracking-widest shadow-[6px_6px_0_0_rgba(0,0,0,1)] hover:bg-muted/40 [&_svg]:size-5 [&_svg]:opacity-100"
+                   >
+                     <SelectValue placeholder="Choose section" />
+                   </SelectTrigger>
+                   <SelectContent className="rounded-none border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] max-h-[min(70vh,420px)]">
+                     <SelectItem value="listings" className="rounded-none font-mono text-sm uppercase font-bold py-3.5 min-h-12">
+                       My Listings
+                     </SelectItem>
+                     <SelectItem value="requests" className="rounded-none font-mono text-sm uppercase font-bold py-3.5 min-h-12">
+                       Purchase Requests
+                     </SelectItem>
+                     <SelectItem value="drafts" className="rounded-none font-mono text-sm uppercase font-bold py-3.5 min-h-12">
+                       Drafts & History
+                     </SelectItem>
+                   </SelectContent>
+                 </Select>
+               </div>
+
+               <TabsList className="hidden md:flex bg-muted p-2 rounded-none border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] h-auto overflow-x-auto justify-start w-full gap-2 relative mb-8">
                  <TabsTrigger value="listings" className="data-active:!bg-foreground data-active:!text-background rounded-none px-4 sm:px-6 py-3 font-mono text-[10px] sm:text-xs uppercase tracking-widest font-bold shrink-0 flex-1">My Listings</TabsTrigger>
                   <TabsTrigger
                     value="requests"
@@ -483,7 +524,7 @@ const Dashboard = () => {
                     <span className="hidden sm:inline">Purchase requests</span>
                     <span className="sm:hidden">Leads</span>
                   </TabsTrigger>
-                 <TabsTrigger value="drafts" className="data-active:!bg-foreground data-active:!text-background rounded-none px-4 sm:px-6 py-3 font-mono text-[10px] sm:text-xs uppercase tracking-widest font-bold shrink-0 flex-1 hidden md:flex">Drafts & History</TabsTrigger>
+                 <TabsTrigger value="drafts" className="data-active:!bg-foreground data-active:!text-background rounded-none px-4 sm:px-6 py-3 font-mono text-[10px] sm:text-xs uppercase tracking-widest font-bold shrink-0 flex-1">Drafts & History</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="listings" className="space-y-6 mt-0">

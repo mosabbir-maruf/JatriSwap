@@ -181,7 +181,7 @@ const Contact = () => {
              transition={{ duration: 0.5, delay: 0.2 }}
              className="max-lg:order-2 lg:order-none lg:col-span-2"
            >
-              <div className="bg-background border-4 border-foreground p-8 md:p-12 shadow-[16px_16px_0_0_rgba(0,0,0,1)]">
+              <div className="bg-background border-4 border-foreground p-8 md:p-12 shadow-[8px_8px_0_0_rgba(0,0,0,1)] sm:shadow-[16px_16px_0_0_rgba(0,0,0,1)]">
                  <h2 className="font-heading text-3xl font-black uppercase tracking-tighter mb-8">Send a Message</h2>
                  
                  {isSuccess ? (

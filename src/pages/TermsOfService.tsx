@@ -22,7 +22,7 @@ export default function TermsOfService() {
           </div>
         </div>
 
-        <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 md:p-16">
+        <div className="bg-background border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] sm:shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 md:p-16">
             <div className="space-y-8">
               <section>
                 <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">1. Acceptance of Terms</h2>

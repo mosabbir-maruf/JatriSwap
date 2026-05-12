@@ -52,7 +52,7 @@ const FAQ = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="bg-background border-4 border-foreground p-6 md:p-10 shadow-[12px_12px_0_0_rgba(0,0,0,1)] lg:shadow-[16px_16px_0_0_rgba(0,0,0,1)]"
+          className="bg-background border-4 border-foreground p-6 md:p-10 shadow-[8px_8px_0_0_rgba(0,0,0,1)] sm:shadow-[12px_12px_0_0_rgba(0,0,0,1)] lg:shadow-[16px_16px_0_0_rgba(0,0,0,1)]"
         >
            <Accordion type="single" collapsible className="w-full space-y-4">
              {faqs.map((faq, index) => (

@@ -1081,6 +1081,25 @@ export default function AdminDashboard() {
     return { sold, pending };
   }, [tickets]);
 
+  /** Pre-merge rollups + status once per users/seller-stats change (User Management table). */
+  const userManagementTableRows = useMemo(
+    () =>
+      users.map((user) => {
+        const ticketRollup = sellerTicketStatsByUserId.get(user.id);
+        const postsCount = ticketRollup?.ticketsPosted ?? user.ticketsPosted ?? 0;
+        const activeCount = ticketRollup?.activeAvailable ?? user.performance?.active ?? 0;
+        const soldCount = ticketRollup?.sold ?? user.performance?.sold ?? 0;
+        return {
+          user,
+          postsCount,
+          activeCount,
+          soldCount,
+          accountRowStatus: normalizeUserAccountStatus(user.status),
+        };
+      }),
+    [users, sellerTicketStatsByUserId],
+  );
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center font-mono uppercase font-bold tracking-widest text-muted-foreground">Verifying access...</div>;
   }
@@ -1929,24 +1948,18 @@ export default function AdminDashboard() {
                 <table className="w-full text-left font-mono text-[10px] xl:text-xs">
                   <thead className="bg-foreground text-background uppercase tracking-widest font-black border-2 border-foreground">
                     <tr>
-                      <th className="p-3 border-r-2 border-foreground">User ID</th>
-                      <th className="p-3 border-r-2 border-foreground">Name & Contact</th>
-                      <th className="p-3 border-r-2 border-foreground">Performance</th>
-                      <th className="p-3 border-r-2 border-foreground">Status / Role</th>
-                      <th className="p-3">Actions</th>
+                      <th className="p-3 border-r-2 border-foreground whitespace-nowrap">User ID</th>
+                      <th className="p-3 border-r-2 border-foreground whitespace-nowrap">Name & Contact</th>
+                      <th className="p-3 border-r-2 border-foreground whitespace-nowrap">Performance</th>
+                      <th className="p-3 border-r-2 border-foreground whitespace-nowrap">Status / Role</th>
+                      <th className="p-3 whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map((user, i) => {
-                      const ticketRollup = sellerTicketStatsByUserId.get(user.id);
-                      const postsCount = ticketRollup?.ticketsPosted ?? user.ticketsPosted ?? 0;
-                      const activeCount =
-                        ticketRollup?.activeAvailable ?? user.performance?.active ?? 0;
-                      const soldCount = ticketRollup?.sold ?? user.performance?.sold ?? 0;
-                      const accountRowStatus = normalizeUserAccountStatus(user.status);
+                    {userManagementTableRows.map(({ user, postsCount, activeCount, soldCount, accountRowStatus }, i) => {
                       return (
                       <tr key={user.id} className={`border-2 border-t-0 border-foreground ${i % 2 === 0 ? "bg-muted/10" : "bg-background"} hover:bg-muted/50 transition-colors`}>
-                        <td className="p-3 font-bold border-r-2 border-foreground">
+                        <td className="p-3 font-bold border-r-2 border-foreground align-top min-w-0 max-md:min-w-[13rem]">
                            <button
                              type="button"
                              onClick={(e) => {
@@ -1956,15 +1969,17 @@ export default function AdminDashboard() {
                              }}
                              title="Click to copy user ID"
                              aria-label={`Copy user ID ${user.id}`}
-                             className="cursor-pointer border-0 bg-transparent p-0 text-left font-mono font-bold text-blue-600 break-all outline-none transition-colors hover:text-blue-800 focus-visible:text-blue-800 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-1"
+                             className="cursor-pointer border-0 bg-transparent p-0 text-left font-mono text-[10px] xl:text-xs font-bold text-blue-600 outline-none transition-colors hover:text-blue-800 focus-visible:text-blue-800 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-1 max-w-full min-w-0"
                            >
-                             {user.id}
+                             <span className="inline-block whitespace-nowrap">{user.id}</span>
                            </button>
-                           <p className="text-[9px] text-muted-foreground font-normal">
-                             Joined: {formatJoinedAtDisplay(user.joinedAt)}
+                           <p className="text-[9px] text-muted-foreground font-normal mt-0.5">
+                             <span className="inline-block whitespace-nowrap">
+                               Joined: {formatJoinedAtDisplay(user.joinedAt)}
+                             </span>
                            </p>
                         </td>
-                        <td className="p-3 border-r-2 border-foreground">
+                        <td className="p-3 border-r-2 border-foreground align-top min-w-0">
                           <p className="font-heading font-bold text-sm uppercase">
                             <Link
                               to={adminUserProfilePath(user.id, "users")}
@@ -1990,19 +2005,25 @@ export default function AdminDashboard() {
                           {user.phone ? (
                             <a
                               href={phoneDisplayToTelHref(user.phone)}
-                              className={`text-[10px] text-muted-foreground font-mono ${adminTelLinkClass}`}
+                              className={`text-[10px] text-muted-foreground font-mono ${adminTelLinkClass} inline-block max-w-full whitespace-nowrap`}
                               title="Open phone app"
                             >
                               {user.phone}
                             </a>
                           ) : null}
                         </td>
-                        <td className="p-3 font-bold border-r-2 border-foreground">
-                           <p>Posts: <span className="text-foreground">{postsCount}</span></p>
-                           <p>Active Layout: <span className="text-foreground">{activeCount}</span></p>
-                           <p>Sold Tickets: <span className="text-foreground">{soldCount}</span></p>
+                        <td className="p-3 font-bold border-r-2 border-foreground align-top min-w-0 max-md:min-w-[12rem]">
+                           <p className="whitespace-nowrap">
+                             Posts: <span className="text-foreground">{postsCount}</span>
+                           </p>
+                           <p className="whitespace-nowrap">
+                             Active Layout: <span className="text-foreground">{activeCount}</span>
+                           </p>
+                           <p className="whitespace-nowrap">
+                             Sold Tickets: <span className="text-foreground">{soldCount}</span>
+                           </p>
                         </td>
-                        <td className="p-3 border-r-2 border-foreground">
+                        <td className="p-3 border-r-2 border-foreground align-top min-w-0">
                            <Badge
                              className={`rounded-none border-2 border-foreground font-black text-[10px] uppercase shadow-[2px_2px_0_0_rgba(0,0,0,1)] ${
                                accountRowStatus === "active"
@@ -2016,7 +2037,9 @@ export default function AdminDashboard() {
                            >
                              {accountRowStatus}
                            </Badge>
-                          <p className="mt-1 font-bold text-muted-foreground uppercase">{user.role}</p>
+                          <p className="mt-1 font-bold text-muted-foreground uppercase">
+                            <span className="inline-block whitespace-nowrap">{user.role}</span>
+                          </p>
                         </td>
                         <td className="p-3">
                           <div className="flex items-center gap-2">

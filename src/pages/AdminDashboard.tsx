@@ -1339,30 +1339,91 @@ export default function AdminDashboard() {
         </div>
 
         <Tabs value={activeTab} onValueChange={handleAdminTabChange} className="mb-12">
-          <TabsList className="bg-muted p-2 rounded-none border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] h-auto overflow-x-auto justify-start w-full gap-2 relative">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-foreground data-[state=active]:text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold">
+          {/* Mobile: one control instead of a long tab strip */}
+          <div className="mb-2 space-y-2 md:hidden">
+            <Label
+              htmlFor="admin-dashboard-section"
+              className="font-mono text-[11px] uppercase tracking-widest font-black text-muted-foreground"
+            >
+              Admin section
+            </Label>
+            <Select value={activeTab} onValueChange={handleAdminTabChange}>
+              <SelectTrigger
+                id="admin-dashboard-section"
+                className="w-full min-h-[3.5rem] h-14 px-4 rounded-none border-4 border-foreground bg-background font-mono text-sm uppercase font-bold tracking-widest shadow-[6px_6px_0_0_rgba(0,0,0,1)] hover:bg-muted/40 [&_svg]:size-5 [&_svg]:opacity-100"
+              >
+                <SelectValue placeholder="Choose section" />
+              </SelectTrigger>
+              <SelectContent className="rounded-none border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] max-h-[min(70vh,420px)]">
+                <SelectItem value="overview" className="rounded-none font-mono text-sm uppercase font-bold py-3.5 min-h-12">
+                  Analytics & Overview
+                </SelectItem>
+                <SelectItem value="tickets" className="rounded-none font-mono text-sm uppercase font-bold py-3.5 min-h-12">
+                  Manage Tickets
+                </SelectItem>
+                <SelectItem value="users" className="rounded-none font-mono text-sm uppercase font-bold py-3.5 min-h-12">
+                  Manage Users
+                </SelectItem>
+                <SelectItem value="reports" className="rounded-none font-mono text-sm uppercase font-bold py-3.5 min-h-12">
+                  Scam & Reports
+                </SelectItem>
+                <SelectItem value="logs" className="rounded-none font-mono text-sm uppercase font-bold py-3.5 min-h-12">
+                  Audit Logs
+                </SelectItem>
+                {adminRole === "Super Admin" ? (
+                  <SelectItem
+                    value="admins"
+                    className="rounded-none font-mono text-sm uppercase font-bold py-3.5 min-h-12 text-destructive focus:text-destructive"
+                  >
+                    Admins & Roles
+                  </SelectItem>
+                ) : null}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <TabsList className="hidden md:flex bg-muted p-2 rounded-none border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] h-auto overflow-x-auto justify-start w-full gap-2 relative">
+            <TabsTrigger
+              value="overview"
+              className="data-[state=active]:bg-foreground data-[state=active]:text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold shrink-0"
+            >
               Analytics & Overview
             </TabsTrigger>
-            <TabsTrigger value="tickets" className="data-[state=active]:bg-foreground data-[state=active]:text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold">
+            <TabsTrigger
+              value="tickets"
+              className="data-[state=active]:bg-foreground data-[state=active]:text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold shrink-0"
+            >
               Manage Tickets
             </TabsTrigger>
-            <TabsTrigger value="users" className="data-[state=active]:bg-foreground data-[state=active]:text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold">
+            <TabsTrigger
+              value="users"
+              className="data-[state=active]:bg-foreground data-[state=active]:text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold shrink-0"
+            >
               Manage Users
             </TabsTrigger>
-            <TabsTrigger value="reports" className="data-[state=active]:bg-foreground data-[state=active]:text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold">
+            <TabsTrigger
+              value="reports"
+              className="data-[state=active]:bg-foreground data-[state=active]:text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold shrink-0"
+            >
               Scam & Reports
             </TabsTrigger>
-            <TabsTrigger value="logs" className="data-[state=active]:bg-foreground data-[state=active]:text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold">
+            <TabsTrigger
+              value="logs"
+              className="data-[state=active]:bg-foreground data-[state=active]:text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold shrink-0"
+            >
               Audit Logs
             </TabsTrigger>
             {adminRole === "Super Admin" && (
-              <TabsTrigger value="admins" className="data-[state=active]:bg-foreground data-[state=active]:text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold text-destructive">
+              <TabsTrigger
+                value="admins"
+                className="data-[state=active]:bg-foreground data-[state=active]:text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold shrink-0 text-destructive"
+              >
                 Admins & Roles
               </TabsTrigger>
             )}
           </TabsList>
 
-          <TabsContent value="overview" className="mt-10 space-y-8 animate-in fade-in zoom-in-95 duration-200">
+          <TabsContent value="overview" className="mt-4 md:mt-10 space-y-8 animate-in fade-in zoom-in-95 duration-200">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-background border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] p-6 flex flex-col justify-between h-40">
                 <div className="flex justify-between items-start">
@@ -1579,7 +1640,7 @@ export default function AdminDashboard() {
             </div>
           </TabsContent>
 
-          <TabsContent value="tickets" className="mt-10 animate-in fade-in zoom-in-95 duration-200">
+          <TabsContent value="tickets" className="mt-4 md:mt-10 animate-in fade-in zoom-in-95 duration-200">
             <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 flex flex-col min-h-[600px]">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                 <h3 className="font-heading text-3xl font-black uppercase tracking-tighter bg-foreground text-background px-3 py-1 border-2 border-foreground inline-block">Manage Tickets</h3>
@@ -1784,7 +1845,7 @@ export default function AdminDashboard() {
             </div>
           </TabsContent>
 
-          <TabsContent value="users" className="mt-10 animate-in fade-in zoom-in-95 duration-200">
+          <TabsContent value="users" className="mt-4 md:mt-10 animate-in fade-in zoom-in-95 duration-200">
             <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 flex flex-col min-h-[600px]">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                 <div className="space-y-1">
@@ -1933,7 +1994,7 @@ export default function AdminDashboard() {
             </div>
           </TabsContent>
 
-          <TabsContent value="reports" className="mt-10 animate-in fade-in zoom-in-95 duration-200">
+          <TabsContent value="reports" className="mt-4 md:mt-10 animate-in fade-in zoom-in-95 duration-200">
              <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8">
                <h3 className="font-heading text-3xl font-black uppercase tracking-tighter bg-destructive text-destructive-foreground px-3 py-1 border-2 border-foreground inline-block mb-8">Scam Reporting System</h3>
                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -2083,7 +2144,7 @@ export default function AdminDashboard() {
              </div>
           </TabsContent>
 
-          <TabsContent value="logs" className="mt-10 animate-in fade-in zoom-in-95 duration-200">
+          <TabsContent value="logs" className="mt-4 md:mt-10 animate-in fade-in zoom-in-95 duration-200">
              <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8">
                 <h3 className="font-heading text-3xl font-black uppercase tracking-tighter bg-muted text-foreground px-3 py-1 border-2 border-foreground inline-block mb-8">Audit Logs</h3>
                 <div className="space-y-4">
@@ -2105,7 +2166,7 @@ export default function AdminDashboard() {
              </div>
           </TabsContent>
 
-          <TabsContent value="admins" className="mt-10 animate-in fade-in zoom-in-95 duration-200">
+          <TabsContent value="admins" className="mt-4 md:mt-10 animate-in fade-in zoom-in-95 duration-200">
              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Admin List Column */}
                 <div className="lg:col-span-1 space-y-4">

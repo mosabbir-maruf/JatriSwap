@@ -136,8 +136,41 @@ const adminPagedOverviewDialogContentClass =
 const adminPagedLoadMoreButtonClass =
   "w-full rounded-none border-2 border-foreground font-mono text-[10px] font-black uppercase tracking-widest shadow-[4px_4px_0_0_rgba(0,0,0,1)]";
 
-/** Same vertical rhythm: Live Updates badge → title (overview card + View-all dialog header). */
-const ADMIN_RECENT_POSTS_BADGE_TITLE_GAP_CLASS = "gap-1";
+/** Badge → title stack + “View all” (Recent Ticket Posts + Recent Buyer Requests overview cards). */
+const ADMIN_OVERVIEW_BADGE_TITLE_GAP_CLASS = "gap-1";
+
+const adminOverviewSectionCardHeaderClass =
+  "mb-6 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b-4 border-foreground pb-4";
+
+const adminOverviewViewAllButtonClass =
+  "rounded-none border-2 border-foreground font-mono text-[10px] font-black uppercase tracking-widest shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-px shrink-0";
+
+const adminOverviewCardSectionTitleClass =
+  "order-2 font-heading text-xl font-black uppercase leading-tight tracking-tighter sm:text-2xl";
+
+function AdminOverviewCardSectionHeader({
+  title,
+  badge,
+  viewAll,
+}: {
+  title: string;
+  badge: ReactNode;
+  viewAll?: { show: boolean; onClick: () => void };
+}) {
+  return (
+    <div className={adminOverviewSectionCardHeaderClass}>
+      <div className={cn("flex min-w-0 flex-1 flex-col", ADMIN_OVERVIEW_BADGE_TITLE_GAP_CLASS)}>
+        <h3 className={adminOverviewCardSectionTitleClass}>{title}</h3>
+        <div className="order-1 min-w-0">{badge}</div>
+      </div>
+      {viewAll?.show ? (
+        <Button type="button" variant="outline" className={adminOverviewViewAllButtonClass} onClick={viewAll.onClick}>
+          View all
+        </Button>
+      ) : null}
+    </div>
+  );
+}
 
 function AdminRecentPostsLiveUpdatesBadge({ className }: { className?: string }) {
   return (
@@ -148,6 +181,22 @@ function AdminRecentPostsLiveUpdatesBadge({ className }: { className?: string })
       )}
     >
       Live Updates
+    </Badge>
+  );
+}
+
+/** Same outline + icon treatment as overview; reuse in “View all” dialog header. */
+function AdminBuyerRequestsWhatsAppHandoffBadge({ className }: { className?: string }) {
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        "self-start rounded-none border-2 border-foreground font-mono text-[9px] font-black uppercase tracking-widest gap-1 py-0 shrink-0",
+        className,
+      )}
+    >
+      <MessageCircle className="w-3 h-3 text-emerald-600 shrink-0" aria-hidden />
+      WhatsApp handoff
     </Badge>
   );
 }
@@ -182,7 +231,7 @@ function AdminPagedOverviewDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  /** Optional e.g. “Live Updates” above the title (recent ticket posts only). */
+  /** Optional badge above the title (e.g. Live Updates, WhatsApp handoff). */
   titleBadge?: ReactNode;
   loading: boolean;
   itemCount: number;
@@ -200,7 +249,7 @@ function AdminPagedOverviewDialog({
         <DialogHeader
           className={cn(
             "p-6 pb-4 border-b-4 border-foreground shrink-0",
-            ADMIN_RECENT_POSTS_BADGE_TITLE_GAP_CLASS,
+            ADMIN_OVERVIEW_BADGE_TITLE_GAP_CLASS,
           )}
         >
           {titleBadge}
@@ -1505,29 +1554,15 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Daily/Weekly Stats */}
               <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 lg:col-span-2">
-                <div className="mb-6 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b-4 border-foreground pb-4">
-                  <div
-                    className={cn(
-                      "flex min-w-0 flex-1 flex-col",
-                      ADMIN_RECENT_POSTS_BADGE_TITLE_GAP_CLASS,
-                    )}
-                  >
-                    <h3 className="order-2 font-heading text-xl font-black uppercase leading-tight tracking-tighter sm:text-2xl">
-                      Recent Ticket Posts
-                    </h3>
-                    <AdminRecentPostsLiveUpdatesBadge className="order-1" />
-                  </div>
-                  {recentTicketsOverviewHasMore ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="rounded-none border-2 border-foreground font-mono text-[10px] font-black uppercase tracking-widest shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-px shrink-0"
-                      onClick={() => setRecentTicketsListOpen(true)}
-                    >
-                      View all
-                    </Button>
-                  ) : null}
-                </div>
+                <AdminOverviewCardSectionHeader
+                  title="Recent Ticket Posts"
+                  badge={<AdminRecentPostsLiveUpdatesBadge />}
+                  viewAll={
+                    recentTicketsOverviewHasMore
+                      ? { show: true, onClick: () => setRecentTicketsListOpen(true) }
+                      : undefined
+                  }
+                />
                 <AdminTicketSearchStatusFilters
                   {...recentTicketPostsFilterProps}
                   {...ADMIN_RECENT_TICKET_POSTS_FILTERS_OVERVIEW_LAYOUT}
@@ -1601,25 +1636,15 @@ export default function AdminDashboard() {
 
               {/* Recent Buyer Requests */}
                <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 lg:col-span-3">
-                 <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b-4 border-foreground pb-4">
-                   <div className="flex flex-wrap items-center gap-2 min-w-0">
-                     <h3 className="font-heading text-xl font-black uppercase tracking-tighter">Recent Buyer Requests</h3>
-                     <Badge variant="outline" className="rounded-none border-2 border-foreground font-mono text-[9px] font-black uppercase tracking-widest gap-1 py-0 shrink-0">
-                       <MessageCircle className="w-3 h-3 text-emerald-600 shrink-0" aria-hidden />
-                       WhatsApp handoff
-                     </Badge>
-                   </div>
-                   {buyerPurchaseOverviewHasMore ? (
-                     <Button
-                       type="button"
-                       variant="outline"
-                       className="rounded-none border-2 border-foreground font-mono text-[10px] font-black uppercase tracking-widest shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-px shrink-0"
-                       onClick={() => setBuyerPurchaseListOpen(true)}
-                     >
-                       View all
-                     </Button>
-                   ) : null}
-                 </div>
+                 <AdminOverviewCardSectionHeader
+                   title="Recent Buyer Requests"
+                   badge={<AdminBuyerRequestsWhatsAppHandoffBadge />}
+                   viewAll={
+                     buyerPurchaseOverviewHasMore
+                       ? { show: true, onClick: () => setBuyerPurchaseListOpen(true) }
+                       : undefined
+                   }
+                 />
                  <div
                    className={
                      buyerPurchaseOverview.length === 0 ? "" : "grid grid-cols-1 md:grid-cols-3 gap-4"
@@ -1644,6 +1669,7 @@ export default function AdminDashboard() {
                   }
                 }}
                 title="Buyer purchase requests"
+                titleBadge={<AdminBuyerRequestsWhatsAppHandoffBadge />}
                 loading={buyerPurchaseListLoading}
                 itemCount={buyerPurchaseListItems.length}
                 hasMore={buyerPurchaseListHasMore}

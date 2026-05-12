@@ -21,8 +21,12 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { handleFirestoreError } from './errors';
-import { getUser } from './users';
-import { ListingWriteBlockedError, throwIfSellerListingWriteBlocked } from '../listingWriteGuard';
+import {
+  ListingWriteBlockedError,
+  SellerProfileMissingError,
+  loadProfileForSellerListingWrite,
+  assertSellerMayPostListing,
+} from '../listingWriteGuard';
 import { sliceQueryDocsPage } from './queryPageSlice';
 import { OperationType, Ticket } from '../../types';
 
@@ -173,8 +177,8 @@ export const createTicket = async (
 ): Promise<string> => {
   const path = 'tickets';
   try {
-    const profile = await getUser(userId);
-    throwIfSellerListingWriteBlocked(profile);
+    const profile = await loadProfileForSellerListingWrite(userId);
+    assertSellerMayPostListing(profile);
     const docRef = await addDoc(collection(db, 'tickets'), {
       ...data,
       sellerId: userId,
@@ -184,6 +188,7 @@ export const createTicket = async (
     return docRef.id;
   } catch (error) {
     if (error instanceof ListingWriteBlockedError) throw error;
+    if (error instanceof SellerProfileMissingError) throw error;
     handleFirestoreError(error, OperationType.CREATE, path);
   }
 };
@@ -210,8 +215,8 @@ export const updateTicket = async (
       if (snap.exists()) {
         const sellerId = snap.data().sellerId as string | undefined;
         if (sellerId === uid) {
-          const profile = await getUser(uid);
-          throwIfSellerListingWriteBlocked(profile);
+          const profile = await loadProfileForSellerListingWrite(uid);
+          assertSellerMayPostListing(profile);
         }
       }
     }
@@ -219,6 +224,7 @@ export const updateTicket = async (
     await updateDoc(docRef, data);
   } catch (error) {
     if (error instanceof ListingWriteBlockedError) throw error;
+    if (error instanceof SellerProfileMissingError) throw error;
     handleFirestoreError(error, OperationType.UPDATE, path);
   }
 };

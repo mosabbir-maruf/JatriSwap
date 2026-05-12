@@ -13,6 +13,15 @@ export class FirestoreServiceError extends Error {
   }
 }
 
+/** Firebase Web SDK `FirebaseError.code`, when present. */
+export function firebaseErrorCode(error: unknown): string | undefined {
+  if (typeof error === 'object' && error !== null && 'code' in error) {
+    const c = (error as { code?: unknown }).code;
+    return typeof c === 'string' ? c : undefined;
+  }
+  return undefined;
+}
+
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
   const uid = auth.currentUser?.uid ?? undefined;
   const msg = error instanceof Error ? error.message : String(error);

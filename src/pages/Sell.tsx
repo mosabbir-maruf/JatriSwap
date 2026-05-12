@@ -1,5 +1,5 @@
 import * as React from "react"
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { STATIONS, TRANSPORTS, seatClassesForMode, transportNamesForMode } from "@/src/constants";
@@ -34,6 +34,13 @@ import {
   BRUTALIST_SINGLE_DAY_CALENDAR_ROOT_CLASSNAME,
 } from "@/src/lib/brutalistSingleDayCalendar";
 import { ticketDepartureDhakaMs } from "@/src/lib/ticketExpiration";
+import { ListingWriteBlockedError, SellerProfileMissingError } from "@/src/lib/listingWriteGuard";
+import {
+  LISTING_SELLER_PROFILE_MISSING_MESSAGE,
+  toastFirestoreListingSaveFailure,
+  toastListingSaveUnexpectedError,
+  toastSellListingBlockedFromShell,
+} from "@/src/lib/listingSaveFeedback";
 
 const steps = [
   "Route & Transport",
@@ -151,7 +158,9 @@ const Sell = () => {
         departureTime: formData.depTime,
       });
       if (departureMs !== null && departureMs <= Date.now()) {
-        toast.error("Departure must be in the future (Bangladesh time).");
+        toast.error(
+          "That journey time has already passed. Choose a future date and departure time.",
+        );
         return false;
       }
     }
@@ -211,6 +220,18 @@ const Sell = () => {
           t.mode === formData.transportMode,
       );
 
+      const originalPrice = Number(formData.originalPrice);
+      const sellingPrice = Number(formData.sellingPrice);
+      const passengerCount = Number(formData.passengerCount);
+      if (
+        !Number.isFinite(originalPrice) ||
+        !Number.isFinite(sellingPrice) ||
+        !Number.isFinite(passengerCount)
+      ) {
+        toast.error("Check prices and passenger count — use plain numbers only.");
+        return;
+      }
+
       await createTicket(firebaseUser.uid, {
         transportName: formData.transportName,
         transportType: transportRow?.type ?? "",
@@ -220,9 +241,9 @@ const Sell = () => {
         departureTime: formData.depTime,
         date: new Date(formData.date).toISOString(),
         seatClass: formData.seatClass,
-        originalPrice: Number(formData.originalPrice),
-        sellingPrice: Number(formData.sellingPrice),
-        passengerCount: Number(formData.passengerCount),
+        originalPrice,
+        sellingPrice,
+        passengerCount,
         sellerName: formData.sellerName,
         sellerPhone: formData.sellerPhone,
         ...(formData.additionalNotes.trim()
@@ -232,7 +253,16 @@ const Sell = () => {
       setIsSuccess(true);
       clearDraft();
     } catch (error) {
-       toast.error("Failed to submit ticket. Please try again.");
+      if (error instanceof ListingWriteBlockedError) {
+        toastSellListingBlockedFromShell(currentUser?.status);
+        return;
+      }
+      if (error instanceof SellerProfileMissingError) {
+        toast.error(LISTING_SELLER_PROFILE_MISSING_MESSAGE);
+        return;
+      }
+      if (toastFirestoreListingSaveFailure(error)) return;
+      toastListingSaveUnexpectedError(error);
     } finally {
       setIsSubmitting(false);
     }
@@ -296,9 +326,10 @@ const Sell = () => {
 
   const sellSeatMode = formData.transportMode === "bus" ? "bus" : "train";
   const sellSeatOptions = seatClassesForMode(sellSeatMode);
+  /** Empty string when unset so Select stays controlled (Base UI; avoid uncontrolled→controlled warning). */
   const sellSeatSelectValue = sellSeatOptions.includes(formData.seatClass)
     ? formData.seatClass
-    : undefined;
+    : "";
 
   if (isSuccess) {
     return (

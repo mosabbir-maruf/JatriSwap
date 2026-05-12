@@ -23,6 +23,7 @@ import { needsEmailVerification } from "@/src/lib/firebase/authVerification";
 import type {
   TicketReport,
   Ticket,
+  TicketStatus,
   AdminUserRow,
   PendingAdminRow,
   BuyerPurchaseRequest,
@@ -221,6 +222,157 @@ function formatTripLineForAdmin(dateRaw: string, departureRaw: string): string {
 
   if (dateLabel && timeLabel) return `${dateLabel} · ${timeLabel}`;
   return dateLabel || timeLabel || "—";
+}
+
+/** Manage Tickets + Recent Ticket Posts — ID, transport, seller, route, mode (`bus`/`train`), seller doc fields. */
+function ticketMatchesAdminSearch(
+  ticket: Ticket,
+  queryNormalized: string,
+  sellerRow: AdminUserRow | undefined,
+): boolean {
+  const q = queryNormalized;
+  if (!q) return true;
+  const hay = (value: string | undefined | null) => (value ?? "").toLowerCase();
+  if (
+    hay(ticket.id).includes(q) ||
+    hay(ticket.transportName).includes(q) ||
+    hay(ticket.sellerName).includes(q) ||
+    hay(ticket.from).includes(q) ||
+    hay(ticket.to).includes(q) ||
+    hay(ticket.mode).includes(q) ||
+    hay(ticket.sellerId).includes(q) ||
+    hay(ticket.sellerPhone).includes(q)
+  ) {
+    return true;
+  }
+  if (sellerRow) {
+    return (
+      hay(sellerRow.name).includes(q) ||
+      hay(sellerRow.email).includes(q) ||
+      hay(sellerRow.phone).includes(q)
+    );
+  }
+  return false;
+}
+
+const ADMIN_TICKET_SEARCH_PLACEHOLDER = "Filter by name, ID, route, mode…";
+
+/** Single pass: normalized query + optional derived-status filter (Manage Tickets + Recent posts). */
+function filterTicketsForAdmin(
+  list: Ticket[],
+  queryRaw: string,
+  statusFilter: string,
+  userById: Map<string, AdminUserRow>,
+): Ticket[] {
+  const q = queryRaw.trim().toLowerCase();
+  const now = Date.now();
+  const out: Ticket[] = [];
+  for (const t of list) {
+    const sellerRow = t.sellerId ? userById.get(t.sellerId) : undefined;
+    if (!ticketMatchesAdminSearch(t, q, sellerRow)) continue;
+    if (statusFilter !== "all" && ticketDisplayStatus(t, now) !== statusFilter) continue;
+    out.push(t);
+  }
+  return out;
+}
+
+const AdminTicketSearchStatusFilters = memo(function AdminTicketSearchStatusFilters({
+  searchValue,
+  onSearchChange,
+  statusValue,
+  onStatusChange,
+  searchAriaLabel,
+  rowClassName,
+  searchWrapClassName,
+  selectTriggerClassName,
+}: {
+  searchValue: string;
+  onSearchChange: (value: string) => void;
+  statusValue: string;
+  onStatusChange: (value: string) => void;
+  searchAriaLabel: string;
+  rowClassName?: string;
+  searchWrapClassName: string;
+  selectTriggerClassName?: string;
+}) {
+  return (
+    <div className={cn("flex flex-wrap items-center gap-2", rowClassName)}>
+      <div className={cn("relative", searchWrapClassName)}>
+        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+        <Input
+          placeholder={ADMIN_TICKET_SEARCH_PLACEHOLDER}
+          value={searchValue}
+          onChange={(e) => onSearchChange(e.target.value)}
+          className="pl-9 h-10 rounded-none border-2 border-foreground font-mono text-xs shadow-[4px_4px_0_0_rgba(0,0,0,1)] bg-background"
+          aria-label={searchAriaLabel}
+        />
+      </div>
+      <Select value={statusValue} onValueChange={onStatusChange}>
+        <SelectTrigger
+          className={cn(
+            "rounded-none border-2 border-foreground font-mono text-xs uppercase font-bold shadow-[4px_4px_0_0_rgba(0,0,0,1)] bg-background",
+            selectTriggerClassName,
+          )}
+        >
+          <SelectValue placeholder="Status" />
+        </SelectTrigger>
+        <SelectContent className="rounded-none border-2 border-foreground">
+          <SelectItem value="all" className="font-mono text-xs uppercase">
+            All
+          </SelectItem>
+          <SelectItem value="available" className="font-mono text-xs uppercase">
+            Available
+          </SelectItem>
+          <SelectItem value="flagged" className="font-mono text-xs uppercase">
+            Flagged
+          </SelectItem>
+          <SelectItem value="sold" className="font-mono text-xs uppercase">
+            Sold
+          </SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  );
+});
+
+function adminTicketStatusBadgeLabel(displayStatus: TicketStatus): string {
+  switch (displayStatus) {
+    case "available":
+      return "Available";
+    case "sold":
+      return "Sold";
+    case "pending":
+      return "Pending review";
+    case "flagged":
+      return "Flagged";
+    case "rejected":
+      return "Rejected";
+    case "expired":
+      return "Expired";
+    default:
+      return displayStatus;
+  }
+}
+
+function AdminTicketStatusBadge({ ticket }: { ticket: Ticket }) {
+  const displayStatus = ticketDisplayStatus(ticket);
+  const badgeClass =
+    displayStatus === "sold"
+      ? "bg-muted text-muted-foreground"
+      : displayStatus === "expired"
+        ? "bg-red-900 text-red-100"
+        : displayStatus === "available"
+          ? "bg-emerald-400 text-emerald-950"
+          : displayStatus === "flagged"
+            ? "bg-destructive text-destructive-foreground"
+            : "bg-muted text-muted-foreground";
+  return (
+    <Badge
+      className={`rounded-none border-2 border-foreground font-black text-[10px] uppercase shadow-[2px_2px_0_0_rgba(0,0,0,1)] ${badgeClass}`}
+    >
+      {adminTicketStatusBadgeLabel(displayStatus)}
+    </Badge>
+  );
 }
 
 function formatUnknownError(err: unknown): string {
@@ -434,8 +586,15 @@ const RecentTicketPostRow = memo(function RecentTicketPostRow({
   return (
     <div className="flex justify-between items-center border-l-4 border-primary p-3 bg-muted/20 gap-3">
       <div className="min-w-0">
-        <p className="font-mono text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-          {formatTicketPostedAtAmPm(ticket.postedAt)}
+        <div className="flex flex-wrap items-center gap-2">
+          <AdminTicketStatusBadge ticket={ticket} />
+        </div>
+        <p className="font-mono text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-2">
+          <span className="text-muted-foreground/90">Posted</span> · {formatTicketPostedAtAmPm(ticket.postedAt)}
+        </p>
+        <p className="font-mono text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-0.5">
+          <span className="text-muted-foreground/90">Departure</span> ·{" "}
+          {formatTripLineForAdmin(ticket.date, ticket.departureTime)}
         </p>
         <p className="font-heading font-bold text-lg uppercase leading-none mt-1">{ticket.transportName}</p>
         <p className="font-mono text-xs text-muted-foreground mt-1">
@@ -761,6 +920,8 @@ export default function AdminDashboard() {
   // Ticket Filters
   const [searchTicket, setSearchTicket] = useState("");
   const [filterTicketStatus, setFilterTicketStatus] = useState("all");
+  const [searchRecentTicketPosts, setSearchRecentTicketPosts] = useState("");
+  const [filterRecentTicketPostsStatus, setFilterRecentTicketPostsStatus] = useState("all");
 
   // Modal states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -793,6 +954,47 @@ export default function AdminDashboard() {
       acc[key] = (acc[key] ?? 0) + 1;
     }
     return acc;
+  }, [tickets]);
+
+  /**
+   * Must run before any conditional return — same hook order every render.
+   * Memoized ticket list for Manage Tickets tab (search + derived-expired status filter).
+   */
+  const filteredTickets = useMemo(
+    () => filterTicketsForAdmin(tickets, searchTicket, filterTicketStatus, userById),
+    [tickets, searchTicket, filterTicketStatus, userById],
+  );
+
+  const filteredRecentTicketsOverview = useMemo(
+    () =>
+      filterTicketsForAdmin(
+        recentTicketsOverview,
+        searchRecentTicketPosts,
+        filterRecentTicketPostsStatus,
+        userById,
+      ),
+    [recentTicketsOverview, searchRecentTicketPosts, filterRecentTicketPostsStatus, userById],
+  );
+
+  const filteredRecentTicketsListItems = useMemo(
+    () =>
+      filterTicketsForAdmin(
+        recentTicketsListItems,
+        searchRecentTicketPosts,
+        filterRecentTicketPostsStatus,
+        userById,
+      ),
+    [recentTicketsListItems, searchRecentTicketPosts, filterRecentTicketPostsStatus, userById],
+  );
+
+  const ticketSoldAndPendingCounts = useMemo(() => {
+    let sold = 0;
+    let pending = 0;
+    for (const t of tickets) {
+      if (t.status === "sold") sold += 1;
+      else if (t.status === "pending") pending += 1;
+    }
+    return { sold, pending };
   }, [tickets]);
 
   if (loading) {
@@ -1113,26 +1315,6 @@ export default function AdminDashboard() {
     }
   };
 
-  /**
-   * Admin ticket list — memoized so up-to-500 rows aren't re-filtered on
-   * every unrelated state change (tab switch, dialog open, etc.). Pins a
-   * single `now` snapshot for the derived-expired check across the pass.
-   */
-  const filteredTickets = useMemo(() => {
-    const q = searchTicket.toLowerCase();
-    const now = Date.now();
-    return tickets.filter((t) => {
-      const sellerLabel = (t.sellerName ?? "").toLowerCase();
-      const matchesSearch =
-        t.id.toLowerCase().includes(q) ||
-        t.transportName.toLowerCase().includes(q) ||
-        sellerLabel.includes(q);
-      if (!matchesSearch) return false;
-      if (filterTicketStatus === "all") return true;
-      return ticketDisplayStatus(t, now) === filterTicketStatus;
-    });
-  }, [tickets, searchTicket, filterTicketStatus]);
-
   return (
     <div className="flex-1 bg-background bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] min-h-screen pt-24 pb-24 relative">
       <div className="page-shell relative z-10">
@@ -1203,7 +1385,7 @@ export default function AdminDashboard() {
                   <h3 className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Tickets Sold</h3>
                   <CheckCircle2 className="w-5 h-5 text-blue-500" />
                 </div>
-                <div className="text-4xl font-heading font-black tracking-tighter">{tickets.filter(t => t.status === "sold").length}</div>
+                <div className="text-4xl font-heading font-black tracking-tighter">{ticketSoldAndPendingCounts.sold}</div>
                 <p className="font-mono text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Lifetime</p>
               </div>
               <div className="bg-destructive border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] p-6 flex flex-col justify-between h-40 transform rotate-1">
@@ -1211,7 +1393,7 @@ export default function AdminDashboard() {
                   <h3 className="font-mono text-[10px] uppercase tracking-widest font-bold text-destructive-foreground">Pending Items</h3>
                   <AlertTriangle className="w-5 h-5 text-destructive-foreground" />
                 </div>
-                <div className="text-4xl font-heading font-black tracking-tighter text-destructive-foreground">{tickets.filter(t => t.status === "pending").length}</div>
+                <div className="text-4xl font-heading font-black tracking-tighter text-destructive-foreground">{ticketSoldAndPendingCounts.pending}</div>
                 <p className="font-mono text-[10px] text-red-200 font-bold uppercase tracking-widest">Needs action</p>
               </div>
             </div>
@@ -1237,11 +1419,25 @@ export default function AdminDashboard() {
                     </Button>
                   ) : null}
                 </div>
+                <AdminTicketSearchStatusFilters
+                  rowClassName="w-full mb-4"
+                  searchWrapClassName="flex-1 min-w-[12rem] max-w-md"
+                  selectTriggerClassName="w-full sm:w-[140px]"
+                  searchValue={searchRecentTicketPosts}
+                  onSearchChange={setSearchRecentTicketPosts}
+                  statusValue={filterRecentTicketPostsStatus}
+                  onStatusChange={setFilterRecentTicketPostsStatus}
+                  searchAriaLabel="Filter recent ticket posts"
+                />
                 <div className="space-y-4">
                   {recentTicketsOverview.length === 0 ? (
                     <p className="font-mono text-xs font-bold text-muted-foreground">No listings yet.</p>
+                  ) : filteredRecentTicketsOverview.length === 0 ? (
+                    <p className="font-mono text-xs font-bold text-muted-foreground">
+                      No listings match your filters.
+                    </p>
                   ) : (
-                    recentTicketPostRows(recentTicketsOverview, userById)
+                    recentTicketPostRows(filteredRecentTicketsOverview, userById)
                   )}
                 </div>
               </div>
@@ -1262,7 +1458,25 @@ export default function AdminDashboard() {
                 onLoadMore={loadMoreRecentTickets}
                 emptyMessage="No listings yet."
               >
-                {recentTicketPostRows(recentTicketsListItems, userById)}
+                <>
+                  <AdminTicketSearchStatusFilters
+                    rowClassName="w-full pb-2 border-b-2 border-muted"
+                    searchWrapClassName="flex-1 min-w-[12rem]"
+                    selectTriggerClassName="w-full sm:w-[140px]"
+                    searchValue={searchRecentTicketPosts}
+                    onSearchChange={setSearchRecentTicketPosts}
+                    statusValue={filterRecentTicketPostsStatus}
+                    onStatusChange={setFilterRecentTicketPostsStatus}
+                    searchAriaLabel="Filter recent ticket posts"
+                  />
+                  {filteredRecentTicketsListItems.length === 0 ? (
+                    <p className="font-mono text-xs font-bold text-muted-foreground">
+                      No listings match your filters.
+                    </p>
+                  ) : (
+                    recentTicketPostRows(filteredRecentTicketsListItems, userById)
+                  )}
+                </>
               </AdminPagedOverviewDialog>
               
               {/* Most Searched */}
@@ -1370,23 +1584,16 @@ export default function AdminDashboard() {
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                 <h3 className="font-heading text-3xl font-black uppercase tracking-tighter bg-foreground text-background px-3 py-1 border-2 border-foreground inline-block">Manage Tickets</h3>
                 
-                <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
-                  <div className="relative w-full sm:w-56">
-                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input placeholder="Filter by Name/ID/Route..." value={searchTicket} onChange={(e) => setSearchTicket(e.target.value)} className="pl-9 h-10 rounded-none border-2 border-foreground font-mono text-xs shadow-[4px_4px_0_0_rgba(0,0,0,1)] bg-background" />
-                  </div>
-                  <Select value={filterTicketStatus} onValueChange={setFilterTicketStatus}>
-                    <SelectTrigger className="w-[140px] rounded-none border-2 border-foreground font-mono text-xs uppercase font-bold shadow-[4px_4px_0_0_rgba(0,0,0,1)] bg-background">
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-none border-2 border-foreground">
-                      <SelectItem value="all" className="font-mono text-xs uppercase">All</SelectItem>
-                      <SelectItem value="available" className="font-mono text-xs uppercase">Available</SelectItem>
-                      <SelectItem value="flagged" className="font-mono text-xs uppercase">Flagged</SelectItem>
-                      <SelectItem value="sold" className="font-mono text-xs uppercase">Sold</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <AdminTicketSearchStatusFilters
+                  rowClassName="items-center gap-2 w-full sm:w-auto flex-wrap"
+                  searchWrapClassName="w-full sm:w-56"
+                  selectTriggerClassName="w-[140px]"
+                  searchValue={searchTicket}
+                  onSearchChange={setSearchTicket}
+                  statusValue={filterTicketStatus}
+                  onStatusChange={setFilterTicketStatus}
+                  searchAriaLabel="Filter tickets"
+                />
               </div>
 
               <div className="overflow-x-auto flex-1 border-t border-b border-muted">
@@ -1484,21 +1691,7 @@ export default function AdminDashboard() {
                            </Button>
                         </td>
                         <td className="p-3 border-r-2 border-foreground align-top">
-                          {(() => {
-                            const displayStatus = ticketDisplayStatus(ticket);
-                            const badgeClass =
-                              displayStatus === 'sold' ? 'bg-muted text-muted-foreground' :
-                              displayStatus === 'expired' ? 'bg-red-900 text-red-100' :
-                              displayStatus === 'available' ? 'bg-emerald-400 text-emerald-950' :
-                              displayStatus === 'flagged' ? 'bg-destructive text-destructive-foreground' :
-                              'bg-muted text-muted-foreground';
-                            const label = displayStatus === 'sold' ? 'Sold' : displayStatus === 'expired' ? 'Expired' : displayStatus;
-                            return (
-                              <Badge className={`rounded-none border-2 border-foreground font-black text-[10px] uppercase shadow-[2px_2px_0_0_rgba(0,0,0,1)] ${badgeClass}`}>
-                                {label}
-                              </Badge>
-                            );
-                          })()}
+                          <AdminTicketStatusBadge ticket={ticket} />
                         </td>
                         <td className="p-3 align-top">
                           <div className="flex flex-wrap gap-1">

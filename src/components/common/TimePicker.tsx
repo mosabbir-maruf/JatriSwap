@@ -77,7 +77,7 @@ export function BrutalistTimePicker({ value, onChange, placeholder = "Select Tim
           <div className="flex gap-3 flex-wrap items-end">
             <div className="space-y-2">
               <label className="text-[10px] uppercase font-mono font-bold tracking-widest text-muted-foreground">Hour</label>
-              <Select value={hour12 || undefined} onValueChange={(val) => setHour12(val || "")}>
+              <Select value={hour12} onValueChange={(val) => setHour12(val ?? "")}>
                 <SelectTrigger className="w-[4.5rem] rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] font-mono text-xs font-bold focus:ring-0">
                   <SelectValue placeholder="—" />
                 </SelectTrigger>
@@ -93,7 +93,7 @@ export function BrutalistTimePicker({ value, onChange, placeholder = "Select Tim
             <div className="flex items-center pb-2 font-mono font-black text-xl">:</div>
             <div className="space-y-2">
               <label className="text-[10px] uppercase font-mono font-bold tracking-widest text-muted-foreground">Minute</label>
-              <Select value={minute || undefined} onValueChange={(val) => setMinute(val || "")}>
+              <Select value={minute} onValueChange={(val) => setMinute(val ?? "")}>
                 <SelectTrigger className="w-[4.5rem] rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] font-mono text-xs font-bold focus:ring-0">
                   <SelectValue placeholder="—" />
                 </SelectTrigger>

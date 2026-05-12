@@ -8,7 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { updateTicket } from "@/src/lib/firebase/tickets";
-import { ListingWriteBlockedError } from "@/src/lib/listingWriteGuard";
+import { ListingWriteBlockedError, SellerProfileMissingError } from "@/src/lib/listingWriteGuard";
+import {
+  LISTING_SELLER_PROFILE_MISSING_MESSAGE,
+  toastFirestoreListingSaveFailure,
+} from "@/src/lib/listingSaveFeedback";
 import { normalizeUserAccountStatus, sellListingBlockedMessage } from "@/src/lib/userAccountStatus";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { toast } from "sonner";
@@ -221,6 +225,11 @@ export function EditTicketDialog({
         );
         return;
       }
+      if (error instanceof SellerProfileMissingError) {
+        setListingGuardMessage(LISTING_SELLER_PROFILE_MISSING_MESSAGE);
+        return;
+      }
+      if (toastFirestoreListingSaveFailure(error)) return;
       toast.error("Failed to update ticket.");
     } finally {
       setIsSubmitting(false);
@@ -231,7 +240,7 @@ export function EditTicketDialog({
   const seatClassValue =
     formData.seatClass && seatOptionsForUi.includes(formData.seatClass)
       ? formData.seatClass
-      : undefined;
+      : "";
 
   return (
     <Dialog

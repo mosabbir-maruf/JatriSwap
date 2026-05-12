@@ -35,11 +35,20 @@ service cloud.firestore {
       return s == 'active' || s == 'warned' || s == 'suspended' || s == 'banned';
     }
 
-    /** Seller listing writes blocked while suspended or banned (`users.status`). */
+    /**
+     * Seller listing writes: active `users/{uid}` (not suspended/banned), OR same helper as `isAdmin()`
+     * (staff may post without `users/{uid}` — aligns with client `loadProfileForSellerListingWrite`).
+     * Call sites only pass `request.auth.uid` or `existing().sellerId` when caller is that seller.
+     */
     function sellerMayMutateListings(uid) {
-      return exists(/databases/$(database)/documents/users/$(uid)) &&
-             get(/databases/$(database)/documents/users/$(uid)).data.get('status', 'active') != 'suspended' &&
-             get(/databases/$(database)/documents/users/$(uid)).data.get('status', 'active') != 'banned';
+      return uid == request.auth.uid && (
+        (
+          exists(/databases/$(database)/documents/users/$(uid)) &&
+          get(/databases/$(database)/documents/users/$(uid)).data.get('status', 'active') != 'suspended' &&
+          get(/databases/$(database)/documents/users/$(uid)).data.get('status', 'active') != 'banned'
+        ) ||
+        isAdmin()
+      );
     }
 
     function isValidTicket(data) {

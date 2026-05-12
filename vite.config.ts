@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv } from 'vite';
 import type { Plugin } from 'vite';
+import { SITEMAP_PUBLIC_PATHS } from './src/lib/seo/sitemapPublicPaths';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -24,21 +25,7 @@ function jatriswapSeoArtifactsPlugin(): Plugin {
       const dir = outputOptions.dir;
       if (!base || !dir) return;
 
-      const paths = [
-        '/',
-        '/browse',
-        '/sell',
-        '/contact',
-        '/faq',
-        '/terms',
-        '/privacy',
-        '/cookie',
-        '/login',
-        '/register',
-        '/forgot-password',
-        '/verify-email',
-      ];
-      const urlEntries = paths.map((p) => {
+      const urlEntries = SITEMAP_PUBLIC_PATHS.map((p) => {
         const loc = p === '/' ? base : `${base}${p}`;
         const priority = p === '/' ? '1.0' : '0.8';
         return `  <url>\n    <loc>${loc}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>${priority}</priority>\n  </url>`;

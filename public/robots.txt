@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
 
+# Staff SPA — disallow crawling (meta + X-Robots-Tag also set in app / Vercel).
 Disallow: /admin

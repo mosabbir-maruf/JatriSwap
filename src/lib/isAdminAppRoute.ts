@@ -1,6 +1,6 @@
 /**
- * True when the main app shell should hide public-only chrome (e.g. WhatsApp CTA)
- * for `/admin` and nested admin routes. Does not match unrelated paths like `/administration`.
+ * True for `/admin` and nested staff routes (`/admin/...`). False for unrelated paths like `/administration`.
+ * Used by: floating WhatsApp CTA, document meta / robots (`getRouteSeo`), and other staff-only UI gates.
  */
 export function isAdminAppRoute(pathname: string): boolean {
   return pathname === "/admin" || pathname.startsWith("/admin/");

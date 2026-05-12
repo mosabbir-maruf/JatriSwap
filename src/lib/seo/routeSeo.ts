@@ -1,9 +1,19 @@
+import { isAdminAppRoute } from "@/src/lib/isAdminAppRoute";
+
 const BRAND = "JatriSwap";
 
 const DEFAULT_DESCRIPTION =
   "Browse, list, and buy or sell verified train and bus tickets on JatriSwap — a peer-to-peer public transit ticket marketplace for Bangladesh.";
 
+const STAFF_ONLY_DESCRIPTION =
+  "JatriSwap staff tools for authorized team members only. Not indexed for public search.";
+
 export type RouteSeo = { title: string; description: string };
+
+/**
+ * Staff `/admin` crawl policy: `<meta name="robots">` and Vercel `X-Robots-Tag` (keep values identical).
+ */
+export const ADMIN_STAFF_ROBOTS = "noindex, nofollow, noarchive";
 
 export const NOT_FOUND_SEO: RouteSeo = {
   title: `Page Not Found - ${BRAND}`,
@@ -85,16 +95,26 @@ function ticketPathSeo(): RouteSeo {
   };
 }
 
+function staffPageTitle(pathname: string): string {
+  if (pathname.startsWith("/admin/users/")) return `Admin user profile - ${BRAND}`;
+  if (pathname.startsWith("/admin/login")) return `Admin sign in - ${BRAND}`;
+  if (pathname.startsWith("/admin/register")) return `Admin registration - ${BRAND}`;
+  return `Admin dashboard - ${BRAND}`;
+}
+
+function adminStaffPathSeo(pathname: string): RouteSeo {
+  return { title: staffPageTitle(pathname), description: STAFF_ONLY_DESCRIPTION };
+}
+
 /** SEO defaults before listing-specific overrides load. */
 export function getRouteSeo(pathname: string): RouteSeo {
   if (pathname.startsWith("/ticket/")) {
     return ticketPathSeo();
   }
+  if (isAdminAppRoute(pathname)) {
+    return adminStaffPathSeo(pathname);
+  }
   return STATIC_ROUTES[pathname] ?? NOT_FOUND_SEO;
-}
-
-export function isAdminSeoPath(pathname: string): boolean {
-  return pathname === "/admin" || pathname.startsWith("/admin/");
 }
 
 export { DEFAULT_DESCRIPTION, BRAND };

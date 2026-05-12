@@ -2,7 +2,8 @@ import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { applyDocumentMeta } from "@/src/lib/seo/applyDocumentMeta";
 import { resolveSeoOrigin } from "@/src/lib/seo/publicOrigin";
-import { getRouteSeo, isAdminSeoPath } from "@/src/lib/seo/routeSeo";
+import { isAdminAppRoute } from "@/src/lib/isAdminAppRoute";
+import { ADMIN_STAFF_ROBOTS, getRouteSeo } from "@/src/lib/seo/routeSeo";
 
 const HOME_JSON_LD_ID = "jatriswap-home-jsonld";
 
@@ -39,7 +40,7 @@ function injectHomeJsonLd(siteUrl: string) {
 
 /**
  * Keeps title, meta description, canonical, Open Graph, and Twitter tags aligned with the route.
- * Admin routes get robots noindex. Home route gets WebSite + Organization JSON-LD.
+ * Staff `/admin` routes get `ADMIN_STAFF_ROBOTS`. Home route gets WebSite + Organization JSON-LD.
  */
 export function useRouteDocumentMeta() {
   const location = useLocation();
@@ -49,14 +50,14 @@ export function useRouteDocumentMeta() {
     const origin = resolveSeoOrigin();
     const pathWithQuery = `${pathname}${search}${hash}`;
     const canonicalUrl = origin ? `${origin}${pathWithQuery}` : null;
-    const admin = isAdminSeoPath(pathname);
+    const admin = isAdminAppRoute(pathname);
     const seo = getRouteSeo(pathname);
 
     applyDocumentMeta({
       title: seo.title,
       description: seo.description,
       canonicalUrl,
-      robots: admin ? "noindex, nofollow" : undefined,
+      robots: admin ? ADMIN_STAFF_ROBOTS : undefined,
     });
 
     if (pathname === "/") {

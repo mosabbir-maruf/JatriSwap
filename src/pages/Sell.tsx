@@ -410,7 +410,7 @@ const Sell = () => {
         </div>
 
         {/* Form Container */}
-        <div className="bg-background border-4 border-foreground p-8 md:p-12 shadow-[16px_16px_0_0_rgba(0,0,0,1)] relative">
+        <div className="bg-background border-4 border-foreground p-8 md:p-12 shadow-[8px_8px_0_0_rgba(0,0,0,1)] md:shadow-[16px_16px_0_0_rgba(0,0,0,1)] relative">
           
           <div className="w-full">
             <form onSubmit={handleSubmit}>

@@ -17,6 +17,7 @@ import { subscribeToTickets } from "@/src/lib/firebase/tickets";
 import { Ticket as TicketType } from "@/src/types";
 import { useTicketSellerPrivacy } from "@/src/hooks/useTicketSellerPrivacy";
 import { redactSellerPhonesForViewer } from "@/src/lib/ticketPrivacy";
+import { filterPubliclyListedTickets } from "@/src/lib/ticketExpiration";
 import { useCalendarPopoverSelect } from "@/src/hooks/useCalendarPopoverSelect";
 import {
   BRUTALIST_SINGLE_DAY_CALENDAR_CLASSNAMES,
@@ -39,7 +40,7 @@ const Home = () => {
   React.useEffect(() => {
     const unsubscribe = subscribeToTickets(
       (rows) => {
-        setHomePreviewRaw(rows.filter((t) => t.status === "available").slice(0, 6));
+        setHomePreviewRaw(filterPubliclyListedTickets(rows).slice(0, 6));
         setHomePreviewReady(true);
       },
       undefined,
@@ -286,8 +287,8 @@ const Home = () => {
                 <div className="w-20 h-20 border-2 border-foreground flex items-center justify-center shrink-0 shadow-[4px_4px_0_0_rgba(0,0,0,1)] bg-card bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9IiNlN2U1ZTQiLz48L3N2Zz4=')]">
                   <Users className="w-8 h-8 text-primary" strokeWidth={2} />
                 </div>
-                <h3 className="font-heading text-xl font-bold tracking-tighter uppercase">Direct Contact</h3>
-                <p className="font-mono text-xs text-muted-foreground leading-relaxed font-semibold">Buy requests go through our WhatsApp — sellers aren&apos;t exposed publicly.</p>
+                <h3 className="font-heading text-xl font-bold tracking-tighter uppercase">Real Human Support</h3>
+                <p className="font-mono text-xs text-muted-foreground leading-relaxed font-semibold">Stuck on a deal? Our team is one message away, ready to help.</p>
               </div>
            </div>
         </div>

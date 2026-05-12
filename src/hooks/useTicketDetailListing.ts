@@ -4,6 +4,7 @@ import { auth } from "@/src/lib/firebase/firebase";
 import { redactSellerPhoneForViewer } from "@/src/lib/ticketPrivacy";
 import type { Ticket } from "@/src/types";
 import { useTicketSellerPrivacy } from "@/src/hooks/useTicketSellerPrivacy";
+import { isTicketPubliclyListed } from "@/src/lib/ticketExpiration";
 
 const ticketViewSessionKey = (ticketId: string) => `ticketDetailView:${ticketId}`;
 
@@ -52,8 +53,10 @@ export function useTicketDetailListing(ticketId: string | undefined): {
           const viewerAuthUid = auth.currentUser?.uid ?? null;
           if (viewerAuthUid && viewerAuthUid === fetched.sellerId) return;
 
-          // Only count impressions for active marketplace listings (Browse lists `available` only).
-          if (fetched.status !== "available") return;
+          // Only count impressions for live marketplace listings — skips sold,
+          // pending/flagged/rejected, manually expired, and Dhaka-time–derived
+          // expired so post-trip views never bump the counter.
+          if (!isTicketPubliclyListed(fetched)) return;
 
           try {
             const key = ticketViewSessionKey(ticketId);

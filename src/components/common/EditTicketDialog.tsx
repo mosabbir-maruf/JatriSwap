@@ -332,7 +332,7 @@ export function EditTicketDialog({
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label className="font-mono text-[10px] uppercase tracking-widest font-bold">Passengers</Label>
+                <Label className="font-mono text-[10px] uppercase tracking-widest font-bold">Seat/Passenger Count</Label>
                 <Input
                   type="number"
                   min={1}

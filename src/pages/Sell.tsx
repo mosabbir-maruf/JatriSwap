@@ -33,6 +33,7 @@ import {
   BRUTALIST_SINGLE_DAY_CALENDAR_CLASSNAMES,
   BRUTALIST_SINGLE_DAY_CALENDAR_ROOT_CLASSNAME,
 } from "@/src/lib/brutalistSingleDayCalendar";
+import { ticketDepartureDhakaMs } from "@/src/lib/ticketExpiration";
 
 const steps = [
   "Route & Transport",
@@ -141,6 +142,16 @@ const Sell = () => {
     if (step === 0) {
       if (!formData.from || !formData.to || !formData.transportName || !formData.date || !formData.depTime) {
         toast.error("Please fill in all required route information.");
+        return false;
+      }
+      /** Block past-Dhaka-departure listings up front — same Dhaka math the
+       *  marketplace uses to auto-expire (see `ticketExpiration.ts`). */
+      const departureMs = ticketDepartureDhakaMs({
+        date: formData.date,
+        departureTime: formData.depTime,
+      });
+      if (departureMs !== null && departureMs <= Date.now()) {
+        toast.error("Departure must be in the future (Bangladesh time).");
         return false;
       }
     }

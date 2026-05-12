@@ -23,6 +23,7 @@ import { Ticket } from "@/src/types";
 import { departureTimeMatchesSearch } from "@/src/lib/formatDepartureTime";
 import { useTicketSellerPrivacy } from "@/src/hooks/useTicketSellerPrivacy";
 import { redactSellerPhonesForViewer } from "@/src/lib/ticketPrivacy";
+import { isTicketPubliclyListed } from "@/src/lib/ticketExpiration";
 import { useCalendarPopoverSelect } from "@/src/hooks/useCalendarPopoverSelect";
 import {
   BRUTALIST_SINGLE_DAY_CALENDAR_CLASSNAMES,
@@ -136,55 +137,62 @@ const Browse = () => {
     }
   };
 
-  const availableTickets = tickets.filter(t => {
-     if (t.status !== "available") return false;
-     // Filter out expired tickets
-     const ticketDateTime = new Date(`${t.date}T${t.departureTime || "00:00"}`);
-     if (new Date() > ticketDateTime) return false;
-     return true;
-  });
-  
-  // Filter logic
-  const filteredTickets = availableTickets.filter(t => {
-    if (transportMode !== "all" && t.mode !== transportMode) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      const matchName = t.transportName.toLowerCase().includes(q);
-      const matchRoute = t.from.toLowerCase().includes(q) || t.to.toLowerCase().includes(q);
-      const matchId = t.id?.toLowerCase().includes(q) || false;
-      const matchTime =
-        departureTimeMatchesSearch(t.departureTime, q) || (!!t.date && t.date.toLowerCase().includes(q));
-      
-      if (!matchName && !matchRoute && !matchId && !matchTime) return false;
-    }
-    if (t.sellingPrice < priceRange[0] || t.sellingPrice > priceRange[1]) return false;
-    if (origin && t.from !== origin) return false;
-    if (destination && t.to !== destination) return false;
-    if (date) {
-      try {
-        const want = format(date, "yyyy-MM-dd");
-        const ticketDay = format(new Date(t.date), "yyyy-MM-dd");
-        if (ticketDay !== want) return false;
-      } catch {
-        return false;
-      }
-    }
-    if (seatClasses.length > 0 && !seatClasses.includes(t.seatClass)) return false;
-    if (transportTypes.length > 0 && t.transportType && !transportTypes.includes(t.transportType)) return false;
-    return true;
-  });
+  /**
+   * Single derivation that combines public-listing gating + user filters + sort,
+   * memoized on every input. Prevents rebuilds when unrelated state changes
+   * (e.g. opening the filters panel, calendar popover, sort dropdown focus).
+   * Cost: O(n) filter + O(n log n) sort per dep change, not per render.
+   */
+  const sortedTickets = useMemo(() => {
+    const now = Date.now();
+    const q = searchQuery.trim().toLowerCase();
+    const wantDay = date ? format(date, "yyyy-MM-dd") : "";
+    const [minPrice, maxPrice] = priceRange;
+    const seatClassSet = seatClasses.length > 0 ? new Set(seatClasses) : null;
+    const transportTypeSet = transportTypes.length > 0 ? new Set(transportTypes) : null;
 
-  const sortedTickets = [...filteredTickets].sort((a, b) => {
-    if (sortBy === "price-asc") return a.sellingPrice - b.sellingPrice;
-    if (sortBy === "price-desc") return b.sellingPrice - a.sellingPrice;
-    if (sortBy === "departure-asc") {
-      const timeA = new Date(`${a.date}T${a.departureTime || "00:00"}`).getTime();
-      const timeB = new Date(`${b.date}T${b.departureTime || "00:00"}`).getTime();
-      return timeA - timeB;
-    }
-    // newest
-    return ticketPostedAtMs(b) - ticketPostedAtMs(a);
-  });
+    const filtered = tickets.filter((t) => {
+      if (!isTicketPubliclyListed(t, now)) return false;
+      if (transportMode !== "all" && t.mode !== transportMode) return false;
+      if (t.sellingPrice < minPrice || t.sellingPrice > maxPrice) return false;
+      if (origin && t.from !== origin) return false;
+      if (destination && t.to !== destination) return false;
+      if (seatClassSet && !seatClassSet.has(t.seatClass)) return false;
+      if (transportTypeSet && t.transportType && !transportTypeSet.has(t.transportType)) return false;
+      if (q) {
+        const matchName = t.transportName.toLowerCase().includes(q);
+        const matchRoute = t.from.toLowerCase().includes(q) || t.to.toLowerCase().includes(q);
+        const matchId = t.id?.toLowerCase().includes(q) || false;
+        const matchTime =
+          departureTimeMatchesSearch(t.departureTime, q) || (!!t.date && t.date.toLowerCase().includes(q));
+        if (!matchName && !matchRoute && !matchId && !matchTime) return false;
+      }
+      if (wantDay) {
+        try {
+          if (format(new Date(t.date), "yyyy-MM-dd") !== wantDay) return false;
+        } catch {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    filtered.sort((a, b) => {
+      if (sortBy === "price-asc") return a.sellingPrice - b.sellingPrice;
+      if (sortBy === "price-desc") return b.sellingPrice - a.sellingPrice;
+      if (sortBy === "departure-asc") {
+        const timeA = new Date(`${a.date}T${a.departureTime || "00:00"}`).getTime();
+        const timeB = new Date(`${b.date}T${b.departureTime || "00:00"}`).getTime();
+        return timeA - timeB;
+      }
+      return ticketPostedAtMs(b) - ticketPostedAtMs(a);
+    });
+
+    return filtered;
+  }, [tickets, transportMode, searchQuery, priceRange, origin, destination, date, seatClasses, transportTypes, sortBy]);
+
+  /** Header counter — same source of truth as the rendered grid. */
+  const filteredTicketsCount = sortedTickets.length;
 
   return (
     <div className="flex-1 bg-background bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] min-h-screen pt-32 pb-24 relative">
@@ -194,7 +202,7 @@ const Browse = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-12 border-b-4 border-foreground pb-8">
           <div>
             <h1 className="font-heading text-4xl md:text-5xl font-black tracking-tighter uppercase mb-2">Available <span className="text-primary">Tickets</span></h1>
-            <p className="font-mono text-muted-foreground uppercase tracking-widest text-[10px] font-bold">Showing {filteredTickets.length} tickets from registered users</p>
+            <p className="font-mono text-muted-foreground uppercase tracking-widest text-[10px] font-bold">Showing {filteredTicketsCount} tickets from registered users</p>
           </div>
           <div className="flex flex-col sm:flex-row w-full md:w-auto gap-3">
              <Button variant="outline" className="h-12 rounded-none px-6 border-2 border-foreground bg-background shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all text-xs uppercase tracking-widest font-bold" onClick={() => setShowFilters(!showFilters)}>

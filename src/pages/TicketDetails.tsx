@@ -24,6 +24,7 @@ import {
 } from "@/src/lib/firebase/purchaseRequests";
 import { formatDepartureTimeDisplay } from "@/src/lib/formatDepartureTime";
 import { COPY_TO_CLIPBOARD_FEEDBACK, copyTextWithToast } from "@/src/lib/copyTextWithToast";
+import { ticketDisplayStatus } from "@/src/lib/ticketExpiration";
 
 const TicketDetails = () => {
   const { firebaseUser, currentUser, loading: authLoading } = useAuth();
@@ -54,6 +55,9 @@ const TicketDetails = () => {
 
   const viewerIsAdmin = currentUser?.role === "admin";
   const detailHiddenFromBuyer = isTicketDetailHiddenFromPublicBuyer(ticket, viewerUid, viewerIsAdmin);
+  const derivedStatus = ticketDisplayStatus(ticket);
+  const isDerivedExpired = derivedStatus === "expired";
+  const isDerivedSold = derivedStatus === "sold";
 
   if (detailHiddenFromBuyer && authLoading) {
     return (
@@ -200,9 +204,19 @@ const TicketDetails = () => {
                                ? (ticket.transportType.toLowerCase().includes('train') ? ticket.transportType : `${ticket.transportType} Train`)
                                : 'Bus'}
                            </Badge>
-                           <Badge className="bg-emerald-400 text-emerald-950 border-2 border-emerald-950 font-mono font-bold uppercase tracking-widest rounded-none shadow-[2px_2px_0_0_rgba(4,120,87,1)] px-3 py-1 text-[10px]">
-                             Available
-                           </Badge>
+                           {isDerivedExpired ? (
+                             <Badge className="bg-red-900 text-red-100 border-2 border-red-900 font-mono font-bold uppercase tracking-widest rounded-none shadow-[2px_2px_0_0_rgba(0,0,0,1)] px-3 py-1 text-[10px]">
+                               Expired
+                             </Badge>
+                           ) : isDerivedSold ? (
+                             <Badge className="bg-muted text-muted-foreground border-2 border-muted-foreground font-mono font-bold uppercase tracking-widest rounded-none px-3 py-1 text-[10px]">
+                               Sold
+                             </Badge>
+                           ) : (
+                             <Badge className="bg-emerald-400 text-emerald-950 border-2 border-emerald-950 font-mono font-bold uppercase tracking-widest rounded-none shadow-[2px_2px_0_0_rgba(4,120,87,1)] px-3 py-1 text-[10px]">
+                               Available
+                             </Badge>
+                           )}
                         </div>
                         <h1 className="text-4xl md:text-5xl font-heading font-black tracking-tighter uppercase mb-3 bg-primary inline-block px-2 text-primary-foreground border-2 border-foreground">{ticket.transportName}</h1>
                         <div className="flex items-center gap-4 mt-2">
@@ -302,7 +316,7 @@ const TicketDetails = () => {
                       </div>
                       <div className="bg-background border-2 border-foreground p-4 shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
                         <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-2 block">
-                          Passengers
+                          Seat/Passenger Count
                         </span>
                         <span className="font-mono font-black text-sm uppercase">{ticket.passengerCount} Adult</span>
                       </div>
@@ -338,12 +352,18 @@ const TicketDetails = () => {
                        </div>
                     </div>
   
-                    <Button 
-                       onClick={handleRequestBuy} 
-                       className={`w-full h-16 rounded-none text-sm font-mono uppercase tracking-widest font-black transition-all border-2 bg-foreground text-background border-transparent hover:bg-primary hover:text-primary-foreground hover:border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[4px_4px_0_0_rgba(0,0,0,1)]`}
-                    >
-                       Request to Buy
-                    </Button>
+                    {isDerivedExpired || isDerivedSold ? (
+                       <div className={`w-full h-16 flex items-center justify-center rounded-none text-sm font-mono uppercase tracking-widest font-black border-2 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] ${isDerivedExpired ? "bg-red-900 text-red-100" : "bg-muted text-muted-foreground"}`}>
+                          {isDerivedExpired ? "Trip departed — listing expired" : "Sold"}
+                       </div>
+                    ) : (
+                       <Button
+                          onClick={handleRequestBuy}
+                          className={`w-full h-16 rounded-none text-sm font-mono uppercase tracking-widest font-black transition-all border-2 bg-foreground text-background border-transparent hover:bg-primary hover:text-primary-foreground hover:border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[4px_4px_0_0_rgba(0,0,0,1)]`}
+                       >
+                          Request to Buy
+                       </Button>
+                    )}
   
                     <div className="mt-8 flex items-center justify-center gap-2 font-mono text-[10px] uppercase font-bold text-muted-foreground tracking-widest">
                        <ShieldCheck className="w-4 h-4 text-emerald-600" /> Payment Secured Until Delivery

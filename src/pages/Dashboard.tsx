@@ -23,6 +23,7 @@ import { useAuth } from "@/src/contexts/AuthContext";
 import { needsEmailVerification } from "@/src/lib/firebase/authVerification";
 import { Ticket as TicketType, Notification as NotificationType, BuyerPurchaseRequest } from "@/src/types";
 import { subscribeToSellerTickets, deleteTicket, updateTicketStatus } from "@/src/lib/firebase/tickets";
+import { isTicketPubliclyListed } from "@/src/lib/ticketExpiration";
 import { scheduleTicketDeleteWithUndo } from "@/src/lib/scheduledDeleteUndo";
 import {
   canSellerDeleteListing,
@@ -210,11 +211,30 @@ const Dashboard = () => {
   const profileUiLabel = currentUser.role === "admin" ? "Profile" : "Edit Profile";
 
   const sellerUid = firebaseUser?.uid ?? currentUser.id;
-  const myListings = tickets.filter((t) => t.sellerId === sellerUid);
 
-  const activeListingsCount = myListings.filter(t => t.status === "available").length;
-  const ticketsSoldCount = myListings.filter(t => t.status === "sold").length;
-  const totalViews = myListings.reduce((sum, t) => sum + (t.views || 0), 0);
+  /**
+   * Memoize all seller-ticket derivations in a single pass so unrelated state
+   * (tab change, profile dialog, draft edits) doesn't retrigger 3+ array walks.
+   * Active count uses derived public visibility (sold + expired excluded).
+   */
+  const { myListings, activeListingsCount, ticketsSoldCount, totalViews } = useMemo(() => {
+    const now = Date.now();
+    const owned = tickets.filter((t) => t.sellerId === sellerUid);
+    let active = 0;
+    let sold = 0;
+    let views = 0;
+    for (const t of owned) {
+      if (isTicketPubliclyListed(t, now)) active += 1;
+      if (t.status === "sold") sold += 1;
+      views += t.views ?? 0;
+    }
+    return {
+      myListings: owned,
+      activeListingsCount: active,
+      ticketsSoldCount: sold,
+      totalViews: views,
+    };
+  }, [tickets, sellerUid]);
 
   const DASHBOARD_STATS = {
     ...currentUser,

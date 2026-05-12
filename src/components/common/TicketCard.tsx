@@ -14,6 +14,7 @@ import {
   canSellerMarkSold,
   isSellerListingModerationLocked,
 } from "@/src/lib/sellerListingControls";
+import { isTicketExpired } from "@/src/lib/ticketExpiration";
 
 interface TicketProps {
   ticket: TicketModel & { status?: string };
@@ -35,9 +36,9 @@ export const TicketCard: React.FC<TicketProps> = ({ ticket, mode = "default", on
     [ticket.id],
   );
 
-  const computedExpired = new Date() > new Date(`${ticket.date}T${ticket.departureTime || '00:00'}`) || ticket.status === "expired";
   const isSold = ticket.status === "sold";
-  const isExpired = computedExpired && !isSold; // If it's sold, it's sold. If not sold and past date or set to expired, it's expired.
+  /** `isTicketExpired` already returns false for `sold` (commerce outcome wins), so no extra guard needed here. */
+  const isExpired = isTicketExpired(ticket);
   const isAvailable = (ticket.status === "available" || ticket.status === "active") && !isExpired && !isSold;
   const isPending = ticket.status === "pending" && !isExpired && !isSold;
   const isRejected = ticket.status === "rejected" && !isExpired && !isSold;

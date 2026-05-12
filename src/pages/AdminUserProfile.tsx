@@ -15,6 +15,7 @@ import {
   adminDashboardPath,
   resolveAdminProfileReturnTab,
 } from "@/src/lib/adminDashboardTab";
+import { ticketDisplayStatus } from "@/src/lib/ticketExpiration";
 
 const adminTelLinkClass =
   "underline-offset-4 hover:underline hover:text-foreground text-primary inline-flex items-center gap-1 max-w-full min-w-0 break-all";
@@ -65,7 +66,8 @@ function AdminUserStatsPanel({
   const docPosts = profile != null && typeof profile.ticketsPosted === "number" ? profile.ticketsPosted : null;
 
   const byStatus = tickets.reduce<Partial<Record<TicketStatus, number>>>((acc, t) => {
-    const k = t.status;
+    /** Derived — past-departure tickets count under `expired`, not their stale stored status. */
+    const k = ticketDisplayStatus(t);
     acc[k] = (acc[k] ?? 0) + 1;
     return acc;
   }, {});
@@ -345,7 +347,7 @@ export default function AdminUserProfile() {
                         {t.from} → {t.to}
                       </td>
                       <td className="p-3 border-r-2 border-foreground align-top whitespace-nowrap">{formatTicketPostedAtAmPm(t.postedAt)}</td>
-                      <td className="p-3 align-top font-bold uppercase">{t.status}</td>
+                      <td className="p-3 align-top font-bold uppercase">{labelStatus(ticketDisplayStatus(t))}</td>
                     </tr>
                   ))}
                 </tbody>

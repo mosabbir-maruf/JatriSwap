@@ -87,6 +87,7 @@ import { format, isValid, parseISO } from "date-fns";
 import { EditTicketDialog } from "@/src/components/common/EditTicketDialog";
 import { formatJoinedAtDisplay, formatTicketPostedAtAmPm } from "@/src/lib/formatLocaleDateTime";
 import { formatDepartureTimeDisplay } from "@/src/lib/formatDepartureTime";
+import { ticketDisplayStatus } from "@/src/lib/ticketExpiration";
 import {
   ADMIN_DASHBOARD_TAB_QUERY,
   ADMIN_DASHBOARD_TAB_SET,
@@ -1112,16 +1113,25 @@ export default function AdminDashboard() {
     }
   };
 
-  const filteredTickets = tickets.filter((t) => {
+  /**
+   * Admin ticket list — memoized so up-to-500 rows aren't re-filtered on
+   * every unrelated state change (tab switch, dialog open, etc.). Pins a
+   * single `now` snapshot for the derived-expired check across the pass.
+   */
+  const filteredTickets = useMemo(() => {
     const q = searchTicket.toLowerCase();
-    const sellerLabel = (t.sellerName ?? "").toLowerCase();
-    const matchesSearch =
-      t.id.toLowerCase().includes(q) ||
-      t.transportName.toLowerCase().includes(q) ||
-      sellerLabel.includes(q);
-    const matchesStatus = filterTicketStatus === "all" || t.status === filterTicketStatus;
-    return matchesSearch && matchesStatus;
-  });
+    const now = Date.now();
+    return tickets.filter((t) => {
+      const sellerLabel = (t.sellerName ?? "").toLowerCase();
+      const matchesSearch =
+        t.id.toLowerCase().includes(q) ||
+        t.transportName.toLowerCase().includes(q) ||
+        sellerLabel.includes(q);
+      if (!matchesSearch) return false;
+      if (filterTicketStatus === "all") return true;
+      return ticketDisplayStatus(t, now) === filterTicketStatus;
+    });
+  }, [tickets, searchTicket, filterTicketStatus]);
 
   return (
     <div className="flex-1 bg-background bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] min-h-screen pt-24 pb-24 relative">
@@ -1474,15 +1484,21 @@ export default function AdminDashboard() {
                            </Button>
                         </td>
                         <td className="p-3 border-r-2 border-foreground align-top">
-                          <Badge className={`rounded-none border-2 border-foreground font-black text-[10px] uppercase shadow-[2px_2px_0_0_rgba(0,0,0,1)] ${
-                            ticket.status === 'sold' ? 'bg-muted text-muted-foreground' :
-                            ticket.status === 'expired' || new Date() > new Date(`${ticket.date}T${ticket.departureTime || '00:00'}`) ? 'bg-red-900 text-red-100' :
-                            ticket.status === 'available' ? 'bg-emerald-400 text-emerald-950' : 
-                            ticket.status === 'flagged' ? 'bg-destructive text-destructive-foreground' : 
-                            'bg-muted text-muted-foreground'
-                          }`}>
-                            {ticket.status === 'sold' ? 'Sold' : ticket.status === 'expired' || new Date() > new Date(`${ticket.date}T${ticket.departureTime || '00:00'}`) ? 'Expired' : ticket.status}
-                          </Badge>
+                          {(() => {
+                            const displayStatus = ticketDisplayStatus(ticket);
+                            const badgeClass =
+                              displayStatus === 'sold' ? 'bg-muted text-muted-foreground' :
+                              displayStatus === 'expired' ? 'bg-red-900 text-red-100' :
+                              displayStatus === 'available' ? 'bg-emerald-400 text-emerald-950' :
+                              displayStatus === 'flagged' ? 'bg-destructive text-destructive-foreground' :
+                              'bg-muted text-muted-foreground';
+                            const label = displayStatus === 'sold' ? 'Sold' : displayStatus === 'expired' ? 'Expired' : displayStatus;
+                            return (
+                              <Badge className={`rounded-none border-2 border-foreground font-black text-[10px] uppercase shadow-[2px_2px_0_0_rgba(0,0,0,1)] ${badgeClass}`}>
+                                {label}
+                              </Badge>
+                            );
+                          })()}
                         </td>
                         <td className="p-3 align-top">
                           <div className="flex flex-wrap gap-1">

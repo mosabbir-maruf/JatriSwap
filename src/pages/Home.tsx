@@ -93,7 +93,7 @@ const Home = () => {
                initial={{ opacity: 0, y: 20 }}
                animate={{ opacity: 1, y: 0 }}
                transition={{ duration: 0.8, delay: 0.2 }}
-               className="w-full bg-muted p-6 sm:p-8 border-4 border-foreground shadow-[12px_12px_0_0_rgba(0,0,0,1)] lg:shadow-[16px_16px_0_0_rgba(0,0,0,1)] relative rotate-0 mx-auto max-w-6xl"
+               className="w-full bg-muted p-6 sm:p-8 border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] sm:shadow-[12px_12px_0_0_rgba(0,0,0,1)] lg:shadow-[16px_16px_0_0_rgba(0,0,0,1)] relative rotate-0 mx-auto max-w-6xl"
              >
                <form onSubmit={handleSearch} className="flex flex-col gap-6 w-full text-left">
                 <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-end justify-between w-full">

@@ -188,7 +188,7 @@ const TicketDetails = () => {
              <ArrowLeft className="w-4 h-4 mr-2" /> {ticketBackNav.label}
         </Button>
 
-        <div className="grid grid-cols-1 gap-4 sm:gap-8 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
            
            {/* Main Ticket Area */}
            <div className="space-y-4 sm:space-y-8 lg:col-span-2">

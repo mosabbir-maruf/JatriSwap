@@ -322,8 +322,8 @@ const Footer = () => {
              >
                <JatriSwapLogo variant="footer" />
              </Link>
-             <p className="text-muted text-lg font-sans leading-relaxed max-w-sm">
-               The premier marketplace for verified public transit tickets. Connect, exchange, and travel securely.
+             <p className="text-muted text-lg font-sans leading-relaxed max-w-lg">
+               The premier marketplace to buy and sell unused train & bus tickets. Your unused ticket deserves a traveler.
              </p>
            </div>
            

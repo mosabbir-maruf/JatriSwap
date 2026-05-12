@@ -85,7 +85,7 @@ const Home = () => {
             <span className="text-primary tracking-tight"> Keep Travels.</span>
           </h1>
           <p className="text-lg md:text-xl text-foreground font-mono font-bold leading-relaxed mb-12 tracking-tight bg-background p-6 border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] max-w-2xl transform rotate-1">
-            The premier marketplace to buy and sell unused train & bus tickets. Your unused ticket deserves a traveler.
+            The premier marketplace to buy and sell unused train & bus tickets.
           </p>
           
           <div className="flex w-full items-center justify-center relative z-20 mt-4 md:mt-8">

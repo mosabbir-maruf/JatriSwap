@@ -147,6 +147,44 @@ const adminBrutalistOutlineMono10 =
 const adminUserRowIconButtonBaseClass =
   "w-8 h-8 rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none transition-all";
 
+/** Search icon + input chrome shared by Manage Tickets filter, User Management, and Scam reports. */
+const adminSearchInputIconClass =
+  "pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground";
+
+const adminSearchInputClass =
+  "h-10 rounded-none border-2 border-foreground bg-background pl-9 font-mono text-xs shadow-[4px_4px_0_0_rgba(0,0,0,1)]";
+
+const adminSearchFieldStandAloneWrapClass = "relative w-full shrink-0 sm:w-72";
+
+/** Copy-to-clipboard controls (user table ID, scam report ID fragment). */
+const adminClipboardControlBaseClass =
+  "cursor-pointer border-0 bg-transparent p-0 text-blue-600 outline-none transition-colors hover:text-blue-800 focus-visible:text-blue-800 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-1";
+
+const AdminStandaloneSearchField = memo(function AdminStandaloneSearchField({
+  value,
+  onChange,
+  placeholder,
+  ariaLabel,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  placeholder: string;
+  ariaLabel: string;
+}) {
+  return (
+    <div className={adminSearchFieldStandAloneWrapClass}>
+      <Search className={adminSearchInputIconClass} aria-hidden />
+      <Input
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={adminSearchInputClass}
+        aria-label={ariaLabel}
+      />
+    </div>
+  );
+});
+
 const AdminUserPerformanceTableCell = memo(function AdminUserPerformanceTableCell({
   postsCount,
   activeCount,
@@ -402,12 +440,12 @@ const AdminTicketSearchStatusFilters = memo(function AdminTicketSearchStatusFilt
   return (
     <div className={cn("flex flex-wrap items-center gap-2", rowClassName)}>
       <div className={cn("relative", searchWrapClassName)}>
-        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+        <Search className={adminSearchInputIconClass} aria-hidden />
         <Input
           placeholder={ADMIN_TICKET_SEARCH_PLACEHOLDER}
           value={searchValue}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="pl-9 h-10 rounded-none border-2 border-foreground font-mono text-xs shadow-[4px_4px_0_0_rgba(0,0,0,1)] bg-background"
+          className={adminSearchInputClass}
           aria-label={searchAriaLabel}
         />
       </div>
@@ -2015,16 +2053,12 @@ export default function AdminDashboard() {
                     Post and sold counts use listings in this session (newest {TICKETS_ADMIN_QUERY_LIMIT} by post date).
                   </p>
                 </div>
-                <div className="relative w-full sm:w-72">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-                  <Input
-                    placeholder={ADMIN_USER_MANAGEMENT_SEARCH_PLACEHOLDER}
-                    value={searchUserManagement}
-                    onChange={(e) => setSearchUserManagement(e.target.value)}
-                    className="h-10 rounded-none border-2 border-foreground bg-background pl-9 font-mono text-xs shadow-[4px_4px_0_0_rgba(0,0,0,1)]"
-                    aria-label="Search users by name, ID, email, or phone"
-                  />
-                </div>
+                <AdminStandaloneSearchField
+                  value={searchUserManagement}
+                  onChange={setSearchUserManagement}
+                  placeholder={ADMIN_USER_MANAGEMENT_SEARCH_PLACEHOLDER}
+                  ariaLabel="Search users by name, ID, email, or phone"
+                />
               </div>
 
                <div className="overflow-x-auto flex-1">
@@ -2062,7 +2096,10 @@ export default function AdminDashboard() {
                              }}
                              title="Click to copy user ID"
                              aria-label={`Copy user ID ${user.id}`}
-                             className="cursor-pointer border-0 bg-transparent p-0 text-left font-mono text-[10px] xl:text-xs font-bold text-blue-600 outline-none transition-colors hover:text-blue-800 focus-visible:text-blue-800 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-1 max-w-full min-w-0"
+                             className={cn(
+                               adminClipboardControlBaseClass,
+                               "max-w-full min-w-0 text-left font-mono text-[10px] font-bold xl:text-xs",
+                             )}
                            >
                              <span className="inline-block whitespace-nowrap">{user.id}</span>
                            </button>
@@ -2180,19 +2217,12 @@ export default function AdminDashboard() {
                   Scam Reporting System
                 </h3>
                 {ticketReports.length > 0 ? (
-                  <div className="relative w-full shrink-0 sm:w-72">
-                    <Search
-                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-                      aria-hidden
-                    />
-                    <Input
-                      placeholder={ADMIN_TICKET_REPORT_SEARCH_PLACEHOLDER}
-                      value={searchTicketReports}
-                      onChange={(e) => setSearchTicketReports(e.target.value)}
-                      className="h-10 rounded-none border-2 border-foreground bg-background pl-9 font-mono text-xs shadow-[4px_4px_0_0_rgba(0,0,0,1)]"
-                      aria-label="Search reports by report ID, ticket ID, email, or phone"
-                    />
-                  </div>
+                  <AdminStandaloneSearchField
+                    value={searchTicketReports}
+                    onChange={setSearchTicketReports}
+                    placeholder={ADMIN_TICKET_REPORT_SEARCH_PLACEHOLDER}
+                    ariaLabel="Search reports by report ID, ticket ID, email, or phone"
+                  />
                 ) : null}
               </div>
 
@@ -2228,7 +2258,10 @@ export default function AdminDashboard() {
                               <span className="text-foreground">Report #</span>{" "}
                               <button
                                 type="button"
-                                className="cursor-pointer border-0 bg-transparent p-0 align-baseline font-mono text-xl font-black tracking-normal text-blue-600 outline-none transition-colors hover:text-blue-800 focus-visible:text-blue-800 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-1"
+                                className={cn(
+                                  adminClipboardControlBaseClass,
+                                  "align-baseline font-mono text-xl font-black tracking-normal",
+                                )}
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();

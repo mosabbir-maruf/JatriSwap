@@ -248,15 +248,15 @@ export default function Transit() {
           <div className="flex flex-col justify-center">
             <p className="font-heading text-2xl font-black uppercase tracking-tighter md:text-3xl">Ready to move?</p>
             <p className="mt-2 font-mono text-[11px] font-bold uppercase tracking-widest text-background/80">
-              Jump back into search or open the live listings feed.
+              Sell a spare ticket or browse what’s live on the feed.
             </p>
           </div>
           <div className="flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center md:justify-end">
             <Button
-              render={<Link to="/" />}
+              render={<Link to="/sell" />}
               className="h-12 rounded-none border-2 border-background bg-background font-mono text-[11px] uppercase tracking-widest font-black text-foreground shadow-[4px_4px_0_0_rgba(255,255,255,0.2)] hover:translate-y-px hover:shadow-[2px_2px_0_0_rgba(255,255,255,0.2)] transition-all"
             >
-              Search <ArrowRight className="ml-2 h-4 w-4" aria-hidden />
+              Sell <ArrowRight className="ml-2 h-4 w-4" aria-hidden />
             </Button>
             <Button
               render={<Link to="/browse" />}

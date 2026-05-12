@@ -23,6 +23,9 @@ const partiesGridClass =
 const partiesColumnClass = "min-w-0 space-y-1 sm:pr-4";
 const partiesColumnSecondClass = "min-w-0 space-y-1 sm:pl-4";
 
+const buyRequestPlacedMetaClass =
+  "font-mono text-[9px] text-muted-foreground uppercase tracking-widest font-bold leading-snug";
+
 function SellerPhoneLinks({
   mergedTel,
   listingPhoneTrim,
@@ -135,7 +138,11 @@ function BuyerPurchaseRequestCardInner(props: BuyerPurchaseRequestCardProps) {
     <div className={shell}>
       <div className={`flex justify-between items-start gap-2 border-b-2 border-foreground/15 ${headerPb}`}>
         <div className="min-w-0 space-y-1">
-          <p className="font-mono text-[9px] text-muted-foreground uppercase tracking-widest font-bold leading-snug">
+          <p className={`${buyRequestPlacedMetaClass} flex flex-col gap-0.5 md:hidden`}>
+            <span>Buy request placed</span>
+            <span className="tabular-nums">{placedLabel}</span>
+          </p>
+          <p className={`${buyRequestPlacedMetaClass} hidden md:block`}>
             Buy request placed · {placedLabel}
           </p>
           {showLastTapLine ? (

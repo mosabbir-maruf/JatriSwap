@@ -178,17 +178,17 @@ const TicketDetails = () => {
   };
 
   return (
-    <div className="flex-1 bg-background bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] min-h-screen pt-24 pb-24">
+    <div className="flex-1 bg-background bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] min-h-screen pt-20 pb-16 sm:pt-24 sm:pb-24">
       <div className="page-shell">
         
-        <Button variant="ghost" render={<Link to={ticketBackNav.href} />} className="mb-8 h-12 rounded-none border-2 border-foreground bg-background shadow-[4px_4px_0_0_rgba(0,0,0,1)] font-mono text-xs uppercase tracking-widest font-bold hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all">
+        <Button variant="ghost" render={<Link to={ticketBackNav.href} />} className="mb-4 h-12 rounded-none border-2 border-foreground bg-background shadow-[4px_4px_0_0_rgba(0,0,0,1)] font-mono text-xs uppercase tracking-widest font-bold hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all sm:mb-8">
              <ArrowLeft className="w-4 h-4 mr-2" /> {ticketBackNav.label}
         </Button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 gap-4 sm:gap-8 lg:grid-cols-3">
            
            {/* Main Ticket Area */}
-           <div className="lg:col-span-2 space-y-8">
+           <div className="space-y-4 sm:space-y-8 lg:col-span-2">
               
               <div className="bg-background rounded-none border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] relative">
                  <div className="h-10 w-full bg-primary border-b-4 border-foreground flex space-x-2 px-6 items-center">
@@ -197,10 +197,10 @@ const TicketDetails = () => {
                    ))}
                  </div>
                  
-                 <div className="p-8 pt-10">
-                    <div className="flex justify-between items-start mb-10">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-3 mb-4">
+                 <div className="p-4 pt-6 sm:p-8 sm:pt-10">
+                    <div className="mb-6 sm:mb-10">
+                      <div className="mb-3 flex items-center justify-between gap-2 sm:mb-4 sm:gap-3">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
                            <Badge className="bg-foreground text-background border-2 border-foreground font-mono font-bold uppercase tracking-widest rounded-none shadow-[2px_2px_0_0_rgba(0,0,0,1)] px-3 py-1 text-[10px] flex items-center">
                              {ticket.mode === 'train' ? <Train className="w-4 h-4 mr-1.5" /> : <Bus className="w-4 h-4 mr-1.5" />}
                              {ticket.mode === 'train'
@@ -221,34 +221,14 @@ const TicketDetails = () => {
                              </Badge>
                            )}
                         </div>
-                        <h1 className="text-4xl md:text-5xl font-heading font-black tracking-tighter uppercase mb-3 bg-primary inline-block px-2 text-primary-foreground border-2 border-foreground">{ticket.transportName}</h1>
-                        <div className="flex items-center gap-4 mt-2">
-                          <div className="flex max-w-full min-w-0 flex-1 items-center gap-2">
-                            <span
-                              className="pointer-events-none shrink-0 select-none font-mono text-xs font-bold uppercase tracking-wide text-muted-foreground sm:tracking-widest"
-                              aria-hidden
-                            >
-                              Ticket ID:
-                            </span>
-                            <button
-                              type="button"
-                              onClick={handleCopyId}
-                              className="group min-w-0 flex-1 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-none border-0 bg-transparent p-0 text-left font-mono text-xs font-bold uppercase tracking-wide text-foreground outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:tracking-widest"
-                              title="Copy ticket ID"
-                              aria-label={`Copy ticket ID ${ticket.id}`}
-                            >
-                              <span className="inline-block whitespace-nowrap">{ticket.id}</span>
-                            </button>
-                          </div>
-                          
-                          <div className="relative">
+                        <div className="relative shrink-0 sm:ml-2">
                             <Button onClick={() => setShowShare(!showShare)} variant="outline" size="sm" className="h-7 px-3 rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[1px_1px_0_0_rgba(0,0,0,1)] hover:bg-muted font-mono text-[10px] uppercase font-bold tracking-widest transition-all">
                                 <Share2 className="w-3 h-3 mr-2" /> Share
                             </Button>
                             {showShare && (
                               <>
                                 <div className="fixed inset-0 z-40" onClick={() => setShowShare(false)} />
-                                <div className="absolute left-0 top-full mt-2 z-50 w-48 rounded-none border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] bg-background font-mono uppercase tracking-widest font-bold text-[10px]">
+                                <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-none border-4 border-foreground bg-background font-mono text-[10px] font-bold uppercase tracking-widest shadow-[8px_8px_0_0_rgba(0,0,0,1)]">
                                   <button onClick={() => { handleShare('copy'); setShowShare(false); }} className="w-full flex items-center hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground px-4 py-3 border-b-2 border-foreground text-left transition-colors">
                                     <Copy className="w-3 h-3 mr-3" /> Copy Link
                                   </button>
@@ -267,15 +247,34 @@ const TicketDetails = () => {
                                 </div>
                               </>
                             )}
-                          </div>
                         </div>
                       </div>
+                        <h1 className="mb-2 inline-block border-2 border-foreground bg-primary px-2 font-heading text-4xl font-black uppercase tracking-tighter text-primary-foreground md:text-5xl sm:mb-3">
+                          {ticket.transportName}
+                        </h1>
+                        <div className="mt-1 flex min-w-0 items-center gap-2 sm:mt-2 sm:gap-4">
+                          <span
+                            className="pointer-events-none shrink-0 select-none font-mono text-xs font-bold uppercase tracking-wide text-muted-foreground sm:tracking-widest"
+                            aria-hidden
+                          >
+                            Ticket ID:
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleCopyId}
+                            className="group min-w-0 flex-1 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-none border-0 bg-transparent p-0 text-left font-mono text-xs font-bold uppercase tracking-wide text-foreground outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:tracking-widest"
+                            title="Copy ticket ID"
+                            aria-label={`Copy ticket ID ${ticket.id}`}
+                          >
+                            <span className="inline-block whitespace-nowrap">{ticket.id}</span>
+                          </button>
+                        </div>
                     </div>
 
-                    <div className="flex flex-col md:flex-row items-center justify-between mb-12 relative px-4 py-8 bg-muted border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] gap-8 md:gap-0">
+                    <div className="relative mb-6 flex flex-col items-center justify-between gap-4 border-2 border-foreground bg-muted px-3 py-4 shadow-[4px_4px_0_0_rgba(0,0,0,1)] sm:mb-12 sm:gap-8 sm:px-4 sm:py-8 md:flex-row md:gap-0">
                        <div className="hidden md:block absolute top-1/2 left-[20%] right-[20%] h-1 bg-foreground -translate-y-1/2" />
                        
-                       <div className="text-center z-10 bg-background border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] p-4 min-w-[200px]">
+                       <div className="z-10 min-w-[200px] border-2 border-foreground bg-background p-3 text-center shadow-[4px_4px_0_0_rgba(0,0,0,1)] sm:p-4">
                          <p className="text-4xl font-heading font-black tracking-tighter">{formatDepartureTimeDisplay(ticket.departureTime)}</p>
                          <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground mt-2">
                            Departs
@@ -284,7 +283,7 @@ const TicketDetails = () => {
                        <div className="text-center z-10 bg-primary border-2 border-foreground p-3 rounded-none shadow-[2px_2px_0_0_rgba(0,0,0,1)] text-primary-foreground transform rotate-12">
                            <Clock className="w-6 h-6" />
                        </div>
-                       <div className="text-center z-10 bg-background border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] p-6 min-w-[240px]">
+                       <div className="z-10 min-w-0 border-2 border-foreground bg-background p-4 text-center shadow-[4px_4px_0_0_rgba(0,0,0,1)] sm:min-w-[240px] sm:p-6">
                          <p className="text-lg font-heading font-black tracking-tighter uppercase truncate">{ticket.from}</p>
                          <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground my-2 border-y border-foreground/20 py-1">
                            TO
@@ -294,7 +293,7 @@ const TicketDetails = () => {
                     </div>
 
                     {(ticket.additionalNotes ?? "").trim().length > 0 && (
-                      <div className="mb-10 bg-muted border-2 border-foreground p-5 shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
+                      <div className="mb-6 border-2 border-foreground bg-muted p-4 shadow-[4px_4px_0_0_rgba(0,0,0,1)] sm:mb-10 sm:p-5">
                         <p className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground mb-2">
                           Seller notes
                         </p>
@@ -304,7 +303,7 @@ const TicketDetails = () => {
                       </div>
                     )}
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+                    <div className="mb-6 grid grid-cols-1 gap-3 sm:mb-10 sm:grid-cols-3 sm:gap-4">
                       <div className="bg-background border-2 border-foreground p-4 shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
                         <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-2 flex items-center gap-1">
                           <Calendar className="w-3 h-3" /> Date
@@ -330,12 +329,12 @@ const TicketDetails = () => {
            </div>
 
               {/* Sidebar: Price */}
-              <div className="space-y-8">
+              <div className="space-y-4 sm:space-y-8">
                  
                  {/* Purchase Card */}
-                 <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] px-8 pt-8 pb-10 sticky top-24 rounded-none">
+                 <div className="sticky top-20 rounded-none border-4 border-foreground bg-background px-4 pb-6 pt-5 shadow-[16px_16px_0_0_rgba(0,0,0,1)] sm:top-24 sm:px-8 sm:pb-10 sm:pt-8">
                     
-                    <div className="space-y-4 mb-6">
+                    <div className="mb-4 space-y-3 sm:mb-6 sm:space-y-4">
                        <div className="flex justify-between font-mono text-sm uppercase font-bold text-muted-foreground">
                           <span>Selling Price</span>
                           <span className="text-foreground">৳{ticket.sellingPrice}</span>
@@ -346,10 +345,10 @@ const TicketDetails = () => {
                        </div>
                     </div>
 
-                    <Separator className="mb-6 border-b-2 border-foreground" />
+                    <Separator className="mb-4 border-b-2 border-foreground sm:mb-6" />
 
-                    <div className="mb-8">
-                       <p className="font-mono text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4">Total Price</p>
+                    <div className="mb-5 sm:mb-8">
+                       <p className="mb-3 font-mono text-xs font-bold uppercase tracking-widest text-muted-foreground sm:mb-4">Total Price</p>
                        <div className="flex flex-col gap-2">
                          <span className="text-5xl font-heading font-black tracking-tighter text-foreground bg-primary px-3 py-3 border-2 border-foreground inline-block w-max shadow-[4px_4px_0_0_rgba(0,0,0,1)]">৳{(Number(ticket.sellingPrice) + 20).toFixed(2)}</span>
                        </div>
@@ -368,11 +367,11 @@ const TicketDetails = () => {
                        </Button>
                     )}
   
-                    <div className="mt-8 flex items-center justify-center gap-2 font-mono text-[10px] uppercase font-bold text-muted-foreground tracking-widest">
+                    <div className="mt-5 flex items-center justify-center gap-2 font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground sm:mt-8">
                        <ShieldCheck className="w-4 h-4 text-emerald-600" /> Payment Secured Until Delivery
                     </div>
                     
-                    <Separator className="my-6 border-b-2 border-foreground/20 border-dashed" />
+                    <Separator className="my-4 border-b-2 border-dashed border-foreground/20 sm:my-6" />
                     
                     <div className="flex justify-center">
                        <Button variant="ghost" onClick={() => setIsReportModalOpen(true)} className="text-muted-foreground hover:text-destructive font-mono text-[10px] uppercase tracking-widest font-bold">
@@ -396,8 +395,8 @@ const TicketDetails = () => {
                  </DialogDescription>
                </DialogHeader>
                
-               <div className="space-y-4 py-4">
-                 <div className="bg-muted p-4 border-2 border-foreground shadow-inner">
+               <div className="space-y-3 py-3 sm:space-y-4 sm:py-4">
+                 <div className="border-2 border-foreground bg-muted p-3 shadow-inner sm:p-4">
                    <p className="font-mono text-[10px] uppercase font-bold text-muted-foreground mb-1">Target Ticket</p>
                    <p className="font-heading font-bold text-lg uppercase">{ticket.transportName} <span className="font-mono text-xs text-muted-foreground ml-2">({ticket.id})</span></p>
                  </div>

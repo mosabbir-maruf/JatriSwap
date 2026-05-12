@@ -25,10 +25,10 @@ function formatEntityCount(count: number, singular: string, plural: string): str
   return count === 1 ? `1 ${singular}` : `${count} ${plural}`;
 }
 
-const MANIFEST_CARD =
-  "flex min-h-0 flex-1 flex-col overflow-hidden border-4 border-foreground bg-background shadow-[6px_6px_0_0_rgba(0,0,0,1)]";
+const MANIFEST_CARD_BASE =
+  "flex min-h-0 flex-col overflow-hidden border-4 border-foreground bg-background shadow-[6px_6px_0_0_rgba(0,0,0,1)]";
 const MANIFEST_HEADER =
-  "flex items-center justify-between gap-3 border-b-4 border-foreground bg-primary px-4 py-3 text-primary-foreground";
+  "flex shrink-0 items-center justify-between gap-3 border-b-4 border-foreground bg-primary px-4 py-3 text-primary-foreground";
 const MANIFEST_ICON_FRAME =
   "flex h-9 w-9 shrink-0 items-center justify-center border-2 border-primary-foreground/40 bg-primary-foreground/10";
 const MANIFEST_COUNT_PILL =
@@ -53,29 +53,29 @@ type TransitManifestSectionProps = {
   plural: string;
   rowTag: string;
   indexDigits: 2 | 3;
-  scrollClassName: string;
 };
 
-const TransitManifestSection = React.memo(function TransitManifestSection({
-  sectionClassName,
-  headingId,
-  title,
-  eyebrow,
-  Icon,
-  items,
-  listAriaLabel,
-  singular,
-  plural,
-  rowTag,
-  indexDigits,
-  scrollClassName,
-}: TransitManifestSectionProps) {
+const TransitManifestSection = React.memo(function TransitManifestSection(props: TransitManifestSectionProps) {
+  const {
+    sectionClassName,
+    headingId,
+    title,
+    eyebrow,
+    Icon,
+    items,
+    listAriaLabel,
+    singular,
+    plural,
+    rowTag,
+    indexDigits,
+  } = props;
+
   const indexWidthClass = indexDigits === 3 ? "w-9" : "w-7";
   const pad = indexDigits;
 
   return (
     <section className={sectionClassName} aria-labelledby={headingId}>
-      <div className={MANIFEST_CARD}>
+      <div className={cn(MANIFEST_CARD_BASE, "h-full min-h-0 flex-1")}>
         <div className={MANIFEST_HEADER}>
           <div className="flex min-w-0 items-center gap-3">
             <span className={MANIFEST_ICON_FRAME}>
@@ -92,8 +92,8 @@ const TransitManifestSection = React.memo(function TransitManifestSection({
         </div>
         <div
           className={cn(
-            "relative flex-1 overflow-y-auto overscroll-contain bg-background [scrollbar-gutter:stable]",
-            scrollClassName,
+            "relative min-h-0 flex-1 overflow-y-auto overscroll-contain bg-background [scrollbar-gutter:stable]",
+            "max-lg:max-h-[min(52vh,460px)] lg:max-h-none",
           )}
         >
           <div className="px-1 py-2 sm:px-2">
@@ -102,7 +102,7 @@ const TransitManifestSection = React.memo(function TransitManifestSection({
             ) : (
               <ul className="border-t border-foreground/10" aria-label={listAriaLabel}>
                 {items.map((name, i) => (
-                  <li key={name} className={MANIFEST_ROW}>
+                  <li key={`${name}-${i}`} className={MANIFEST_ROW}>
                     <span className={cn("mt-0.5 shrink-0 text-right font-black tabular-nums text-primary", indexWidthClass)}>
                       {String(i + 1).padStart(pad, "0")}
                     </span>
@@ -193,10 +193,10 @@ export default function Transit() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, delay: 0.12 }}
-          className="grid overflow-hidden border-4 border-foreground bg-background shadow-[10px_10px_0_0_rgba(0,0,0,1)] md:shadow-[14px_14px_0_0_rgba(0,0,0,1)] lg:grid-cols-12"
+          className="grid min-h-0 overflow-hidden border-4 border-foreground bg-background shadow-[8px_8px_0_0_rgba(0,0,0,1)] sm:shadow-[10px_10px_0_0_rgba(0,0,0,1)] md:shadow-[14px_14px_0_0_rgba(0,0,0,1)] lg:grid-cols-12 lg:grid-rows-1 lg:h-[min(76vh,780px)]"
         >
           <TransitManifestSection
-            sectionClassName="flex min-h-0 flex-col border-b-4 border-foreground bg-muted/20 p-3 sm:p-4 lg:col-span-7 lg:border-b-0 lg:border-r-4 lg:pb-4"
+            sectionClassName="flex h-full min-h-0 flex-col border-b-4 border-foreground bg-muted/20 p-3 sm:p-4 lg:col-span-7 lg:border-b-0 lg:border-r-4 lg:pb-4"
             headingId="transit-stations-heading"
             title="Stations"
             eyebrow="Stops & junctions"
@@ -207,10 +207,9 @@ export default function Transit() {
             plural="stations"
             rowTag="station"
             indexDigits={3}
-            scrollClassName="min-h-[200px] max-h-[min(62vh,640px)]"
           />
 
-          <div className="flex flex-col lg:col-span-5">
+          <div className="flex h-full min-h-0 flex-col lg:col-span-5">
             <TransitManifestSection
               sectionClassName="flex min-h-0 flex-1 flex-col border-b-4 border-foreground bg-muted/20 p-3 sm:p-4 sm:pb-3"
               headingId="transit-trains-heading"
@@ -223,10 +222,9 @@ export default function Transit() {
               plural="trains"
               rowTag="train"
               indexDigits={2}
-              scrollClassName="min-h-[140px] max-h-[min(34vh,360px)]"
             />
             <TransitManifestSection
-              sectionClassName="flex flex-1 flex-col bg-muted/20 p-3 sm:p-4"
+              sectionClassName="flex min-h-0 flex-1 flex-col bg-muted/20 p-3 sm:p-4"
               headingId="transit-buses-heading"
               title="Bus operators"
               eyebrow="Operator manifest"
@@ -237,7 +235,6 @@ export default function Transit() {
               plural="operators"
               rowTag="bus"
               indexDigits={2}
-              scrollClassName="min-h-[140px] max-h-[min(34vh,360px)]"
             />
           </div>
         </motion.div>

@@ -286,12 +286,12 @@ const TicketDetails = () => {
                        <div className="text-center z-10 bg-primary border-2 border-foreground p-3 rounded-none shadow-[2px_2px_0_0_rgba(0,0,0,1)] text-primary-foreground transform rotate-12">
                            <Clock className="w-6 h-6" />
                        </div>
-                       <div className="z-10 min-w-0 border-2 border-foreground bg-background p-4 text-center shadow-[4px_4px_0_0_rgba(0,0,0,1)] sm:min-w-[240px] sm:p-6">
-                         <p className="text-lg font-heading font-black tracking-tighter uppercase truncate">{ticket.from}</p>
+                       <div className="z-10 w-[76%] max-w-xs self-center border-2 border-foreground bg-background p-4 text-center shadow-[4px_4px_0_0_rgba(0,0,0,1)] sm:w-auto sm:max-w-none sm:min-w-[240px] sm:p-6">
+                         <p className="break-words font-heading text-lg font-black uppercase tracking-tighter sm:truncate">{ticket.from}</p>
                          <p className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground my-2 border-y border-foreground/20 py-1">
                            TO
                          </p>
-                         <p className="text-lg font-heading font-black tracking-tighter uppercase truncate">{ticket.to}</p>
+                         <p className="break-words font-heading text-lg font-black uppercase tracking-tighter sm:truncate">{ticket.to}</p>
                        </div>
                     </div>
 

@@ -110,7 +110,7 @@ Concise long-term reference for **JatriSwap** (transit ticket marketplace). Full
 ## Hosting (Vercel)
 
 - **[`vercel.json`](vercel.json)**: SPA fallback rewrite (paths **not** under **`/api/*`**) → `index.html` so React Router handles paths client-side (fixes refresh **404** on `/browse`, `/admin`, etc.). Function entries register `maxDuration: 30` for both `api/contact.ts` and `api/admin-delete-auth-user.ts`. **No `memory` setting** (ignored on Active CPU billing). **No `includeFiles`** — both handlers ship only `node:*` + small handler-local imports; the heavy `firebase-admin` / `@google-cloud/firestore` / `google-gax` subtrees that used to need `includeFiles` for NFT tracing are gone.
-- **`package.json` `engines`**: pinned to **`"node": "22.x"`** (was `">=20"`) to silence Vercel's auto-upgrade warning and lock the runtime to current LTS.
+- **`package.json`**: **no `engines.node`** — the Node version comes from **Vercel → Project → Settings** (use **24.x** LTS there). A pinned `engines` value was overriding the dashboard and triggered “Project Setting overridden by package.json.”
 - That logic runs **only at the edge/router** when the browser requests a document — **not** in your JS bundle. It does **not** add components, listeners, or extra React reconciliation versus any other static host SPA setup.
 - Vercel serves **existing files under `dist/` first** (e.g. **`/assets/*`** hashed chunks from Vite, files from **`public/`**). The rewrite applies when there is **no** such file; keeping a single **`/(.*)` → `/index.html`** rule is standard and avoids misrouting **`/favicon.ico`** or root **`public`** assets that a narrower regex might accidentally capture.
 

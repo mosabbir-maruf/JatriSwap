@@ -10,6 +10,8 @@ export interface User {
   avatar: string;
   /** Original Google profile image URL; kept when the user switches to a local `/avatar/*` asset. */
   googleAvatarUrl?: string;
+  /** Optional mirror of Firebase Auth `photoURL` on the profile doc (legacy / admin reads). */
+  authPhotoURL?: string;
   role: Role;
   joinedAt: string;
   /** Profile phone (shown in admin; optional if not collected). */

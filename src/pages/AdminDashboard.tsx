@@ -47,6 +47,7 @@ import { aggregateSellerTicketStatsFromTickets } from "@/src/lib/aggregateSeller
 import {
   ADMIN_USER_MANAGEMENT_SEARCH_PLACEHOLDER,
   adminUserRowMatchesManagementSearch,
+  adminUserRowById,
 } from "@/src/lib/adminUserSearch";
 import {
   ADMIN_TICKET_REPORT_SEARCH_PLACEHOLDER,
@@ -411,7 +412,7 @@ function filterTicketsForAdmin(
   const now = Date.now();
   const out: Ticket[] = [];
   for (const t of list) {
-    const sellerRow = t.sellerId ? userById.get(t.sellerId) : undefined;
+    const sellerRow = adminUserRowById(userById, t.sellerId);
     if (!ticketMatchesAdminSearch(t, q, sellerRow)) continue;
     if (statusFilter !== "all" && ticketDisplayStatus(t, now) !== statusFilter) continue;
     out.push(t);
@@ -736,66 +737,69 @@ const RecentTicketPostRow = memo(function RecentTicketPostRow({
   return (
     <div className="flex max-md:flex-col max-md:gap-3 max-md:overflow-x-hidden justify-between items-stretch border-l-4 border-primary p-3 bg-muted/20 gap-3 md:items-center">
       <div className="min-w-0 w-full">
-        <div className="flex flex-wrap items-center gap-2">
-          <AdminTicketStatusBadge ticket={ticket} />
-        </div>
-        <p className="font-mono text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-2">
-          <span className="text-muted-foreground/90">Posted</span> · {formatTicketPostedAtAmPm(ticket.postedAt)}
-        </p>
-        <p className="font-mono text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-0.5">
-          <span className="text-muted-foreground/90">Departure</span> ·{" "}
-          {formatTripLineForAdmin(ticket.date, ticket.departureTime)}
-        </p>
-        <p className="font-heading font-bold text-lg uppercase leading-none mt-1 break-words">{ticket.transportName}</p>
-        <p className="font-mono text-xs text-muted-foreground mt-1">
-          {ticket.from} → {ticket.to}
-        </p>
-        <AdminTicketPublicListingLink
-          ticketId={ticket.id}
-          linkState={ticketListingLinkState}
-          className="mt-1 block font-mono text-[10px] font-black uppercase tracking-widest text-primary underline-offset-2 hover:underline break-all max-w-full"
-        />
-      </div>
-      <div className="flex min-w-0 w-full flex-col gap-0.5 border-t border-foreground/15 pt-3 max-md:text-left max-md:items-stretch md:w-auto md:max-w-[58%] md:shrink-0 md:border-t-0 md:pt-0 md:items-end">
-        <div className="flex w-full items-start gap-2 md:max-w-full md:justify-end">
+        <div className="flex items-start gap-2.5">
           <AdminUserFirestoreAvatar
             avatar={sellerRow?.avatar}
             googleAvatarUrl={sellerRow?.googleAvatarUrl}
+            authPhotoURL={sellerRow?.authPhotoURL}
             name={sellerRow?.name ?? ticket.sellerName}
-            className="size-8 shrink-0 rounded-none border border-foreground shadow-[1px_1px_0_0_rgba(0,0,0,1)]"
-            fallbackClassName="text-[9px]"
+            className="size-9 shrink-0 rounded-none border border-foreground shadow-[1px_1px_0_0_rgba(0,0,0,1)]"
+            fallbackClassName="text-[10px]"
           />
-          <div className="min-w-0 flex flex-1 flex-col gap-0.5 max-md:text-left md:items-end md:text-right">
-            <p className="font-heading text-xl font-black tracking-tighter text-emerald-600">৳{ticket.sellingPrice}</p>
-            <AdminSellerProfileLink
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <AdminTicketStatusBadge ticket={ticket} />
+            </div>
+            <p className="font-mono text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-2">
+              <span className="text-muted-foreground/90">Posted</span> · {formatTicketPostedAtAmPm(ticket.postedAt)}
+            </p>
+            <p className="font-mono text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-0.5">
+              <span className="text-muted-foreground/90">Departure</span> ·{" "}
+              {formatTripLineForAdmin(ticket.date, ticket.departureTime)}
+            </p>
+            <p className="font-heading font-bold text-lg uppercase leading-none mt-1 break-words">{ticket.transportName}</p>
+            <p className="font-mono text-xs text-muted-foreground mt-1">
+              {ticket.from} → {ticket.to}
+            </p>
+            <AdminTicketPublicListingLink
+              ticketId={ticket.id}
+              linkState={ticketListingLinkState}
+              className="mt-1 block font-mono text-[10px] font-black uppercase tracking-widest text-primary underline-offset-2 hover:underline break-all max-w-full"
+            />
+          </div>
+        </div>
+      </div>
+      <div className="flex min-w-0 w-full flex-col gap-0.5 border-t border-foreground/15 pt-3 max-md:text-left max-md:items-stretch md:w-auto md:max-w-[58%] md:shrink-0 md:border-t-0 md:pt-0 md:items-end">
+        <div className="flex w-full min-w-0 flex-col gap-0.5 max-md:text-left md:items-end md:text-right">
+          <p className="font-heading text-xl font-black tracking-tighter text-emerald-600">৳{ticket.sellingPrice}</p>
+          <AdminSellerProfileLink
+            ticket={ticket}
+            sellerRow={sellerRow}
+            profileTab="overview"
+            linkClassName="font-mono text-[10px] font-bold text-primary underline-offset-2 hover:underline max-w-full text-left md:truncate md:text-right"
+            noSellerIdClassName="font-mono text-[10px] font-bold text-muted-foreground max-w-full text-left break-words md:truncate md:text-right"
+          />
+          <div className="font-mono text-[10px] mt-0.5 max-w-full flex justify-start md:justify-end">
+            <AdminSellerListingMailRow
               ticket={ticket}
               sellerRow={sellerRow}
-              profileTab="overview"
-              linkClassName="font-mono text-[10px] font-bold text-primary underline-offset-2 hover:underline max-w-full text-left md:truncate md:text-right"
-              noSellerIdClassName="font-mono text-[10px] font-bold text-muted-foreground max-w-full text-left break-words md:truncate md:text-right"
+              linkClassName={`${adminTelLinkClass} justify-start max-md:[&_span]:overflow-visible max-md:[&_span]:whitespace-normal max-md:[&_span]:break-all md:justify-end max-w-full min-w-0`}
+              fallbackClassName="text-muted-foreground font-normal text-left break-words md:text-right"
+              emptyLabel="No email on file"
             />
-            <div className="font-mono text-[10px] mt-0.5 max-w-full flex justify-start md:justify-end">
-              <AdminSellerListingMailRow
-                ticket={ticket}
-                sellerRow={sellerRow}
-                linkClassName={`${adminTelLinkClass} justify-start max-md:[&_span]:overflow-visible max-md:[&_span]:whitespace-normal max-md:[&_span]:break-all md:justify-end max-w-full min-w-0`}
-                fallbackClassName="text-muted-foreground font-normal text-left break-words md:text-right"
-                emptyLabel="No email on file"
-              />
-            </div>
-            {sellerPhone ? (
-              <a
-                href={phoneDisplayToTelHref(sellerPhone)}
-                className={`font-mono text-[10px] text-muted-foreground mt-1 flex justify-start md:justify-end ${adminTelLinkClass} max-w-full min-w-0`}
-                title="Call seller"
-              >
-                <Phone className="w-3 h-3 shrink-0" aria-hidden />
-                <span className="min-w-0 max-md:whitespace-normal max-md:break-all md:truncate">{sellerPhone}</span>
-              </a>
-            ) : (
-              <p className="font-mono text-[10px] text-muted-foreground/70 mt-1 italic">No phone on file</p>
-            )}
           </div>
+          {sellerPhone ? (
+            <a
+              href={phoneDisplayToTelHref(sellerPhone)}
+              className={`font-mono text-[10px] text-muted-foreground mt-1 flex justify-start md:justify-end ${adminTelLinkClass} max-w-full min-w-0`}
+              title="Call seller"
+            >
+              <Phone className="w-3 h-3 shrink-0" aria-hidden />
+              <span className="min-w-0 max-md:whitespace-normal max-md:break-all md:truncate">{sellerPhone}</span>
+            </a>
+          ) : (
+            <p className="font-mono text-[10px] text-muted-foreground/70 mt-1 italic">No phone on file</p>
+          )}
         </div>
       </div>
     </div>
@@ -811,7 +815,7 @@ function recentTicketPostRows(
     <RecentTicketPostRow
       key={ticket.id}
       ticket={ticket}
-      sellerRow={ticket.sellerId ? userById.get(ticket.sellerId) : undefined}
+      sellerRow={adminUserRowById(userById, ticket.sellerId)}
       ticketListingLinkState={ticketListingLinkState}
     />
   ));
@@ -827,7 +831,7 @@ function buyerRequestCardElements(
       key={req.id}
       mode="admin"
       req={req}
-      sellerRow={userById.get(req.sellerId)}
+      sellerRow={adminUserRowById(userById, req.sellerId)}
       ticketDetailLinkState={ticketDetailLinkState}
     />
   ));
@@ -975,7 +979,11 @@ export default function AdminDashboard() {
     if (currentUser?.role !== 'admin') return;
 
     getTickets({ maxResults: TICKETS_ADMIN_QUERY_LIMIT }).then((t) => setTickets(t ?? []));
-    getAllUsers().then((u) => setUsers(u as AdminUserRow[]));
+    getAllUsers().then((u) => {
+      setUsers(u as AdminUserRow[]);
+      syncBuyerPurchaseOverviewFromServer();
+      syncRecentTicketsOverviewFromServer();
+    });
     getAdminNotes().then((notes) => setAdminNotes(notes ?? ""));
     getAdminLogs().then((loadedLogs) => setLogs(loadedLogs));
 
@@ -1000,9 +1008,6 @@ export default function AdminDashboard() {
     getTicketReports()
       .then(setTicketReports)
       .catch(() => setTicketReports([]));
-
-    syncBuyerPurchaseOverviewFromServer();
-    syncRecentTicketsOverviewFromServer();
   }, [currentUser, syncBuyerPurchaseOverviewFromServer, syncRecentTicketsOverviewFromServer]);
 
   useEffect(() => {
@@ -1422,7 +1427,7 @@ export default function AdminDashboard() {
   /** Toggle suspend ↔ active (blocked while banned). */
   const handleSuspendToggle = (userId: string) => {
     if (!handleActionClick("Suspend User")) return;
-    const row = userById.get(userId);
+    const row = adminUserRowById(userById, userId);
     if (!row) {
       toast.error("User is not in the loaded directory. Open Manage Users or refresh the dashboard.");
       return;
@@ -1444,7 +1449,7 @@ export default function AdminDashboard() {
 
   /** Ban ↔ active on one control; unban does not require the Ban User permission gate. */
   const handleToggleBanUser = (userId: string) => {
-    const row = userById.get(userId);
+    const row = adminUserRowById(userById, userId);
     if (!row) {
       toast.error("User is not in the loaded directory. Open Manage Users or refresh the dashboard.");
       return;
@@ -1879,7 +1884,7 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody>
                     {filteredTickets.map((ticket, i) => {
-                      const sellerRow = ticket.sellerId ? userById.get(ticket.sellerId) : undefined;
+                      const sellerRow = adminUserRowById(userById, ticket.sellerId);
                       return (
                       <tr key={ticket.id} className={`border-b-2 border-foreground ${i % 2 === 0 ? "bg-muted/10" : "bg-background"} hover:bg-muted/50 transition-colors`}>
                         <td className={cn(adminTableTdBase, adminTableTdMobileMin12)}>
@@ -2279,9 +2284,9 @@ export default function AdminDashboard() {
                     </div>
                   ) : (
                     filteredTicketReports.map((report) => {
-                      const reporterUser = userById.get(report.reporterId);
+                      const reporterUser = adminUserRowById(userById, report.reporterId);
                       const reporterIsAnon = report.reporterId === ANONYMOUS_REPORTER_ID;
-                      const sellerRow = userById.get(report.sellerId);
+                      const sellerRow = adminUserRowById(userById, report.sellerId);
                       const sellerBanned = normalizeUserAccountStatus(sellerRow?.status) === "banned";
                       return (
                         <div

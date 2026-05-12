@@ -1,4 +1,5 @@
 import type { AdminUserRow, TicketReport } from "@/src/types";
+import { adminUserRowById } from "@/src/lib/adminUserSearch";
 import { ANONYMOUS_REPORTER_ID } from "@/src/lib/firebase/ticketReports";
 import { adminSearchDigitsOnly } from "@/src/lib/adminSearchText";
 
@@ -23,9 +24,9 @@ export function ticketReportMatchesAdminSearch(
   if (hay(report.id).includes(q)) return true;
   if (hay(report.ticketId).includes(q)) return true;
 
-  const sellerRow = userById.get(report.sellerId);
+  const sellerRow = adminUserRowById(userById, report.sellerId);
   const reporterUser =
-    report.reporterId !== ANONYMOUS_REPORTER_ID ? userById.get(report.reporterId) : undefined;
+    report.reporterId !== ANONYMOUS_REPORTER_ID ? adminUserRowById(userById, report.reporterId) : undefined;
 
   if (hay(sellerRow?.email).includes(q)) return true;
   if (hay(reporterUser?.email).includes(q)) return true;

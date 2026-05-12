@@ -25,3 +25,11 @@ export function adminUserRowMatchesManagementSearch(user: AdminUserRow, queryNor
 
   return false;
 }
+
+/** Safe `users` row lookup for admin `Map` snapshots (falsy id → undefined). */
+export function adminUserRowById(
+  userById: Map<string, AdminUserRow>,
+  id: string | undefined,
+): AdminUserRow | undefined {
+  return id ? userById.get(id) : undefined;
+}

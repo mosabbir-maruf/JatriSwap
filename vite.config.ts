@@ -42,8 +42,28 @@ function jatriswapSeoArtifactsPlugin(): Plugin {
   };
 }
 
+/** HTML comment: View Source shows whether `VITE_PUBLIC_GA_MEASUREMENT_ID` was set when Vite built `index.html`. */
+function jatriswapGaBuildHintPlugin(): Plugin {
+  let root = process.cwd();
+  let mode = 'development';
+  return {
+    name: 'jatriswap-ga-build-hint',
+    configResolved(config) {
+      root = config.root;
+      mode = config.mode;
+    },
+    transformIndexHtml(html) {
+      if (html.includes('jatriswap-ga:')) return html;
+      const env = loadEnv(mode, root, '');
+      const has = Boolean(env.VITE_PUBLIC_GA_MEASUREMENT_ID?.trim());
+      const comment = `<!-- jatriswap-ga:${has ? 'measurement-id-at-build' : 'missing-VITE_PUBLIC_GA_MEASUREMENT_ID'} -->`;
+      return html.replace('<head>', `<head>\n    ${comment}`);
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), jatriswapSeoArtifactsPlugin()],
+  plugins: [react(), tailwindcss(), jatriswapGaBuildHintPlugin(), jatriswapSeoArtifactsPlugin()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),

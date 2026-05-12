@@ -19,7 +19,14 @@ declare global {
  * page views are sent from `trackGoogleAnalyticsPageView` after the document title is updated.
  */
 export function loadGoogleAnalytics(): void {
-  if (!GA4_MEASUREMENT_ID) return;
+  if (!GA4_MEASUREMENT_ID) {
+    if (import.meta.env.DEV) {
+      console.info(
+        "[JatriSwap] Google Analytics is off: set VITE_PUBLIC_GA_MEASUREMENT_ID in .env.local and restart the dev server. On Vercel, add it for Production (and Preview if needed), then redeploy so `vite build` embeds it.",
+      );
+    }
+    return;
+  }
   if (document.head.querySelector(`script[${SCRIPT_ATTR}="${GA4_MEASUREMENT_ID}"]`)) return;
 
   window.dataLayer = window.dataLayer ?? [];

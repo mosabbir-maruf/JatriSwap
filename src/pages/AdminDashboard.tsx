@@ -129,21 +129,57 @@ const PRESETS = {
 const adminTelLinkClass =
   "underline-offset-4 hover:underline hover:text-foreground text-inherit inline-flex items-center gap-1 max-w-full min-w-0";
 
+/** Brutalist mono outline control (Load more, View all, small dialogs). */
+const adminBrutalistOutlineMono10 =
+  "rounded-none border-2 border-foreground font-mono text-[10px] font-black uppercase tracking-widest shadow-[4px_4px_0_0_rgba(0,0,0,1)]";
+
+/** Shared `<td>` padding + borders (Manage Tickets + User Management). */
+const adminTableTdBase = "p-3 border-r-2 border-foreground align-top";
+
+/** Mobile: keep route / perf / UID readable; table scrolls horizontally. */
+const adminTableTdMobileMin12 = "min-w-0 max-md:min-w-[12rem]";
+const adminTableTdMobileMin13 = "min-w-0 max-md:min-w-[13rem]";
+
+const adminUserRowIconButtonBaseClass =
+  "w-8 h-8 rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none transition-all";
+
+const AdminUserPerformanceTableCell = memo(function AdminUserPerformanceTableCell({
+  postsCount,
+  activeCount,
+  soldCount,
+}: {
+  postsCount: number;
+  activeCount: number;
+  soldCount: number;
+}) {
+  const lines = [
+    ["Posts:", postsCount],
+    ["Active Layout:", activeCount],
+    ["Sold Tickets:", soldCount],
+  ] as const;
+  return (
+    <td className={cn(adminTableTdBase, "font-bold", adminTableTdMobileMin12)}>
+      {lines.map(([label, value]) => (
+        <p key={label} className="whitespace-nowrap">
+          {label} <span className="text-foreground">{value}</span>
+        </p>
+      ))}
+    </td>
+  );
+});
+
 /** `DialogContent` ships `sm:max-w-sm`; override with explicit `sm:max-w-*` or width changes never show at desktop. */
 const adminPagedOverviewDialogContentClass =
   "rounded-none border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] bg-background w-[calc(100vw-2rem)] max-w-4xl sm:max-w-4xl max-h-[min(90vh,720px)] flex flex-col gap-0 overflow-hidden p-0";
 
-const adminPagedLoadMoreButtonClass =
-  "w-full rounded-none border-2 border-foreground font-mono text-[10px] font-black uppercase tracking-widest shadow-[4px_4px_0_0_rgba(0,0,0,1)]";
+const adminPagedLoadMoreButtonClass = cn(adminBrutalistOutlineMono10, "w-full");
 
-/** Badge → title stack + “View all” (Recent Ticket Posts + Recent Buyer Requests overview cards). */
+const adminOverviewViewAllButtonClass = cn(adminBrutalistOutlineMono10, "hover:translate-y-px shrink-0");
+
 const ADMIN_OVERVIEW_BADGE_TITLE_GAP_CLASS = "gap-1";
 
 const adminOverviewSectionCardHeaderClass =
   "mb-6 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b-4 border-foreground pb-4";
-
-const adminOverviewViewAllButtonClass =
-  "rounded-none border-2 border-foreground font-mono text-[10px] font-black uppercase tracking-widest shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-px shrink-0";
 
 const adminOverviewCardSectionTitleClass =
   "order-2 font-heading text-xl font-black uppercase leading-tight tracking-tighter sm:text-2xl";
@@ -1743,16 +1779,16 @@ export default function AdminDashboard() {
                 <table className="w-full text-left font-mono text-[10px] xl:text-xs">
                   <thead className="bg-foreground text-background uppercase tracking-widest font-black border-y-2 border-foreground">
                     <tr>
-                      <th className="p-3 border-r-2 border-foreground align-top whitespace-nowrap">Ticket & Route</th>
-                      <th className="p-3 border-r-2 border-foreground align-top w-[5.5rem]">Price</th>
-                      <th className="p-3 border-r-2 border-foreground align-top max-w-[200px]">User</th>
-                      <th className="p-3 border-r-2 border-foreground align-top min-w-[10rem] max-w-[220px]">
+                      <th className={cn(adminTableTdBase, "whitespace-nowrap")}>Ticket & Route</th>
+                      <th className={cn(adminTableTdBase, "w-[5.5rem]")}>Price</th>
+                      <th className={cn(adminTableTdBase, "max-w-[200px]")}>User</th>
+                      <th className={cn(adminTableTdBase, "min-w-[10rem] max-w-[220px]")}>
                         <span className="block">Meta</span>
                         <span className="block text-[8px] font-normal opacity-90 normal-case tracking-normal font-sans font-medium mt-1 leading-snug">
                           postedAt · views · date · departureTime · staff note (modal)
                         </span>
                       </th>
-                      <th className="p-3 border-r-2 border-foreground align-top whitespace-nowrap">Status</th>
+                      <th className={cn(adminTableTdBase, "whitespace-nowrap")}>Status</th>
                       <th className="p-3 align-top">Actions</th>
                     </tr>
                   </thead>
@@ -1761,7 +1797,7 @@ export default function AdminDashboard() {
                       const sellerRow = ticket.sellerId ? userById.get(ticket.sellerId) : undefined;
                       return (
                       <tr key={ticket.id} className={`border-b-2 border-foreground ${i % 2 === 0 ? "bg-muted/10" : "bg-background"} hover:bg-muted/50 transition-colors`}>
-                        <td className="p-3 border-r-2 border-foreground align-top min-w-0 max-md:min-w-[12rem]">
+                        <td className={cn(adminTableTdBase, adminTableTdMobileMin12)}>
                           <p className="font-heading font-bold text-sm xl:text-base uppercase leading-tight break-words">
                             {ticket.transportName}
                           </p>
@@ -1775,8 +1811,10 @@ export default function AdminDashboard() {
                             />
                           </p>
                         </td>
-                        <td className="p-3 font-bold border-r-2 border-foreground text-emerald-600 text-sm align-top whitespace-nowrap">৳{ticket.sellingPrice}</td>
-                        <td className="p-3 border-r-2 border-foreground align-top min-w-0 max-w-[200px]">
+                        <td className={cn(adminTableTdBase, "font-bold text-emerald-600 text-sm whitespace-nowrap")}>
+                          ৳{ticket.sellingPrice}
+                        </td>
+                        <td className={cn(adminTableTdBase, "min-w-0 max-w-[200px]")}>
                           <p className="font-bold truncate max-w-full" title={ticketSellerDisplayName(ticket, sellerRow)}>
                             <AdminSellerProfileLink
                               ticket={ticket}
@@ -1806,7 +1844,7 @@ export default function AdminDashboard() {
                             </a>
                           )}
                         </td>
-                        <td className="p-3 border-r-2 border-foreground align-top min-w-0 max-w-[220px]">
+                        <td className={cn(adminTableTdBase, "min-w-0 max-w-[220px]")}>
                            <div className="space-y-2 text-[10px] text-muted-foreground leading-snug">
                              <p>
                                <span className="font-black uppercase tracking-wider text-foreground/85 block mb-0.5">Posted</span>
@@ -1837,8 +1875,7 @@ export default function AdminDashboard() {
                              ) : null}
                            </Button>
                         </td>
-                        <td className="p-3 border-r-2 border-foreground align-top">
-                          <AdminTicketStatusBadge ticket={ticket} />
+                        <td className={adminTableTdBase}>
                         </td>
                         <td className="p-3 align-top">
                           <div className="flex flex-wrap gap-1">
@@ -1948,18 +1985,18 @@ export default function AdminDashboard() {
                 <table className="w-full text-left font-mono text-[10px] xl:text-xs">
                   <thead className="bg-foreground text-background uppercase tracking-widest font-black border-2 border-foreground">
                     <tr>
-                      <th className="p-3 border-r-2 border-foreground whitespace-nowrap">User ID</th>
-                      <th className="p-3 border-r-2 border-foreground whitespace-nowrap">Name & Contact</th>
-                      <th className="p-3 border-r-2 border-foreground whitespace-nowrap">Performance</th>
-                      <th className="p-3 border-r-2 border-foreground whitespace-nowrap">Status / Role</th>
-                      <th className="p-3 whitespace-nowrap">Actions</th>
+                      <th className={cn(adminTableTdBase, "whitespace-nowrap")}>User ID</th>
+                      <th className={cn(adminTableTdBase, "whitespace-nowrap")}>Name & Contact</th>
+                      <th className={cn(adminTableTdBase, "whitespace-nowrap")}>Performance</th>
+                      <th className={cn(adminTableTdBase, "whitespace-nowrap")}>Status / Role</th>
+                      <th className="p-3 align-top whitespace-nowrap">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {userManagementTableRows.map(({ user, postsCount, activeCount, soldCount, accountRowStatus }, i) => {
                       return (
                       <tr key={user.id} className={`border-2 border-t-0 border-foreground ${i % 2 === 0 ? "bg-muted/10" : "bg-background"} hover:bg-muted/50 transition-colors`}>
-                        <td className="p-3 font-bold border-r-2 border-foreground align-top min-w-0 max-md:min-w-[13rem]">
+                        <td className={cn(adminTableTdBase, "font-bold", adminTableTdMobileMin13)}>
                            <button
                              type="button"
                              onClick={(e) => {
@@ -1979,7 +2016,7 @@ export default function AdminDashboard() {
                              </span>
                            </p>
                         </td>
-                        <td className="p-3 border-r-2 border-foreground align-top min-w-0">
+                        <td className={cn(adminTableTdBase, "min-w-0")}>
                           <p className="font-heading font-bold text-sm uppercase">
                             <Link
                               to={adminUserProfilePath(user.id, "users")}
@@ -2012,18 +2049,12 @@ export default function AdminDashboard() {
                             </a>
                           ) : null}
                         </td>
-                        <td className="p-3 font-bold border-r-2 border-foreground align-top min-w-0 max-md:min-w-[12rem]">
-                           <p className="whitespace-nowrap">
-                             Posts: <span className="text-foreground">{postsCount}</span>
-                           </p>
-                           <p className="whitespace-nowrap">
-                             Active Layout: <span className="text-foreground">{activeCount}</span>
-                           </p>
-                           <p className="whitespace-nowrap">
-                             Sold Tickets: <span className="text-foreground">{soldCount}</span>
-                           </p>
-                        </td>
-                        <td className="p-3 border-r-2 border-foreground align-top min-w-0">
+                        <AdminUserPerformanceTableCell
+                          postsCount={postsCount}
+                          activeCount={activeCount}
+                          soldCount={soldCount}
+                        />
+                        <td className={cn(adminTableTdBase, "min-w-0")}>
                            <Badge
                              className={`rounded-none border-2 border-foreground font-black text-[10px] uppercase shadow-[2px_2px_0_0_rgba(0,0,0,1)] ${
                                accountRowStatus === "active"
@@ -2044,7 +2075,7 @@ export default function AdminDashboard() {
                         <td className="p-3">
                           <div className="flex items-center gap-2">
                              {(user.phone) && (
-                               <Button onClick={() => window.open(`https://wa.me/${user.phone.replace(/[^0-9]/g, '')}`, '_blank')} size="icon" variant="outline" className="w-8 h-8 rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none transition-all text-emerald-600" title="WhatsApp Contact">
+                               <Button onClick={() => window.open(`https://wa.me/${user.phone.replace(/[^0-9]/g, '')}`, '_blank')} size="icon" variant="outline" className={cn(adminUserRowIconButtonBaseClass, "text-emerald-600")} title="WhatsApp Contact">
                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-circle"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
                                </Button>
                              )}
@@ -2052,7 +2083,7 @@ export default function AdminDashboard() {
                                onClick={() => handleSuspendToggle(user.id)}
                                size="icon"
                                variant="outline"
-                               className="w-8 h-8 rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none transition-all text-amber-600"
+                               className={cn(adminUserRowIconButtonBaseClass, "text-amber-600")}
                                title={accountRowStatus === "suspended" ? "Lift suspension" : "Suspend user"}
                              >
                                <AlertCircle className="w-4 h-4" />
@@ -2061,16 +2092,17 @@ export default function AdminDashboard() {
                                onClick={() => handleToggleBanUser(user.id)}
                                size="icon"
                                variant="outline"
-                               className={`w-8 h-8 rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none transition-all ${
+                               className={cn(
+                                 adminUserRowIconButtonBaseClass,
                                  accountRowStatus === "banned"
                                    ? "text-emerald-600 hover:bg-emerald-500 hover:text-white"
-                                   : "text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                               }`}
+                                   : "text-destructive hover:bg-destructive hover:text-destructive-foreground",
+                               )}
                                title={accountRowStatus === "banned" ? "Unban user" : "Ban user"}
                              >
                                {accountRowStatus === "banned" ? <CheckCircle2 className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
                              </Button>
-                             <Button onClick={() => handleHardDeleteUser(user.id)} size="icon" variant="outline" className="w-8 h-8 rounded-none border-2 border-destructive bg-destructive/10 shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none transition-all text-destructive hover:bg-destructive hover:text-destructive-foreground" title="Delete user (30s undo)">
+                             <Button onClick={() => handleHardDeleteUser(user.id)} size="icon" variant="outline" className={cn(adminUserRowIconButtonBaseClass, "border-destructive bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground")} title="Delete user (30s undo)">
                                 <Trash2 className="w-4 h-4" />
                              </Button>
                           </div>

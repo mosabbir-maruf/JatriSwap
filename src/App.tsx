@@ -167,10 +167,6 @@ const Navbar = () => {
                                <Bell className="w-4 h-4 mr-2" aria-hidden /> Alerts
                              </DropdownMenuItem>
                              <DropdownMenuSeparator className="m-0 bg-foreground/20" />
-                             <DropdownMenuItem onClick={() => navigate('/dashboard?action=profile')} className="rounded-none px-4 py-3 font-mono text-[10px] xl:text-xs uppercase font-bold tracking-widest cursor-pointer hover:bg-muted focus:bg-muted focus:text-foreground">
-                               <User className="w-4 h-4 mr-2" aria-hidden /> Edit profile
-                             </DropdownMenuItem>
-                             <DropdownMenuSeparator className="m-0 bg-foreground/20" />
                            </>
                          )}
                          <DropdownMenuItem onClick={handleLogout} className="rounded-none px-4 py-3 font-mono text-[10px] xl:text-xs uppercase font-bold tracking-widest cursor-pointer text-destructive hover:bg-destructive hover:text-destructive-foreground focus:bg-destructive focus:text-destructive-foreground">
@@ -253,13 +249,6 @@ const Navbar = () => {
                     <>
                       <Link to="/alerts" onClick={() => setMobileMenuOpen(false)} className="p-6 flex justify-between items-center hover:bg-muted">
                         Alerts <ArrowRight className="w-4 h-4" aria-hidden />
-                      </Link>
-                      <Link
-                        to="/dashboard?action=profile"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="p-6 flex justify-between items-center hover:bg-muted"
-                      >
-                        Edit profile <ArrowRight className="w-4 h-4" aria-hidden />
                       </Link>
                     </>
                   )}

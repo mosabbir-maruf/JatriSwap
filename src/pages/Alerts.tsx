@@ -90,7 +90,7 @@ const Alerts = () => {
           ) : null}
         </div>
 
-        <div className="border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] bg-background p-8 md:p-10">
+        <div className="border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] sm:shadow-[16px_16px_0_0_rgba(0,0,0,1)] bg-background p-8 md:p-10">
           <div className="space-y-4">
             {!notificationsReady ? (
               <div className="space-y-3" aria-busy="true">

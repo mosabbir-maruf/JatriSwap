@@ -46,8 +46,12 @@ import { aggregateSellerTicketStatsFromTickets } from "@/src/lib/aggregateSeller
 import {
   ADMIN_USER_MANAGEMENT_SEARCH_PLACEHOLDER,
   adminUserRowMatchesManagementSearch,
-  normalizeAdminUserManagementSearch,
 } from "@/src/lib/adminUserSearch";
+import {
+  ADMIN_TICKET_REPORT_SEARCH_PLACEHOLDER,
+  ticketReportMatchesAdminSearch,
+} from "@/src/lib/adminTicketReportSearch";
+import { normalizeAdminSearchQuery } from "@/src/lib/adminSearchText";
 import { scheduleTicketDeleteWithUndo, scheduleUserDeleteWithUndo } from "@/src/lib/scheduledDeleteUndo";
 import {
   fetchTicketAdminNotesForIds,
@@ -1045,6 +1049,7 @@ export default function AdminDashboard() {
   const [searchRecentTicketPosts, setSearchRecentTicketPosts] = useState("");
   const [filterRecentTicketPostsStatus, setFilterRecentTicketPostsStatus] = useState("all");
   const [searchUserManagement, setSearchUserManagement] = useState("");
+  const [searchTicketReports, setSearchTicketReports] = useState("");
 
   // Modal states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -1118,7 +1123,7 @@ export default function AdminDashboard() {
   }, [tickets]);
 
   const normalizedUserManagementSearch = useMemo(
-    () => normalizeAdminUserManagementSearch(searchUserManagement),
+    () => normalizeAdminSearchQuery(searchUserManagement),
     [searchUserManagement],
   );
 
@@ -1148,6 +1153,21 @@ export default function AdminDashboard() {
     }
     return out;
   }, [users, sellerTicketStatsByUserId, normalizedUserManagementSearch]);
+
+  const normalizedTicketReportSearch = useMemo(
+    () => normalizeAdminSearchQuery(searchTicketReports),
+    [searchTicketReports],
+  );
+
+  const filteredTicketReports = useMemo(() => {
+    const q = normalizedTicketReportSearch;
+    if (q.length === 0) return ticketReports;
+    const out: TicketReport[] = [];
+    for (const r of ticketReports) {
+      if (ticketReportMatchesAdminSearch(r, q, userById)) out.push(r);
+    }
+    return out;
+  }, [ticketReports, userById, normalizedTicketReportSearch]);
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center font-mono uppercase font-bold tracking-widest text-muted-foreground">Verifying access...</div>;
@@ -2154,154 +2174,210 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="reports" className="mt-4 md:mt-10 animate-in fade-in zoom-in-95 duration-200">
-             <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8">
-               <h3 className="font-heading text-3xl font-black uppercase tracking-tighter bg-destructive text-destructive-foreground px-3 py-1 border-2 border-foreground inline-block mb-8">Scam Reporting System</h3>
-               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                 {ticketReports.map((report) => {
-                   const reporterUser = userById.get(report.reporterId);
-                   const reporterIsAnon = report.reporterId === ANONYMOUS_REPORTER_ID;
-                   const sellerRow = userById.get(report.sellerId);
-                   const sellerBanned = normalizeUserAccountStatus(sellerRow?.status) === "banned";
-                   return (
-                   <div key={report.id} className="border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] p-6 bg-red-50 relative overflow-hidden flex flex-col justify-between">
-                     <div className="absolute top-0 right-0 p-4">
-                       <AlertCircle className="w-12 h-12 text-red-200" />
-                     </div>
-                     <div>
-                       <h4 className="font-heading font-black text-xl uppercase mb-4 relative z-10">Report #{report.id.slice(0, 8)}</h4>
-                       
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                         <div className="space-y-2">
-                           <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Target listing</p>
-                           <p className="font-heading font-bold text-sm uppercase leading-tight text-foreground">{report.ticketName}</p>
-                           <div>
-                             <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-0.5">Ticket ID</p>
-                             <AdminTicketPublicListingLink
-                               ticketId={report.ticketId}
-                               linkState={adminTicketDetailLinkState}
-                               className="font-mono text-xs font-bold text-primary underline-offset-2 hover:underline break-all inline-block max-w-full"
-                               title="Open listing details"
-                             />
-                           </div>
-                         </div>
-                         <div>
-                           <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Reported seller</p>
-                           <p className="font-mono text-xs font-bold leading-tight">
-                             <Link
-                               to={adminUserProfilePath(report.sellerId, "reports")}
-                               className="text-primary underline-offset-2 hover:underline font-bold"
-                               title="Open seller profile (admin)"
-                             >
-                               {report.sellerName || "Unknown seller"}
-                             </Link>
-                           </p>
-                           <div className="font-mono text-[10px] mt-0.5 min-w-0">
-                             {sellerRow?.email?.trim() ? (
-                               looksLikeEmail(sellerRow.email) ? (
-                                 <a
-                                   href={adminBanModerationMailtoHref(sellerRow.email, {
-                                     recipientDisplayName: report.sellerName || sellerRow.name || "there",
-                                     ticketId: report.ticketId,
-                                     reportIdShort: report.id.slice(0, 8),
-                                   })}
-                                   className={`${adminTelLinkClass} font-normal break-all inline-flex items-center gap-1 max-w-full`}
-                                   title="Compose moderation email (reported seller)"
-                                 >
-                                   <Mail className="w-3 h-3 shrink-0" aria-hidden />
-                                   <span className="min-w-0">{sellerRow.email}</span>
-                                 </a>
-                               ) : (
-                                 <span className="text-foreground font-bold break-all">{sellerRow.email}</span>
-                               )
-                             ) : (
-                               <span className="text-muted-foreground italic">No email on file</span>
-                             )}
-                           </div>
-                           {report.sellerPhone?.trim() ? (
-                             <a
-                               href={phoneDisplayToTelHref(report.sellerPhone)}
-                               className={`font-mono text-[10px] mt-1 ${adminTelLinkClass}`}
-                               title="Open phone app"
-                             >
-                               <Phone className="w-3 h-3 shrink-0" aria-hidden />
-                               <span>{report.sellerPhone}</span>
-                             </a>
-                           ) : (
-                             <p className="font-mono text-[10px] mt-1 text-muted-foreground">—</p>
-                           )}
-                         </div>
-                       </div>
+            <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8">
+              <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <h3 className="font-heading inline-block border-2 border-foreground bg-destructive px-3 py-1 text-3xl font-black uppercase tracking-tighter text-destructive-foreground">
+                  Scam Reporting System
+                </h3>
+                {ticketReports.length > 0 ? (
+                  <div className="relative w-full shrink-0 sm:w-72">
+                    <Search
+                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                      aria-hidden
+                    />
+                    <Input
+                      placeholder={ADMIN_TICKET_REPORT_SEARCH_PLACEHOLDER}
+                      value={searchTicketReports}
+                      onChange={(e) => setSearchTicketReports(e.target.value)}
+                      className="h-10 rounded-none border-2 border-foreground bg-background pl-9 font-mono text-xs shadow-[4px_4px_0_0_rgba(0,0,0,1)]"
+                      aria-label="Search reports by report ID, ticket ID, email, or phone"
+                    />
+                  </div>
+                ) : null}
+              </div>
 
-                       <div className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground mb-2 space-y-1">
-                         <span className="block">Reporter</span>
-                         {reporterIsAnon ? (
-                           <span className="text-foreground font-mono normal-case tracking-normal font-bold">
-                             Guest (not signed in)
-                           </span>
-                         ) : (
-                           <span className="normal-case tracking-normal block">
-                             <Link
-                               to={adminUserProfilePath(report.reporterId, "reports")}
-                               className="font-bold text-primary underline-offset-2 hover:underline"
-                               title="Open reporter profile (admin)"
-                             >
-                               {reporterUser?.name ?? "Unknown user"}
-                             </Link>
-                             <div className="font-mono text-[10px] font-normal mt-0.5 min-w-0">
-                               {reporterUser?.email?.trim() ? (
-                                 looksLikeEmail(reporterUser.email) ? (
-                                   <a
-                                     href={`mailto:${reporterUser.email.trim()}`}
-                                     className={`${adminTelLinkClass} font-bold break-all inline-flex items-center gap-1 max-w-full`}
-                                     title={`Email ${reporterUser.email}`}
-                                   >
-                                     <Mail className="w-3 h-3 shrink-0" aria-hidden />
-                                     <span className="min-w-0">{reporterUser.email}</span>
-                                   </a>
-                                 ) : (
-                                   <span className="text-foreground font-bold break-all">{reporterUser.email}</span>
-                                 )
-                               ) : (
-                                 <span className="text-muted-foreground italic">No email on file</span>
-                               )}
-                             </div>
-                           </span>
-                         )}
-                       </div>
+              {ticketReports.length === 0 ? (
+                <div className="flex min-h-[200px] items-center justify-center border-4 border-foreground bg-muted/20 p-6 shadow-[8px_8px_0_0_rgba(0,0,0,1)]">
+                  <div className="text-center">
+                    <h4 className="font-heading mb-2 text-xl font-black uppercase text-muted-foreground">No Active Reports</h4>
+                    <p className="font-mono text-xs font-bold text-muted-foreground">System is currently clear.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                  {filteredTicketReports.length === 0 ? (
+                    <div className="border-4 border-foreground bg-muted/20 p-8 text-center font-mono text-xs font-bold uppercase tracking-widest text-muted-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] xl:col-span-2">
+                      No reports match this search.
+                    </div>
+                  ) : (
+                    filteredTicketReports.map((report) => {
+                      const reporterUser = userById.get(report.reporterId);
+                      const reporterIsAnon = report.reporterId === ANONYMOUS_REPORTER_ID;
+                      const sellerRow = userById.get(report.sellerId);
+                      const sellerBanned = normalizeUserAccountStatus(sellerRow?.status) === "banned";
+                      return (
+                        <div
+                          key={report.id}
+                          className="relative flex flex-col justify-between overflow-hidden border-4 border-foreground bg-red-50 p-6 shadow-[8px_8px_0_0_rgba(0,0,0,1)]"
+                        >
+                          <div className="absolute right-0 top-0 p-4">
+                            <AlertCircle className="h-12 w-12 text-red-200" />
+                          </div>
+                          <div>
+                            <h4 className="relative z-10 mb-4 font-heading text-xl font-black uppercase">
+                              <span className="text-foreground">Report #</span>{" "}
+                              <button
+                                type="button"
+                                className="cursor-pointer border-0 bg-transparent p-0 align-baseline font-mono text-xl font-black tracking-normal text-blue-600 outline-none transition-colors hover:text-blue-800 focus-visible:text-blue-800 focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-1"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  void copyTextWithToast(report.id, COPY_TO_CLIPBOARD_FEEDBACK.reportId);
+                                }}
+                                title="Click to copy full report ID"
+                                aria-label={`Copy report ID ${report.id}`}
+                              >
+                                {report.id.slice(0, 8)}
+                              </button>
+                            </h4>
 
-                       <div className="font-mono text-xs mb-4 p-3 bg-white border border-foreground">
-                         <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-1">Reason:</p>
-                         <p>"{report.reason}"</p>
-                       </div>
-                     </div>
+                            <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                              <div className="space-y-2">
+                                <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                  Target listing
+                                </p>
+                                <p className="font-heading text-sm font-bold uppercase leading-tight text-foreground">{report.ticketName}</p>
+                                <div>
+                                  <p className="mb-0.5 font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                    Ticket ID
+                                  </p>
+                                  <AdminTicketPublicListingLink
+                                    ticketId={report.ticketId}
+                                    linkState={adminTicketDetailLinkState}
+                                    className="inline-block max-w-full break-all font-mono text-xs font-bold text-primary underline-offset-2 hover:underline"
+                                    title="Open listing details"
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                  Reported seller
+                                </p>
+                                <p className="font-mono text-xs font-bold leading-tight">
+                                  <Link
+                                    to={adminUserProfilePath(report.sellerId, "reports")}
+                                    className="font-bold text-primary underline-offset-2 hover:underline"
+                                    title="Open seller profile (admin)"
+                                  >
+                                    {report.sellerName || "Unknown seller"}
+                                  </Link>
+                                </p>
+                                <div className="mt-0.5 min-w-0 font-mono text-[10px]">
+                                  {sellerRow?.email?.trim() ? (
+                                    looksLikeEmail(sellerRow.email) ? (
+                                      <a
+                                        href={adminBanModerationMailtoHref(sellerRow.email, {
+                                          recipientDisplayName: report.sellerName || sellerRow.name || "there",
+                                          ticketId: report.ticketId,
+                                          reportIdShort: report.id.slice(0, 8),
+                                        })}
+                                        className={`${adminTelLinkClass} inline-flex max-w-full items-center gap-1 break-all font-normal`}
+                                        title="Compose moderation email (reported seller)"
+                                      >
+                                        <Mail className="h-3 w-3 shrink-0" aria-hidden />
+                                        <span className="min-w-0">{sellerRow.email}</span>
+                                      </a>
+                                    ) : (
+                                      <span className="break-all font-bold text-foreground">{sellerRow.email}</span>
+                                    )
+                                  ) : (
+                                    <span className="italic text-muted-foreground">No email on file</span>
+                                  )}
+                                </div>
+                                {report.sellerPhone?.trim() ? (
+                                  <a
+                                    href={phoneDisplayToTelHref(report.sellerPhone)}
+                                    className={`mt-1 font-mono text-[10px] ${adminTelLinkClass}`}
+                                    title="Open phone app"
+                                  >
+                                    <Phone className="h-3 w-3 shrink-0" aria-hidden />
+                                    <span>{report.sellerPhone}</span>
+                                  </a>
+                                ) : (
+                                  <p className="mt-1 font-mono text-[10px] text-muted-foreground">—</p>
+                                )}
+                              </div>
+                            </div>
 
-                     <div className="flex flex-wrap gap-2 mt-4 relative z-10">
-                       <Button
-                         onClick={() => handleToggleBanUser(report.sellerId)}
-                         className={`rounded-none font-mono text-[10px] uppercase font-bold border-2 shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-1 transition-all ${
-                           sellerBanned
-                             ? "border-foreground bg-background text-foreground hover:bg-emerald-500 hover:text-white"
-                             : "border-destructive bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                         }`}
-                       >
-                         {sellerBanned ? "Unban User" : "Ban User"}
-                       </Button>
-                       <Button onClick={() => handleDeleteTicket(report.ticketId)} variant="outline" className="rounded-none font-mono text-[10px] uppercase font-bold border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] hover:translate-y-1 transition-all">Remove Ticket</Button>
-                     </div>
-                   </div>
-                   );
-                 })}
-                 
-                 {ticketReports.length === 0 && (
-                   <div className="border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] p-6 bg-muted/20 flex items-center justify-center min-h-[200px]">
-                     <div className="text-center">
-                       <h4 className="font-heading font-black text-xl uppercase mb-2 text-muted-foreground">No Active Reports</h4>
-                       <p className="font-mono text-xs font-bold text-muted-foreground">System is currently clear.</p>
-                     </div>
-                   </div>
-                 )}
-               </div>
-             </div>
+                            <div className="mb-2 space-y-1 font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                              <span className="block">Reporter</span>
+                              {reporterIsAnon ? (
+                                <span className="font-mono font-bold normal-case tracking-normal text-foreground">
+                                  Guest (not signed in)
+                                </span>
+                              ) : (
+                                <span className="block normal-case tracking-normal">
+                                  <Link
+                                    to={adminUserProfilePath(report.reporterId, "reports")}
+                                    className="font-bold text-primary underline-offset-2 hover:underline"
+                                    title="Open reporter profile (admin)"
+                                  >
+                                    {reporterUser?.name ?? "Unknown user"}
+                                  </Link>
+                                  <div className="mt-0.5 min-w-0 font-mono text-[10px] font-normal">
+                                    {reporterUser?.email?.trim() ? (
+                                      looksLikeEmail(reporterUser.email) ? (
+                                        <a
+                                          href={`mailto:${reporterUser.email.trim()}`}
+                                          className={`${adminTelLinkClass} inline-flex max-w-full items-center gap-1 break-all font-bold`}
+                                          title={`Email ${reporterUser.email}`}
+                                        >
+                                          <Mail className="h-3 w-3 shrink-0" aria-hidden />
+                                          <span className="min-w-0">{reporterUser.email}</span>
+                                        </a>
+                                      ) : (
+                                        <span className="break-all font-bold text-foreground">{reporterUser.email}</span>
+                                      )
+                                    ) : (
+                                      <span className="italic text-muted-foreground">No email on file</span>
+                                    )}
+                                  </div>
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="mb-4 border border-foreground bg-white p-3 font-mono text-xs">
+                              <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Reason:</p>
+                              <p>{`"${report.reason}"`}</p>
+                            </div>
+                          </div>
+
+                          <div className="relative z-10 mt-4 flex flex-wrap gap-2">
+                            <Button
+                              onClick={() => handleToggleBanUser(report.sellerId)}
+                              className={`rounded-none border-2 font-mono text-[10px] font-bold uppercase shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all hover:translate-y-1 ${
+                                sellerBanned
+                                  ? "border-foreground bg-background text-foreground hover:bg-emerald-500 hover:text-white"
+                                  : "border-destructive bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              }`}
+                            >
+                              {sellerBanned ? "Unban User" : "Ban User"}
+                            </Button>
+                            <Button
+                              onClick={() => handleDeleteTicket(report.ticketId)}
+                              variant="outline"
+                              className="rounded-none border-2 border-foreground font-mono text-[10px] font-bold uppercase shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all hover:translate-y-1"
+                            >
+                              Remove Ticket
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
           </TabsContent>
 
           <TabsContent value="logs" className="mt-4 md:mt-10 animate-in fade-in zoom-in-95 duration-200">

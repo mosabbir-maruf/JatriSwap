@@ -1724,7 +1724,7 @@ export default function AdminDashboard() {
                 <table className="w-full text-left font-mono text-[10px] xl:text-xs">
                   <thead className="bg-foreground text-background uppercase tracking-widest font-black border-y-2 border-foreground">
                     <tr>
-                      <th className="p-3 border-r-2 border-foreground align-top">Ticket & Route</th>
+                      <th className="p-3 border-r-2 border-foreground align-top whitespace-nowrap">Ticket & Route</th>
                       <th className="p-3 border-r-2 border-foreground align-top w-[5.5rem]">Price</th>
                       <th className="p-3 border-r-2 border-foreground align-top max-w-[200px]">User</th>
                       <th className="p-3 border-r-2 border-foreground align-top min-w-[10rem] max-w-[220px]">
@@ -1742,13 +1742,17 @@ export default function AdminDashboard() {
                       const sellerRow = ticket.sellerId ? userById.get(ticket.sellerId) : undefined;
                       return (
                       <tr key={ticket.id} className={`border-b-2 border-foreground ${i % 2 === 0 ? "bg-muted/10" : "bg-background"} hover:bg-muted/50 transition-colors`}>
-                        <td className="p-3 border-r-2 border-foreground align-top min-w-0">
-                          <p className="font-heading font-bold text-sm xl:text-base uppercase leading-tight">{ticket.transportName}</p>
-                          <p className="text-muted-foreground mt-1 space-y-1 leading-snug">
-                            <span className="block">{ticket.from} → {ticket.to}</span>
+                        <td className="p-3 border-r-2 border-foreground align-top min-w-0 max-md:min-w-[12rem]">
+                          <p className="font-heading font-bold text-sm xl:text-base uppercase leading-tight break-words">
+                            {ticket.transportName}
+                          </p>
+                          <p className="text-muted-foreground mt-1 leading-snug">
+                            <span className="inline-block whitespace-nowrap">
+                              {ticket.from} → {ticket.to}
+                            </span>
                             <AdminTicketPublicListingLink
                               ticketId={ticket.id}
-                              className="block text-primary font-bold underline-offset-2 hover:underline break-all"
+                              className="mt-1 block text-primary font-bold underline-offset-2 hover:underline break-all"
                             />
                           </p>
                         </td>

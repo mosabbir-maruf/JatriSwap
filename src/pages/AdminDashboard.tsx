@@ -136,11 +136,41 @@ const adminPagedOverviewDialogContentClass =
 const adminPagedLoadMoreButtonClass =
   "w-full rounded-none border-2 border-foreground font-mono text-[10px] font-black uppercase tracking-widest shadow-[4px_4px_0_0_rgba(0,0,0,1)]";
 
+/** Same vertical rhythm: Live Updates badge → title (overview card + View-all dialog header). */
+const ADMIN_RECENT_POSTS_BADGE_TITLE_GAP_CLASS = "gap-1";
+
+function AdminRecentPostsLiveUpdatesBadge({ className }: { className?: string }) {
+  return (
+    <Badge
+      className={cn(
+        "self-start rounded-none bg-primary text-primary-foreground border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] font-mono text-[10px] tracking-widest font-black uppercase whitespace-nowrap",
+        className,
+      )}
+    >
+      Live Updates
+    </Badge>
+  );
+}
+
+/** Layout-only variants for {@link AdminTicketSearchStatusFilters} on recent ticket posts (overview vs dialog). */
+const ADMIN_RECENT_TICKET_POSTS_FILTERS_OVERVIEW_LAYOUT = {
+  rowClassName: "w-full mb-4",
+  searchWrapClassName: "flex-1 min-w-[12rem] max-w-md",
+  selectTriggerClassName: "w-full sm:w-[140px]",
+} as const;
+
+const ADMIN_RECENT_TICKET_POSTS_FILTERS_DIALOG_LAYOUT = {
+  rowClassName: "w-full pb-2 border-b-2 border-muted",
+  searchWrapClassName: "flex-1 min-w-[12rem]",
+  selectTriggerClassName: "w-full sm:w-[140px]",
+} as const;
+
 /** Shared shell for “View all” admin lists (buyer requests, recent ticket posts). */
 function AdminPagedOverviewDialog({
   open,
   onOpenChange,
   title,
+  titleBadge,
   loading,
   itemCount,
   hasMore,
@@ -152,6 +182,8 @@ function AdminPagedOverviewDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
+  /** Optional e.g. “Live Updates” above the title (recent ticket posts only). */
+  titleBadge?: ReactNode;
   loading: boolean;
   itemCount: number;
   hasMore: boolean;
@@ -165,7 +197,13 @@ function AdminPagedOverviewDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(adminPagedOverviewDialogContentClass, contentClassName)}>
-        <DialogHeader className="p-6 pb-4 border-b-4 border-foreground shrink-0 space-y-2">
+        <DialogHeader
+          className={cn(
+            "p-6 pb-4 border-b-4 border-foreground shrink-0",
+            ADMIN_RECENT_POSTS_BADGE_TITLE_GAP_CLASS,
+          )}
+        >
+          {titleBadge}
           <DialogTitle className="font-heading font-black text-xl uppercase tracking-tighter">{title}</DialogTitle>
           <DialogDescription className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
             Newest first
@@ -965,27 +1003,24 @@ export default function AdminDashboard() {
     [tickets, searchTicket, filterTicketStatus, userById],
   );
 
-  const filteredRecentTicketsOverview = useMemo(
-    () =>
-      filterTicketsForAdmin(
-        recentTicketsOverview,
-        searchRecentTicketPosts,
-        filterRecentTicketPostsStatus,
-        userById,
-      ),
-    [recentTicketsOverview, searchRecentTicketPosts, filterRecentTicketPostsStatus, userById],
-  );
-
-  const filteredRecentTicketsListItems = useMemo(
-    () =>
-      filterTicketsForAdmin(
-        recentTicketsListItems,
-        searchRecentTicketPosts,
-        filterRecentTicketPostsStatus,
-        userById,
-      ),
-    [recentTicketsListItems, searchRecentTicketPosts, filterRecentTicketPostsStatus, userById],
-  );
+  /** One memo for shared search/status params; skip list filtering while dialog is closed. */
+  const filteredRecentTicketPostsViews = useMemo(() => {
+    const q = searchRecentTicketPosts;
+    const st = filterRecentTicketPostsStatus;
+    return {
+      overview: filterTicketsForAdmin(recentTicketsOverview, q, st, userById),
+      list: recentTicketsListOpen
+        ? filterTicketsForAdmin(recentTicketsListItems, q, st, userById)
+        : recentTicketsListItems,
+    };
+  }, [
+    recentTicketsOverview,
+    recentTicketsListItems,
+    recentTicketsListOpen,
+    searchRecentTicketPosts,
+    filterRecentTicketPostsStatus,
+    userById,
+  ]);
 
   const ticketSoldAndPendingCounts = useMemo(() => {
     let sold = 0;
@@ -1315,6 +1350,14 @@ export default function AdminDashboard() {
     }
   };
 
+  const recentTicketPostsFilterProps = {
+    searchValue: searchRecentTicketPosts,
+    onSearchChange: setSearchRecentTicketPosts,
+    statusValue: filterRecentTicketPostsStatus,
+    onStatusChange: setFilterRecentTicketPostsStatus,
+    searchAriaLabel: "Filter recent ticket posts",
+  } as const;
+
   return (
     <div className="flex-1 bg-background bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] min-h-screen pt-24 pb-24 relative">
       <div className="page-shell relative z-10">
@@ -1463,13 +1506,16 @@ export default function AdminDashboard() {
               {/* Daily/Weekly Stats */}
               <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 lg:col-span-2">
                 <div className="mb-6 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b-4 border-foreground pb-4">
-                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                  <div
+                    className={cn(
+                      "flex min-w-0 flex-1 flex-col",
+                      ADMIN_RECENT_POSTS_BADGE_TITLE_GAP_CLASS,
+                    )}
+                  >
                     <h3 className="order-2 font-heading text-xl font-black uppercase leading-tight tracking-tighter sm:text-2xl">
                       Recent Ticket Posts
                     </h3>
-                    <Badge className="order-1 self-start rounded-none bg-primary text-primary-foreground border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] font-mono text-[10px] tracking-widest font-black uppercase whitespace-nowrap">
-                      Live Updates
-                    </Badge>
+                    <AdminRecentPostsLiveUpdatesBadge className="order-1" />
                   </div>
                   {recentTicketsOverviewHasMore ? (
                     <Button
@@ -1483,24 +1529,18 @@ export default function AdminDashboard() {
                   ) : null}
                 </div>
                 <AdminTicketSearchStatusFilters
-                  rowClassName="w-full mb-4"
-                  searchWrapClassName="flex-1 min-w-[12rem] max-w-md"
-                  selectTriggerClassName="w-full sm:w-[140px]"
-                  searchValue={searchRecentTicketPosts}
-                  onSearchChange={setSearchRecentTicketPosts}
-                  statusValue={filterRecentTicketPostsStatus}
-                  onStatusChange={setFilterRecentTicketPostsStatus}
-                  searchAriaLabel="Filter recent ticket posts"
+                  {...recentTicketPostsFilterProps}
+                  {...ADMIN_RECENT_TICKET_POSTS_FILTERS_OVERVIEW_LAYOUT}
                 />
                 <div className="space-y-4">
                   {recentTicketsOverview.length === 0 ? (
                     <p className="font-mono text-xs font-bold text-muted-foreground">No listings yet.</p>
-                  ) : filteredRecentTicketsOverview.length === 0 ? (
+                  ) : filteredRecentTicketPostsViews.overview.length === 0 ? (
                     <p className="font-mono text-xs font-bold text-muted-foreground">
                       No listings match your filters.
                     </p>
                   ) : (
-                    recentTicketPostRows(filteredRecentTicketsOverview, userById)
+                    recentTicketPostRows(filteredRecentTicketPostsViews.overview, userById)
                   )}
                 </div>
               </div>
@@ -1514,6 +1554,7 @@ export default function AdminDashboard() {
                   }
                 }}
                 title="Recent ticket posts"
+                titleBadge={<AdminRecentPostsLiveUpdatesBadge />}
                 contentClassName="max-w-6xl sm:max-w-6xl"
                 loading={recentTicketsListLoading}
                 itemCount={recentTicketsListItems.length}
@@ -1523,21 +1564,15 @@ export default function AdminDashboard() {
               >
                 <>
                   <AdminTicketSearchStatusFilters
-                    rowClassName="w-full pb-2 border-b-2 border-muted"
-                    searchWrapClassName="flex-1 min-w-[12rem]"
-                    selectTriggerClassName="w-full sm:w-[140px]"
-                    searchValue={searchRecentTicketPosts}
-                    onSearchChange={setSearchRecentTicketPosts}
-                    statusValue={filterRecentTicketPostsStatus}
-                    onStatusChange={setFilterRecentTicketPostsStatus}
-                    searchAriaLabel="Filter recent ticket posts"
+                    {...recentTicketPostsFilterProps}
+                    {...ADMIN_RECENT_TICKET_POSTS_FILTERS_DIALOG_LAYOUT}
                   />
-                  {filteredRecentTicketsListItems.length === 0 ? (
+                  {filteredRecentTicketPostsViews.list.length === 0 ? (
                     <p className="font-mono text-xs font-bold text-muted-foreground">
                       No listings match your filters.
                     </p>
                   ) : (
-                    recentTicketPostRows(filteredRecentTicketsListItems, userById)
+                    recentTicketPostRows(filteredRecentTicketPostsViews.list, userById)
                   )}
                 </>
               </AdminPagedOverviewDialog>

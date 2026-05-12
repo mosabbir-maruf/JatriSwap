@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Clock, Calendar, ShieldCheck, AlertCircle, ArrowLeft, Ticket, Flag, Train, Bus, Copy, Share2, Facebook, MessageCircle, Send } from "lucide-react";
+import { Clock, Calendar, ShieldCheck, AlertCircle, ArrowLeft, Ticket, Flag, Train, Bus, Copy, Share2, Facebook, MessageCircle, Send, CheckCircle2 } from "lucide-react";
 import { BrutalistLoadingPlaceholder } from "@/src/components/common/AuthLoadingPlaceholder";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,6 +40,7 @@ const TicketDetails = () => {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [submittedReportId, setSubmittedReportId] = useState<string | null>(null);
   const [showShare, setShowShare] = useState(false);
 
   if (isLoading) {
@@ -88,7 +89,7 @@ const TicketDetails = () => {
     }
     setReportSubmitting(true);
     try {
-      await createTicketReport({
+      const reportId = await createTicketReport({
         ticketId: ticket.id,
         ticketName: ticket.transportName,
         sellerId: ticket.sellerId,
@@ -97,9 +98,8 @@ const TicketDetails = () => {
         reason: reportReason.trim(),
         reporterId: viewerUid ?? ANONYMOUS_REPORTER_ID,
       });
-      toast.success("Report submitted. An administrator will review it.");
+      setSubmittedReportId(reportId);
       setReportReason("");
-      setIsReportModalOpen(false);
     } catch {
       toast.error("Could not submit report. Try again or contact support.");
     } finally {
@@ -389,39 +389,110 @@ const TicketDetails = () => {
   
            </div>
 
-           <Dialog open={isReportModalOpen} onOpenChange={setIsReportModalOpen}>
-             <DialogContent className="rounded-none border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] bg-background">
+           <Dialog
+             open={isReportModalOpen}
+             onOpenChange={(open) => {
+               setIsReportModalOpen(open);
+               if (!open) {
+                 setSubmittedReportId(null);
+                 setReportReason("");
+               }
+             }}
+           >
+             <DialogContent className="max-w-[calc(100%-2rem)] rounded-none border-4 border-foreground bg-background p-5 shadow-[16px_16px_0_0_rgba(0,0,0,1)] sm:max-w-lg sm:p-6">
                <DialogHeader>
-                 <DialogTitle className="font-heading font-black text-2xl uppercase tracking-tighter text-destructive flex items-center gap-2">
-                   <AlertCircle className="w-6 h-6" /> Report Ticket
+                 <DialogTitle
+                   className={`font-heading flex items-center gap-2 text-2xl font-black uppercase tracking-tighter ${submittedReportId ? "text-foreground" : "text-destructive"}`}
+                 >
+                   {submittedReportId ? (
+                     <>
+                       <CheckCircle2 className="h-6 w-6 text-emerald-600" aria-hidden />
+                       Report received
+                     </>
+                   ) : (
+                     <>
+                       <AlertCircle className="h-6 w-6" aria-hidden />
+                       Report Ticket
+                     </>
+                   )}
                  </DialogTitle>
                  <DialogDescription className="font-mono text-xs font-bold uppercase tracking-widest mt-2">
-                   Help us keep the marketplace safe. You can submit without signing in.
+                   {submittedReportId
+                     ? "Save your report ID if you need to follow up with support."
+                     : "Help us keep the marketplace safe. You can submit without signing in."}
                  </DialogDescription>
                </DialogHeader>
                
-               <div className="space-y-3 py-3 sm:space-y-4 sm:py-4">
-                 <div className="border-2 border-foreground bg-muted p-3 shadow-inner sm:p-4">
-                   <p className="font-mono text-[10px] uppercase font-bold text-muted-foreground mb-1">Target Ticket</p>
-                   <p className="font-heading font-bold text-lg uppercase">{ticket.transportName} <span className="font-mono text-xs text-muted-foreground ml-2">({ticket.id})</span></p>
+               {submittedReportId ? (
+                 <div className="space-y-4 border-2 border-foreground bg-muted p-5 py-5 shadow-inner sm:p-6 sm:py-6">
+                   <p className="font-mono text-sm font-medium leading-relaxed text-foreground">
+                     Your report was submitted. An administrator will review it.
+                   </p>
+                   <div>
+                     <p className="mb-1 font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                       Report ID
+                     </p>
+                     <button
+                       type="button"
+                       onClick={() => void copyTextWithToast(submittedReportId, COPY_TO_CLIPBOARD_FEEDBACK.reportId)}
+                       className="w-full break-all rounded-none border-0 bg-transparent p-0 text-left font-mono text-xs font-bold text-foreground outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                       title="Copy report ID"
+                       aria-label={`Copy report ID ${submittedReportId}`}
+                     >
+                       {submittedReportId}
+                     </button>
+                   </div>
                  </div>
-                 <div className="space-y-2">
-                   <Textarea 
-                     value={reportReason}
-                     onChange={(e) => setReportReason(e.target.value)}
-                     placeholder="Why are you reporting this ticket? (e.g. Scammer, duplicate, invalid information)"
-                     className="min-h-[120px] rounded-none border-2 border-foreground font-mono text-xs focus-visible:ring-0 shadow-[4px_4px_0_0_rgba(0,0,0,1)] resize-none p-4"
-                   />
+               ) : (
+                 <div className="space-y-3 py-4 sm:space-y-4 sm:py-5">
+                   <div className="border-2 border-foreground bg-muted p-3 shadow-inner sm:p-4">
+                     <p className="font-mono text-[10px] uppercase font-bold text-muted-foreground mb-1">Target Ticket</p>
+                     <p className="mb-3 font-heading text-lg font-bold uppercase">{ticket.transportName}</p>
+                     <div className="flex max-w-full min-w-0 flex-wrap items-center gap-2">
+                       <span className="pointer-events-none shrink-0 font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                         Ticket ID:
+                       </span>
+                       <button
+                         type="button"
+                         onClick={() => void copyTextWithToast(ticket.id, COPY_TO_CLIPBOARD_FEEDBACK.ticketId)}
+                         className="min-w-0 max-w-full flex-1 break-all rounded-none border-0 bg-transparent p-0 text-left font-mono text-xs font-bold uppercase tracking-wide text-foreground outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                         title="Copy ticket ID"
+                         aria-label={`Copy ticket ID ${ticket.id}`}
+                       >
+                         {ticket.id}
+                       </button>
+                     </div>
+                   </div>
+                   <div className="space-y-2">
+                     <Textarea 
+                       value={reportReason}
+                       onChange={(e) => setReportReason(e.target.value)}
+                       placeholder="Why are you reporting this ticket? (e.g. Scammer, duplicate, invalid information)"
+                       className="min-h-[160px] rounded-none border-2 border-foreground font-mono text-xs focus-visible:ring-0 shadow-[4px_4px_0_0_rgba(0,0,0,1)] resize-none p-4"
+                     />
+                   </div>
                  </div>
-               </div>
+               )}
 
-               <DialogFooter className="flex gap-2 sm:justify-end">
-                 <Button variant="outline" onClick={() => setIsReportModalOpen(false)} className="rounded-none font-mono text-[10px] uppercase tracking-widest font-bold border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all">
-                   Cancel
-                 </Button>
-                 <Button disabled={reportSubmitting} onClick={() => void handleReportSubmit()} className="rounded-none font-mono text-[10px] uppercase tracking-widest font-bold border-2 border-destructive bg-destructive text-destructive-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all hover:bg-destructive/90">
-                   {reportSubmitting ? "Submitting…" : "Submit Report"}
-                 </Button>
+               <DialogFooter className="-mx-5 -mb-5 flex flex-col-reverse gap-2 p-5 sm:-mx-6 sm:-mb-6 sm:flex-row sm:justify-end sm:p-6">
+                 {submittedReportId ? (
+                   <Button
+                     type="button"
+                     onClick={() => setIsReportModalOpen(false)}
+                     className="rounded-none font-mono text-[10px] uppercase tracking-widest font-bold border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all"
+                   >
+                     Close
+                   </Button>
+                 ) : (
+                   <>
+                     <Button variant="outline" type="button" onClick={() => setIsReportModalOpen(false)} className="rounded-none font-mono text-[10px] uppercase tracking-widest font-bold border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all">
+                       Cancel
+                     </Button>
+                     <Button disabled={reportSubmitting} type="button" onClick={() => void handleReportSubmit()} className="rounded-none font-mono text-[10px] uppercase tracking-widest font-bold border-2 border-destructive bg-destructive text-destructive-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all hover:bg-destructive/90">
+                       {reportSubmitting ? "Submitting…" : "Submit Report"}
+                     </Button>
+                   </>
+                 )}
                </DialogFooter>
              </DialogContent>
            </Dialog>

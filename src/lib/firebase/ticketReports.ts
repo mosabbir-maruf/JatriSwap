@@ -24,10 +24,10 @@ export interface CreateTicketReportInput {
   reporterId: string;
 }
 
-export async function createTicketReport(input: CreateTicketReportInput): Promise<void> {
+export async function createTicketReport(input: CreateTicketReportInput): Promise<string> {
   const path = 'ticketReports';
   try {
-    await addDoc(collection(db, 'ticketReports'), {
+    const docRef = await addDoc(collection(db, 'ticketReports'), {
       ticketId: input.ticketId,
       ticketName: input.ticketName,
       sellerId: input.sellerId,
@@ -37,6 +37,7 @@ export async function createTicketReport(input: CreateTicketReportInput): Promis
       reporterId: input.reporterId,
       createdAt: serverTimestamp(),
     });
+    return docRef.id;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, path);
   }

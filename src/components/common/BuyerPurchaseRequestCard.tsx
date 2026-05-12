@@ -12,6 +12,7 @@ import {
   purchaseRequestNeedsListingFallback,
 } from "@/src/lib/formatPurchaseRequest";
 import { adminUserProfilePath } from "@/src/lib/adminDashboardTab";
+import type { TicketDetailLocationState } from "@/src/lib/ticketDetailAdminReturn";
 
 const sellerContactLinkClass =
   "font-mono text-[10px] font-bold text-primary underline-offset-2 hover:underline break-all inline-flex items-center gap-1 max-w-full min-w-0";
@@ -76,10 +77,11 @@ export type BuyerPurchaseRequestCardProps =
       sellerEmail?: string;
       sellerPhone?: string;
     }
-  | { mode: "admin"; req: BuyerPurchaseRequest; sellerRow?: AdminUserRow };
+  | { mode: "admin"; req: BuyerPurchaseRequest; sellerRow?: AdminUserRow; ticketDetailLinkState?: TicketDetailLocationState };
 
 function BuyerPurchaseRequestCardInner(props: BuyerPurchaseRequestCardProps) {
   const { req, mode } = props;
+  const ticketDetailLinkState = mode === "admin" ? props.ticketDetailLinkState : undefined;
   const [listingFallback, setListingFallback] = useState<Ticket | null>(null);
 
   /** Older `purchaseRequests` rows omit listing snapshots; fill from live ticket when needed. */
@@ -173,6 +175,7 @@ function BuyerPurchaseRequestCardInner(props: BuyerPurchaseRequestCardProps) {
         <>
           <Link
             to={`/ticket/${req.ticketId}`}
+            state={ticketDetailLinkState}
             className="font-mono text-[10px] font-black uppercase tracking-widest text-primary underline-offset-2 hover:underline break-all"
             title="Open listing"
           >

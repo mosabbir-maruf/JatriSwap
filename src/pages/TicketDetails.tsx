@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, Link, useLocation } from "react-router-dom";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -25,14 +25,17 @@ import {
 import { formatDepartureTimeDisplay } from "@/src/lib/formatDepartureTime";
 import { COPY_TO_CLIPBOARD_FEEDBACK, copyTextWithToast } from "@/src/lib/copyTextWithToast";
 import { ticketDisplayStatus } from "@/src/lib/ticketExpiration";
+import { resolveTicketDetailBackNav } from "@/src/lib/ticketDetailAdminReturn";
 
 const TicketDetails = () => {
   const { firebaseUser, currentUser, loading: authLoading } = useAuth();
   const { id } = useParams();
   const { ticket, isLoading, viewerUid } = useTicketDetailListing(id);
   const location = useLocation();
-  const searchParams = new URLSearchParams(location.search);
-  const fromDashboard = searchParams.get('from') === 'dashboard';
+  const ticketBackNav = useMemo(
+    () => resolveTicketDetailBackNav(location.search, location.state),
+    [location.search, location.state],
+  );
 
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
@@ -178,8 +181,8 @@ const TicketDetails = () => {
     <div className="flex-1 bg-background bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] min-h-screen pt-24 pb-24">
       <div className="page-shell">
         
-        <Button variant="ghost" render={<Link to={fromDashboard ? "/dashboard" : "/browse"} />} className="mb-8 h-12 rounded-none border-2 border-foreground bg-background shadow-[4px_4px_0_0_rgba(0,0,0,1)] font-mono text-xs uppercase tracking-widest font-bold hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all">
-             <ArrowLeft className="w-4 h-4 mr-2" /> {fromDashboard ? "Back to Dashboard" : "Back to listings"}
+        <Button variant="ghost" render={<Link to={ticketBackNav.href} />} className="mb-8 h-12 rounded-none border-2 border-foreground bg-background shadow-[4px_4px_0_0_rgba(0,0,0,1)] font-mono text-xs uppercase tracking-widest font-bold hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all">
+             <ArrowLeft className="w-4 h-4 mr-2" /> {ticketBackNav.label}
         </Button>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

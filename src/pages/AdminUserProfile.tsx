@@ -10,12 +10,14 @@ import { fetchTicketsBySellerIdForAdmin } from "@/src/lib/firebase/tickets";
 import { phoneDisplayToTelHref } from "@/src/lib/env/publicContact";
 import type { AdminUserRow, Ticket, TicketStatus } from "@/src/types";
 import { formatJoinedAtDisplay, formatTicketPostedAtAmPm } from "@/src/lib/formatLocaleDateTime";
+import { formatTripLineForAdmin } from "@/src/lib/formatAdminTripLine";
 import {
   ADMIN_PROFILE_RETURN_TAB_QUERY,
   adminDashboardPath,
   resolveAdminProfileReturnTab,
 } from "@/src/lib/adminDashboardTab";
 import { ticketDisplayStatus } from "@/src/lib/ticketExpiration";
+import { useTicketDetailAdminLinkState } from "@/src/hooks/useTicketDetailAdminLinkState";
 import { cn } from "@/lib/utils";
 import { adminTableTdBase, adminTableTdMobileMin12 } from "@/src/lib/adminTableUi";
 
@@ -92,7 +94,7 @@ function AdminUserStatsPanel({
   );
 
   return (
-    <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 space-y-6">
+    <div className="min-w-0 bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 space-y-6">
       <h2 className="font-heading text-xl font-black uppercase tracking-tighter flex flex-wrap items-center gap-2 bg-foreground text-background px-3 py-1 border-2 border-foreground inline-flex">
         <Activity className="w-5 h-5 shrink-0" aria-hidden />
         User statistics
@@ -117,14 +119,14 @@ function AdminUserStatsPanel({
         {statTile("Bus listings", busCount)}
       </div>
 
-      <div>
+      <div className="min-w-0">
         <p className="font-mono text-[10px] font-black uppercase text-muted-foreground mb-3">Status breakdown</p>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid w-full min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 2xl:grid-cols-6">
           {STATUS_ORDER.map((s) => (
             <Badge
               key={s}
               variant="outline"
-              className="rounded-none border-2 border-foreground font-mono text-[10px] font-black uppercase shadow-[2px_2px_0_0_rgba(0,0,0,1)] py-1.5 px-3"
+              className="h-auto min-h-9 w-full min-w-0 shrink items-center justify-center whitespace-normal rounded-none border-2 border-foreground px-3 py-1.5 text-center font-mono text-[10px] font-black uppercase leading-tight shadow-[2px_2px_0_0_rgba(0,0,0,1)]"
             >
               {labelStatus(s)} · {byStatus[s] ?? 0}
             </Badge>
@@ -138,6 +140,7 @@ function AdminUserStatsPanel({
 export default function AdminUserProfile() {
   const { userId } = useParams<{ userId: string }>();
   const location = useLocation();
+  const adminTicketDetailLinkState = useTicketDetailAdminLinkState();
   const [searchParams] = useSearchParams();
   const { currentUser, firebaseUser, loading } = useAuth();
   const [profile, setProfile] = useState<AdminUserRow | null | undefined>(undefined);
@@ -329,7 +332,12 @@ export default function AdminUserProfile() {
                   <tr>
                     <th className={cn(adminTableTdBase, "whitespace-nowrap")}>Listing</th>
                     <th className={cn(adminTableTdBase, "whitespace-nowrap")}>Route</th>
-                    <th className={cn(adminTableTdBase, "whitespace-nowrap")}>Posted</th>
+                    <th className={cn(adminTableTdBase, "min-w-0")}>
+                      <span className="block whitespace-nowrap">Posted</span>
+                      <span className="mt-1 block font-sans text-[8px] font-medium normal-case leading-snug tracking-normal opacity-90">
+                        Trip departure
+                      </span>
+                    </th>
                     <th className="p-3 align-top whitespace-nowrap">Status</th>
                   </tr>
                 </thead>
@@ -342,6 +350,7 @@ export default function AdminUserProfile() {
                       <td className={cn(adminTableTdBase, adminTableTdMobileMin12)}>
                         <Link
                           to={`/ticket/${t.id}`}
+                          state={adminTicketDetailLinkState}
                           className="font-bold text-primary underline-offset-2 hover:underline inline-block max-w-full"
                         >
                           <span className="inline-block whitespace-nowrap font-mono">{t.id}</span>
@@ -353,8 +362,21 @@ export default function AdminUserProfile() {
                           {t.from} → {t.to}
                         </span>
                       </td>
-                      <td className={cn(adminTableTdBase, "whitespace-nowrap")}>
-                        {formatTicketPostedAtAmPm(t.postedAt)}
+                      <td className={cn(adminTableTdBase, "min-w-0 align-top")}>
+                        <div className="space-y-2 leading-snug">
+                          <p>
+                            <span className="mb-0.5 block font-black uppercase tracking-wider text-foreground/85">
+                              Posted
+                            </span>
+                            <span className="whitespace-nowrap font-mono">{formatTicketPostedAtAmPm(t.postedAt)}</span>
+                          </p>
+                          <p>
+                            <span className="mb-0.5 block font-black uppercase tracking-wider text-foreground/85">
+                              Departure
+                            </span>
+                            <span className="font-mono">{formatTripLineForAdmin(t.date, t.departureTime)}</span>
+                          </p>
+                        </div>
                       </td>
                       <td className="p-3 align-top font-bold uppercase whitespace-nowrap">{labelStatus(ticketDisplayStatus(t))}</td>
                     </tr>

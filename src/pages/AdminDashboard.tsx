@@ -84,10 +84,9 @@ import {
   type DocumentData,
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
-import { format, isValid, parseISO } from "date-fns";
 import { EditTicketDialog } from "@/src/components/common/EditTicketDialog";
 import { formatJoinedAtDisplay, formatTicketPostedAtAmPm } from "@/src/lib/formatLocaleDateTime";
-import { formatDepartureTimeDisplay } from "@/src/lib/formatDepartureTime";
+import { formatTripLineForAdmin } from "@/src/lib/formatAdminTripLine";
 import { ticketDisplayStatus } from "@/src/lib/ticketExpiration";
 import {
   ADMIN_DASHBOARD_TAB_QUERY,
@@ -97,6 +96,8 @@ import {
   type AdminDashboardTab,
 } from "@/src/lib/adminDashboardTab";
 import { adminTableTdBase, adminTableTdMobileMin12, adminTableTdMobileMin13 } from "@/src/lib/adminTableUi";
+import type { TicketDetailLocationState } from "@/src/lib/ticketDetailAdminReturn";
+import { useTicketDetailAdminLinkState } from "@/src/hooks/useTicketDetailAdminLinkState";
 
 const AVAILABLE_PERMISSIONS = [
   { id: "manage_users", label: "Manage users", category: "User Management" },
@@ -319,29 +320,6 @@ function AdminPagedOverviewDialog({
   );
 }
 
-/** Compact trip line for admin table (avoids raw ISO blobs in cells). */
-function formatTripLineForAdmin(dateRaw: string, departureRaw: string): string {
-  const dateTrim = (dateRaw ?? "").trim();
-  const timeTrim = (departureRaw ?? "").trim();
-
-  let dateLabel = "";
-  if (dateTrim) {
-    const ymd = dateTrim.includes("T") ? dateTrim.slice(0, 10) : dateTrim;
-    const parsed = parseISO(ymd.length >= 10 ? ymd : dateTrim);
-    dateLabel = isValid(parsed) ? format(parsed, "MMM d, yyyy") : dateTrim;
-  }
-
-  let timeLabel = "";
-  if (timeTrim) {
-    const fd = formatDepartureTimeDisplay(timeTrim);
-    timeLabel = fd !== "—" ? fd : timeTrim;
-  }
-
-  if (dateLabel && timeLabel) return `${dateLabel} · ${timeLabel}`;
-  return dateLabel || timeLabel || "—";
-}
-
-/** Manage Tickets + Recent Ticket Posts — ID, transport, seller, route, mode (`bus`/`train`), seller doc fields. */
 function ticketMatchesAdminSearch(
   ticket: Ticket,
   queryNormalized: string,
@@ -527,13 +505,16 @@ function AdminTicketPublicListingLink({
   ticketId,
   className,
   title = "Open listing",
+  linkState,
 }: {
   ticketId: string;
   className?: string;
   title?: string;
+  /** When set (admin referrer), ticket detail “Back” returns to this path. */
+  linkState?: TicketDetailLocationState;
 }) {
   return (
-    <Link to={`/ticket/${ticketId}`} className={className} title={title}>
+    <Link to={`/ticket/${ticketId}`} state={linkState} className={className} title={title}>
       {ticketId}
     </Link>
   );
@@ -695,9 +676,11 @@ function AdminSellerListingMailRow({
 const RecentTicketPostRow = memo(function RecentTicketPostRow({
   ticket,
   sellerRow,
+  ticketListingLinkState,
 }: {
   ticket: Ticket;
   sellerRow: AdminUserRow | undefined;
+  ticketListingLinkState?: TicketDetailLocationState;
 }) {
   const sellerPhone = ticket.sellerPhone || sellerRow?.phone;
   return (
@@ -719,6 +702,7 @@ const RecentTicketPostRow = memo(function RecentTicketPostRow({
         </p>
         <AdminTicketPublicListingLink
           ticketId={ticket.id}
+          linkState={ticketListingLinkState}
           className="mt-1 block font-mono text-[10px] font-black uppercase tracking-widest text-primary underline-offset-2 hover:underline break-all max-w-full"
         />
       </div>
@@ -757,25 +741,41 @@ const RecentTicketPostRow = memo(function RecentTicketPostRow({
   );
 });
 
-function recentTicketPostRows(items: Ticket[], userById: Map<string, AdminUserRow>) {
+function recentTicketPostRows(
+  items: Ticket[],
+  userById: Map<string, AdminUserRow>,
+  ticketListingLinkState: TicketDetailLocationState | undefined,
+) {
   return items.map((ticket) => (
     <RecentTicketPostRow
       key={ticket.id}
       ticket={ticket}
       sellerRow={ticket.sellerId ? userById.get(ticket.sellerId) : undefined}
+      ticketListingLinkState={ticketListingLinkState}
     />
   ));
 }
 
-function buyerRequestCardElements(items: BuyerPurchaseRequest[], userById: Map<string, AdminUserRow>) {
+function buyerRequestCardElements(
+  items: BuyerPurchaseRequest[],
+  userById: Map<string, AdminUserRow>,
+  ticketDetailLinkState: TicketDetailLocationState | undefined,
+) {
   return items.map((req) => (
-    <BuyerPurchaseRequestCard key={req.id} mode="admin" req={req} sellerRow={userById.get(req.sellerId)} />
+    <BuyerPurchaseRequestCard
+      key={req.id}
+      mode="admin"
+      req={req}
+      sellerRow={userById.get(req.sellerId)}
+      ticketDetailLinkState={ticketDetailLinkState}
+    />
   ));
 }
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const adminTicketDetailLinkState = useTicketDetailAdminLinkState();
   const { currentUser, firebaseUser, loading } = useAuth();
   const [adminRole, setAdminRole] = useState("Super Admin"); // Super Admin, Moderator, Support Agent
   const tabParam = searchParams.get(ADMIN_DASHBOARD_TAB_QUERY) ?? "";
@@ -1624,7 +1624,7 @@ export default function AdminDashboard() {
                       No listings match your filters.
                     </p>
                   ) : (
-                    recentTicketPostRows(filteredRecentTicketPostsViews.overview, userById)
+                    recentTicketPostRows(filteredRecentTicketPostsViews.overview, userById, adminTicketDetailLinkState)
                   )}
                 </div>
               </div>
@@ -1656,7 +1656,7 @@ export default function AdminDashboard() {
                       No listings match your filters.
                     </p>
                   ) : (
-                    recentTicketPostRows(filteredRecentTicketPostsViews.list, userById)
+                    recentTicketPostRows(filteredRecentTicketPostsViews.list, userById, adminTicketDetailLinkState)
                   )}
                 </>
               </AdminPagedOverviewDialog>
@@ -1704,7 +1704,7 @@ export default function AdminDashboard() {
                        No buyer requests logged yet. Requests appear when someone taps Request to Buy on a listing.
                      </p>
                    ) : (
-                     buyerRequestCardElements(buyerPurchaseOverview, userById)
+                     buyerRequestCardElements(buyerPurchaseOverview, userById, adminTicketDetailLinkState)
                    )}
                  </div>
                </div>
@@ -1725,7 +1725,7 @@ export default function AdminDashboard() {
                 onLoadMore={loadMoreBuyerPurchaseRequests}
                 emptyMessage="No purchase requests yet."
               >
-                {buyerRequestCardElements(buyerPurchaseListItems, userById)}
+                {buyerRequestCardElements(buyerPurchaseListItems, userById, adminTicketDetailLinkState)}
               </AdminPagedOverviewDialog>
 
               {/* Admin Notes */}
@@ -1801,6 +1801,7 @@ export default function AdminDashboard() {
                             </span>
                             <AdminTicketPublicListingLink
                               ticketId={ticket.id}
+                              linkState={adminTicketDetailLinkState}
                               className="mt-1 block text-primary font-bold underline-offset-2 hover:underline break-all"
                             />
                           </p>
@@ -1908,6 +1909,7 @@ export default function AdminDashboard() {
                           {staffNoteTicket.transportName} ·{" "}
                           <AdminTicketPublicListingLink
                             ticketId={staffNoteTicket.id}
+                            linkState={adminTicketDetailLinkState}
                             className="text-primary underline-offset-2 hover:underline"
                           />
                         </>
@@ -2136,6 +2138,7 @@ export default function AdminDashboard() {
                              <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-0.5">Ticket ID</p>
                              <AdminTicketPublicListingLink
                                ticketId={report.ticketId}
+                               linkState={adminTicketDetailLinkState}
                                className="font-mono text-xs font-bold text-primary underline-offset-2 hover:underline break-all inline-block max-w-full"
                                title="Open listing details"
                              />

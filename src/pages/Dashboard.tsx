@@ -474,16 +474,16 @@ const Dashboard = () => {
                  if (v === 'drafts') setSellDraftRevision((r) => r + 1);
                }}
              >
-                <TabsList className="bg-background border-2 border-foreground rounded-none w-full flex p-0 h-14 shadow-[4px_4px_0_0_rgba(0,0,0,1)] mb-8 overflow-hidden">
-                  <TabsTrigger value="listings" className="rounded-none flex-1 font-mono text-[10px] font-bold uppercase tracking-widest data-[state=active]:bg-foreground data-[state=active]:text-background h-full transition-colors border-r-2 border-transparent data-[state=active]:border-foreground">My Listings</TabsTrigger>
+               <TabsList className="bg-muted p-2 rounded-none border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] h-auto overflow-x-auto justify-start w-full gap-2 relative mb-8">
+                 <TabsTrigger value="listings" className="data-active:!bg-foreground data-active:!text-background rounded-none px-4 sm:px-6 py-3 font-mono text-[10px] sm:text-xs uppercase tracking-widest font-bold shrink-0 flex-1">My Listings</TabsTrigger>
                   <TabsTrigger
                     value="requests"
-                    className="rounded-none flex-1 font-mono text-[10px] font-bold uppercase tracking-widest data-[state=active]:bg-foreground data-[state=active]:text-background h-full transition-colors border-r-2 border-transparent data-[state=active]:border-foreground gap-1"
+                   className="data-active:!bg-foreground data-active:!text-background rounded-none px-4 sm:px-6 py-3 font-mono text-[10px] sm:text-xs uppercase tracking-widest font-bold shrink-0 flex-1 gap-1"
                   >
                     <span className="hidden sm:inline">Purchase requests</span>
                     <span className="sm:hidden">Leads</span>
                   </TabsTrigger>
-                  <TabsTrigger value="drafts" className="rounded-none flex-1 font-mono text-[10px] font-bold uppercase tracking-widest data-[state=active]:bg-foreground data-[state=active]:text-background h-full transition-colors hidden md:flex">Drafts & History</TabsTrigger>
+                 <TabsTrigger value="drafts" className="data-active:!bg-foreground data-active:!text-background rounded-none px-4 sm:px-6 py-3 font-mono text-[10px] sm:text-xs uppercase tracking-widest font-bold shrink-0 flex-1 hidden md:flex">Drafts & History</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="listings" className="space-y-6 mt-0">

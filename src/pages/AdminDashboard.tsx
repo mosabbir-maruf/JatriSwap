@@ -1622,38 +1622,38 @@ export default function AdminDashboard() {
           <TabsList className="hidden md:flex bg-muted p-2 rounded-none border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] h-auto overflow-x-auto justify-start w-full gap-2 relative">
             <TabsTrigger
               value="overview"
-              className="data-[state=active]:bg-foreground data-[state=active]:text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold shrink-0"
+              className="data-active:!bg-foreground data-active:!text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold shrink-0"
             >
               Analytics & Overview
             </TabsTrigger>
             <TabsTrigger
               value="tickets"
-              className="data-[state=active]:bg-foreground data-[state=active]:text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold shrink-0"
+              className="data-active:!bg-foreground data-active:!text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold shrink-0"
             >
               Manage Tickets
             </TabsTrigger>
             <TabsTrigger
               value="users"
-              className="data-[state=active]:bg-foreground data-[state=active]:text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold shrink-0"
+              className="data-active:!bg-foreground data-active:!text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold shrink-0"
             >
               Manage Users
             </TabsTrigger>
             <TabsTrigger
               value="reports"
-              className="data-[state=active]:bg-foreground data-[state=active]:text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold shrink-0"
+              className="data-active:!bg-foreground data-active:!text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold shrink-0"
             >
               Scam & Reports
             </TabsTrigger>
             <TabsTrigger
               value="logs"
-              className="data-[state=active]:bg-foreground data-[state=active]:text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold shrink-0"
+              className="data-active:!bg-foreground data-active:!text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold shrink-0"
             >
               Audit Logs
             </TabsTrigger>
             {adminRole === "Super Admin" && (
               <TabsTrigger
                 value="admins"
-                className="data-[state=active]:bg-foreground data-[state=active]:text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold shrink-0 text-destructive"
+                className="data-active:!bg-foreground data-active:!text-background rounded-none px-6 py-3 font-mono text-xs uppercase tracking-widest font-bold shrink-0 text-destructive"
               >
                 Admins & Roles
               </TabsTrigger>

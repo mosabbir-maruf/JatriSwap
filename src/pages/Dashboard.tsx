@@ -280,7 +280,7 @@ const Dashboard = () => {
       <div className="page-shell relative z-10">
         
         {/* Profile Header */}
-        <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 md:p-10 mb-16 flex flex-col md:flex-row items-center gap-8 relative">
+        <div className="bg-background border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] md:shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 md:p-10 mb-16 flex flex-col md:flex-row items-center gap-8 relative">
            <div className="relative shrink-0">
               <AvatarChoiceTrigger
                 orientation="vertical"

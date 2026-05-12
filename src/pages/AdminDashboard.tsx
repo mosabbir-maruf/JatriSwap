@@ -214,7 +214,7 @@ const AdminUserPerformanceTableCell = memo(function AdminUserPerformanceTableCel
 
 /** `DialogContent` ships `sm:max-w-sm`; override with explicit `sm:max-w-*` or width changes never show at desktop. */
 const adminPagedOverviewDialogContentClass =
-  "rounded-none border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] bg-background w-[calc(100vw-2rem)] max-w-4xl sm:max-w-4xl max-h-[min(90vh,720px)] flex flex-col gap-0 overflow-hidden p-0";
+  "rounded-none border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] md:shadow-[16px_16px_0_0_rgba(0,0,0,1)] bg-background w-[calc(100vw-2rem)] max-w-4xl sm:max-w-4xl max-h-[min(90vh,720px)] flex flex-col gap-0 overflow-hidden p-0";
 
 const adminPagedLoadMoreButtonClass = cn(adminBrutalistOutlineMono10, "w-full");
 

@@ -193,7 +193,7 @@ const TicketDetails = () => {
            {/* Main Ticket Area */}
            <div className="space-y-4 sm:space-y-8 lg:col-span-2">
               
-              <div className="bg-background rounded-none border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] relative">
+              <div className="bg-background rounded-none border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] sm:shadow-[16px_16px_0_0_rgba(0,0,0,1)] relative">
                  <div className="h-10 w-full bg-primary border-b-4 border-foreground flex space-x-2 px-6 items-center">
                    {Array.from({length: 15}).map((_, i) => (
                       <div key={i} className="w-4 h-4 bg-background border-2 border-foreground rounded-full" />
@@ -337,7 +337,7 @@ const TicketDetails = () => {
               <div className="space-y-4 sm:space-y-8">
                  
                  {/* Purchase Card */}
-                 <div className="sticky top-20 rounded-none border-4 border-foreground bg-background px-4 pb-6 pt-5 shadow-[16px_16px_0_0_rgba(0,0,0,1)] sm:top-24 sm:px-8 sm:pb-10 sm:pt-8">
+                 <div className="sticky top-20 rounded-none border-4 border-foreground bg-background px-4 pb-6 pt-5 shadow-[8px_8px_0_0_rgba(0,0,0,1)] sm:top-24 sm:px-8 sm:pb-10 sm:pt-8 sm:shadow-[16px_16px_0_0_rgba(0,0,0,1)]">
                     
                     <div className="mb-4 space-y-3 sm:mb-6 sm:space-y-4">
                        <div className="flex justify-between font-mono text-sm uppercase font-bold text-muted-foreground">
@@ -399,7 +399,7 @@ const TicketDetails = () => {
                }
              }}
            >
-             <DialogContent className="max-w-[calc(100%-2rem)] rounded-none border-4 border-foreground bg-background p-5 shadow-[16px_16px_0_0_rgba(0,0,0,1)] sm:max-w-lg sm:p-6">
+             <DialogContent className="max-w-[calc(100%-2rem)] rounded-none border-4 border-foreground bg-background p-5 shadow-[8px_8px_0_0_rgba(0,0,0,1)] sm:max-w-lg sm:p-6 sm:shadow-[16px_16px_0_0_rgba(0,0,0,1)]">
                <DialogHeader>
                  <DialogTitle
                    className={`font-heading flex items-center gap-2 text-2xl font-black uppercase tracking-tighter ${submittedReportId ? "text-foreground" : "text-destructive"}`}

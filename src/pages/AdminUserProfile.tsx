@@ -95,7 +95,7 @@ function AdminUserStatsPanel({
   );
 
   return (
-    <div className="min-w-0 bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 space-y-6">
+    <div className="min-w-0 bg-background border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] sm:shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 space-y-6">
       <h2 className="font-heading text-xl font-black uppercase tracking-tighter flex flex-wrap items-center gap-2 bg-foreground text-background px-3 py-1 border-2 border-foreground inline-flex">
         <Activity className="w-5 h-5 shrink-0" aria-hidden />
         User statistics
@@ -228,7 +228,7 @@ export default function AdminUserProfile() {
         {profile === undefined ? (
           <div className="font-mono text-xs uppercase font-bold text-muted-foreground">Loading profile…</div>
         ) : profile === null ? (
-          <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 space-y-4">
+          <div className="bg-background border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] sm:shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 space-y-4">
             <h1 className="font-heading text-2xl font-black uppercase tracking-tighter mb-2">No user document</h1>
             <p className="font-mono text-xs text-muted-foreground mb-4">
               Firestore has no <span className="font-bold text-foreground">users/{userId}</span> row. Tickets below may still exist if the ID matches{" "}
@@ -250,7 +250,7 @@ export default function AdminUserProfile() {
             )}
           </div>
         ) : (
-          <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-6 sm:p-8 space-y-6">
+          <div className="bg-background border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] sm:shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-6 sm:p-8 space-y-6">
             <h2 className="font-heading text-lg font-black uppercase tracking-tighter flex flex-wrap items-center gap-2 bg-foreground text-background px-3 py-1 border-2 border-foreground inline-flex">
               <UserIcon className="size-4 shrink-0" aria-hidden />
               User profile
@@ -322,7 +322,7 @@ export default function AdminUserProfile() {
           <AdminUserStatsPanel tickets={sellerTickets} profile={profile} />
         ) : null}
 
-        <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8">
+        <div className="bg-background border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] sm:shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8">
           <h2 className="font-heading text-xl font-black uppercase tracking-tighter mb-6 bg-foreground text-background px-3 py-1 border-2 border-foreground inline-block">
             Listings ({sellerTickets.length})
           </h2>

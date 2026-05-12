@@ -362,7 +362,7 @@ const Footer = () => {
             <ul className="flex flex-col gap-4 font-mono text-[11px] uppercase tracking-wider text-muted">
               <li><Link to="/browse" className="hover:text-background transition-colors max-md:break-words">Browse Tickets</Link></li>
               <li><Link to="/sell" className="hover:text-background transition-colors max-md:break-words">Sell a Ticket</Link></li>
-              <li><Link to="/" className="hover:text-background transition-colors max-md:break-words">Popular Routes</Link></li>
+              <li><Link to="/" className="hover:text-background transition-colors max-md:break-words">Transit</Link></li>
             </ul>
           </div>
 

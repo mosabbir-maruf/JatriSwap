@@ -43,6 +43,11 @@ import {
   fetchTicketsRecentOverview,
 } from "@/src/lib/firebase/tickets";
 import { aggregateSellerTicketStatsFromTickets } from "@/src/lib/aggregateSellerTicketStats";
+import {
+  ADMIN_USER_MANAGEMENT_SEARCH_PLACEHOLDER,
+  adminUserRowMatchesManagementSearch,
+  normalizeAdminUserManagementSearch,
+} from "@/src/lib/adminUserSearch";
 import { scheduleTicketDeleteWithUndo, scheduleUserDeleteWithUndo } from "@/src/lib/scheduledDeleteUndo";
 import {
   fetchTicketAdminNotesForIds,
@@ -1039,6 +1044,7 @@ export default function AdminDashboard() {
   const [filterTicketStatus, setFilterTicketStatus] = useState("all");
   const [searchRecentTicketPosts, setSearchRecentTicketPosts] = useState("");
   const [filterRecentTicketPostsStatus, setFilterRecentTicketPostsStatus] = useState("all");
+  const [searchUserManagement, setSearchUserManagement] = useState("");
 
   // Modal states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -1111,24 +1117,37 @@ export default function AdminDashboard() {
     return { sold, pending };
   }, [tickets]);
 
-  /** Pre-merge rollups + status once per users/seller-stats change (User Management table). */
-  const userManagementTableRows = useMemo(
-    () =>
-      users.map((user) => {
-        const ticketRollup = sellerTicketStatsByUserId.get(user.id);
-        const postsCount = ticketRollup?.ticketsPosted ?? user.ticketsPosted ?? 0;
-        const activeCount = ticketRollup?.activeAvailable ?? user.performance?.active ?? 0;
-        const soldCount = ticketRollup?.sold ?? user.performance?.sold ?? 0;
-        return {
-          user,
-          postsCount,
-          activeCount,
-          soldCount,
-          accountRowStatus: normalizeUserAccountStatus(user.status),
-        };
-      }),
-    [users, sellerTicketStatsByUserId],
+  const normalizedUserManagementSearch = useMemo(
+    () => normalizeAdminUserManagementSearch(searchUserManagement),
+    [searchUserManagement],
   );
+
+  /** Filter + merge rollups once per users / search / seller-stats (User Management table). */
+  const userManagementTableRows = useMemo(() => {
+    const q = normalizedUserManagementSearch;
+    const out: Array<{
+      user: AdminUserRow;
+      postsCount: number;
+      activeCount: number;
+      soldCount: number;
+      accountRowStatus: UserAccountStatus;
+    }> = [];
+    for (const user of users) {
+      if (!adminUserRowMatchesManagementSearch(user, q)) continue;
+      const ticketRollup = sellerTicketStatsByUserId.get(user.id);
+      const postsCount = ticketRollup?.ticketsPosted ?? user.ticketsPosted ?? 0;
+      const activeCount = ticketRollup?.activeAvailable ?? user.performance?.active ?? 0;
+      const soldCount = ticketRollup?.sold ?? user.performance?.sold ?? 0;
+      out.push({
+        user,
+        postsCount,
+        activeCount,
+        soldCount,
+        accountRowStatus: normalizeUserAccountStatus(user.status),
+      });
+    }
+    return out;
+  }, [users, sellerTicketStatsByUserId, normalizedUserManagementSearch]);
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center font-mono uppercase font-bold tracking-widest text-muted-foreground">Verifying access...</div>;
@@ -1976,6 +1995,16 @@ export default function AdminDashboard() {
                     Post and sold counts use listings in this session (newest {TICKETS_ADMIN_QUERY_LIMIT} by post date).
                   </p>
                 </div>
+                <div className="relative w-full sm:w-72">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                  <Input
+                    placeholder={ADMIN_USER_MANAGEMENT_SEARCH_PLACEHOLDER}
+                    value={searchUserManagement}
+                    onChange={(e) => setSearchUserManagement(e.target.value)}
+                    className="h-10 rounded-none border-2 border-foreground bg-background pl-9 font-mono text-xs shadow-[4px_4px_0_0_rgba(0,0,0,1)]"
+                    aria-label="Search users by name, ID, email, or phone"
+                  />
+                </div>
               </div>
 
                <div className="overflow-x-auto flex-1">
@@ -1990,9 +2019,19 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {userManagementTableRows.map(({ user, postsCount, activeCount, soldCount, accountRowStatus }, i) => {
-                      return (
-                      <tr key={user.id} className={`border-2 border-t-0 border-foreground ${i % 2 === 0 ? "bg-muted/10" : "bg-background"} hover:bg-muted/50 transition-colors`}>
+                    {userManagementTableRows.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          className="border-2 border-t-0 border-foreground bg-muted/10 p-8 text-center font-mono text-xs font-bold uppercase tracking-widest text-muted-foreground"
+                        >
+                          {users.length === 0 ? "No users loaded." : "No users match this search."}
+                        </td>
+                      </tr>
+                    ) : (
+                      userManagementTableRows.map(({ user, postsCount, activeCount, soldCount, accountRowStatus }, i) => {
+                        return (
+                        <tr key={user.id} className={`border-2 border-t-0 border-foreground ${i % 2 === 0 ? "bg-muted/10" : "bg-background"} hover:bg-muted/50 transition-colors`}>
                         <td className={cn(adminTableTdBase, "font-bold", adminTableTdMobileMin13)}>
                            <button
                              type="button"
@@ -2105,8 +2144,9 @@ export default function AdminDashboard() {
                           </div>
                         </td>
                       </tr>
-                      );
-                    })}
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>

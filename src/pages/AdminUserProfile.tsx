@@ -8,6 +8,7 @@ import { needsEmailVerification } from "@/src/lib/firebase/authVerification";
 import { getUser } from "@/src/lib/firebase/users";
 import { fetchTicketsBySellerIdForAdmin } from "@/src/lib/firebase/tickets";
 import { phoneDisplayToTelHref } from "@/src/lib/env/publicContact";
+import { AdminUserFirestoreAvatar } from "@/src/components/common/AdminUserFirestoreAvatar";
 import type { AdminUserRow, Ticket, TicketStatus } from "@/src/types";
 import { formatJoinedAtDisplay, formatTicketPostedAtAmPm } from "@/src/lib/formatLocaleDateTime";
 import { formatTripLineForAdmin } from "@/src/lib/formatAdminTripLine";
@@ -249,19 +250,21 @@ export default function AdminUserProfile() {
             )}
           </div>
         ) : (
-          <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 space-y-8">
-            <div className="flex flex-col sm:flex-row gap-6 items-start">
-              <div className="shrink-0 border-4 border-foreground w-24 h-24 bg-muted overflow-hidden shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
-                {profile.avatar ? (
-                  <img src={profile.avatar} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <UserIcon className="w-10 h-10 text-muted-foreground" aria-hidden />
-                  </div>
-                )}
-              </div>
+          <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-6 sm:p-8 space-y-6">
+            <h2 className="font-heading text-lg font-black uppercase tracking-tighter flex flex-wrap items-center gap-2 bg-foreground text-background px-3 py-1 border-2 border-foreground inline-flex">
+              <UserIcon className="size-4 shrink-0" aria-hidden />
+              User profile
+            </h2>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
+              <AdminUserFirestoreAvatar
+                avatar={profile.avatar}
+                googleAvatarUrl={profile.googleAvatarUrl}
+                name={profile.name}
+                className="size-10 shrink-0 rounded-none border-2 border-foreground shadow-[2px_2px_0_0_rgba(0,0,0,1)] sm:size-11"
+                fallbackClassName="text-[11px]"
+              />
               <div className="min-w-0 flex-1 space-y-3">
-                <h1 className="font-heading text-3xl font-black uppercase tracking-tighter">{profile.name}</h1>
+                <h1 className="font-heading text-2xl font-black uppercase tracking-tighter sm:text-3xl">{profile.name}</h1>
                 <div className="flex flex-wrap gap-2 items-center">
                   <Badge
                     className={`rounded-none border-2 border-foreground font-black text-[10px] uppercase shadow-[2px_2px_0_0_rgba(0,0,0,1)] ${

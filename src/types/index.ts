@@ -8,6 +8,8 @@ export interface User {
   name: string;
   email: string;
   avatar: string;
+  /** Original Google profile image URL; kept when the user switches to a local `/avatar/*` asset. */
+  googleAvatarUrl?: string;
   role: Role;
   joinedAt: string;
   /** Profile phone (shown in admin; optional if not collected). */

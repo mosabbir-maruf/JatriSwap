@@ -1,16 +1,22 @@
 import * as React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AvatarChoiceTrigger } from "@/src/components/common/AvatarChoiceTrigger";
 import { auth, db } from "@/src/lib/firebase/firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { updateDoc } from "firebase/firestore";
 import { updateProfile, updateEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential, deleteUser } from "firebase/auth";
 import { toast } from "sonner";
 import { Key, User, Mail, ShieldAlert, Trash2 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { deleteUserData } from "@/src/lib/firebase/users";
+import { useAuth } from "@/src/contexts/AuthContext";
+import { ProfileAvatarPickerDialog } from "@/src/components/common/ProfileAvatarPickerDialog";
+import { persistProfileDisplayAvatar, profileDocRef } from "@/src/lib/avatar";
+import { useAvatarPickerFromProfile } from "@/src/hooks/useAvatarPickerFromProfile";
+import { initialsFromDisplayName } from "@/src/lib/initialsFromDisplayName";
 
 interface EditProfileDialogProps {
   open: boolean;
@@ -21,16 +27,26 @@ interface EditProfileDialogProps {
 
 export function EditProfileDialog({ open, onOpenChange, dialogTitle = "Edit Profile" }: EditProfileDialogProps) {
   const user = auth.currentUser;
-  
+  const { currentUser, firebaseUser } = useAuth();
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [oldPassword, setOldPassword] = useState("");
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  
-  const hasPassword = user?.providerData.some(p => p.providerId === 'password');
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
+  const [isAvatarSaving, setIsAvatarSaving] = useState(false);
+
+  const hasPassword = user?.providerData.some((p) => p.providerId === "password");
+
+  const { displaySrc, googlePickerUrl } = useAvatarPickerFromProfile(currentUser, firebaseUser);
+
+  const profileInitials = useMemo(
+    () => initialsFromDisplayName(name || user?.displayName),
+    [name, user?.displayName],
+  );
 
   useEffect(() => {
     if (open && user) {
@@ -38,8 +54,39 @@ export function EditProfileDialog({ open, onOpenChange, dialogTitle = "Edit Prof
       setEmail(user.email || "");
       setNewPassword("");
       setOldPassword("");
+      setAvatarPickerOpen(false);
     }
   }, [open, user]);
+
+  const handleAvatarPick = useCallback(
+    async (url: string) => {
+      if (!user || !currentUser) {
+        toast.error("Profile is still loading. Try again in a moment.");
+        return;
+      }
+      setIsAvatarSaving(true);
+      try {
+        await persistProfileDisplayAvatar({
+          uid: user.uid,
+          role: currentUser.role,
+          chosenDisplayUrl: url,
+          googleAvatarUrlStored: currentUser.googleAvatarUrl,
+          currentAvatarStored: currentUser.avatar,
+          authPhotoURL: firebaseUser?.photoURL ?? null,
+        });
+        toast.success("Profile photo updated");
+        setAvatarPickerOpen(false);
+      } catch (e: unknown) {
+        console.error("EditProfileDialog avatar update:", e);
+        const msg =
+          typeof e === "object" && e !== null && "message" in e ? String((e as { message?: string }).message) : "";
+        toast.error(msg ? `Could not update photo: ${msg}` : "Could not update photo.");
+      } finally {
+        setIsAvatarSaving(false);
+      }
+    },
+    [user, currentUser, firebaseUser?.photoURL],
+  );
 
   const handleDeleteAccount = async () => {
     if (!user) return;
@@ -84,62 +131,73 @@ export function EditProfileDialog({ open, onOpenChange, dialogTitle = "Edit Prof
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
-    
+    if (!user || !currentUser) {
+      toast.error("Profile is still loading. Try again in a moment.");
+      return;
+    }
+
     setIsSubmitting(true);
     let successCount = 0;
-    
+
     try {
       const emailChanged = email !== user.email && email.trim() !== "";
       const passwordChanging = newPassword.trim() !== "";
-      
+
       if (emailChanged || passwordChanging) {
         if (hasPassword) {
           if (!oldPassword) {
-             toast.error("Please enter your current password to change email or password.");
-             setIsSubmitting(false);
-             return;
+            toast.error("Please enter your current password to change email or password.");
+            setIsSubmitting(false);
+            return;
           }
           const credential = EmailAuthProvider.credential(user.email!, oldPassword);
           try {
-             await reauthenticateWithCredential(user, credential);
-          } catch (err: any) {
-             toast.error("Incorrect current password.");
-             setIsSubmitting(false);
-             return;
+            await reauthenticateWithCredential(user, credential);
+          } catch {
+            toast.error("Incorrect current password.");
+            setIsSubmitting(false);
+            return;
           }
         }
       }
 
       if (name !== user.displayName) {
         await updateProfile(user, { displayName: name });
-        await updateDoc(doc(db, "users", user.uid), { name });
+        await updateDoc(profileDocRef(db, user.uid, currentUser.role), { name });
         successCount++;
       }
-      
+
       if (emailChanged) {
         await updateEmail(user, email);
         successCount++;
       }
-      
+
       if (passwordChanging) {
         await updatePassword(user, newPassword);
         successCount++;
       }
-      
+
       if (successCount > 0) {
         toast.success("Profile updated successfully!");
         onOpenChange(false);
       } else {
-         toast.info("No changes were made.");
-         onOpenChange(false);
+        toast.info("No changes were made.");
+        onOpenChange(false);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
-      if (error.code === 'auth/requires-recent-login') {
-        toast.error("Security requirement: Please sign out and sign in again before changing sensitive information like email or password.");
+      const code =
+        typeof error === "object" && error !== null && "code" in error ? String((error as { code?: string }).code) : "";
+      if (code === "auth/requires-recent-login") {
+        toast.error(
+          "Security requirement: Please sign out and sign in again before changing sensitive information like email or password.",
+        );
       } else {
-        toast.error("Failed to update profile: " + (error.message || "Unknown error"));
+        const msg =
+          typeof error === "object" && error !== null && "message" in error
+            ? String((error as { message?: string }).message)
+            : "";
+        toast.error("Failed to update profile: " + (msg || "Unknown error"));
       }
     } finally {
       setIsSubmitting(false);
@@ -147,8 +205,9 @@ export function EditProfileDialog({ open, onOpenChange, dialogTitle = "Edit Prof
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] rounded-none border-4 border-foreground shadow-[12px_12px_0_0_rgba(0,0,0,1)] p-0 gap-0 overflow-hidden bg-background">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[425px] rounded-none border-4 border-foreground shadow-[12px_12px_0_0_rgba(0,0,0,1)] p-0 gap-0 overflow-hidden bg-background">
         <div className="bg-foreground text-background p-6 border-b-4 border-foreground relative overflow-hidden group">
            <div className="absolute top-0 right-0 w-32 h-32 bg-background/10 rounded-full translate-x-16 -translate-y-16 blur-2xl group-hover:bg-primary/20 transition-colors duration-500"></div>
            <DialogTitle className="font-heading text-2xl uppercase font-black tracking-tight relative z-10 flex items-center gap-2">
@@ -158,6 +217,16 @@ export function EditProfileDialog({ open, onOpenChange, dialogTitle = "Edit Prof
         
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="space-y-4">
+            <AvatarChoiceTrigger
+              size="lg"
+              previewSrc={displaySrc}
+              initials={profileInitials}
+              disabled={!currentUser}
+              pending={isAvatarSaving}
+              onOpen={() => setAvatarPickerOpen(true)}
+              footnote="Updates as soon as you pick one."
+            />
+
             <div className="space-y-2">
               <Label className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground flex items-center gap-2">
                 <User className="w-3 h-3" /> Full Name
@@ -250,5 +319,13 @@ export function EditProfileDialog({ open, onOpenChange, dialogTitle = "Edit Prof
         </form>
       </DialogContent>
     </Dialog>
+    <ProfileAvatarPickerDialog
+      open={avatarPickerOpen}
+      onOpenChange={setAvatarPickerOpen}
+      googlePhotoUrl={googlePickerUrl}
+      currentValue={displaySrc}
+      onPick={handleAvatarPick}
+    />
+    </>
   );
 }

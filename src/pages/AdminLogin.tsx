@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { getAuthErrorMessage } from "@/src/lib/firebase/authErrors";
 import { needsEmailVerification } from "@/src/lib/firebase/authVerification";
+import { AUTH_SHELL_GRID_BG_CLASS, AUTH_SHELL_PAGE_X_PADDING_CLASS } from "@/src/lib/ui/authShellClasses";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
@@ -94,9 +95,9 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="flex-1 bg-background bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] min-h-screen pt-24 pb-16 flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-6 md:p-8 relative">
-        <div className="absolute -top-4 -right-4 bg-destructive text-destructive-foreground px-3 py-1 font-mono text-[10px] font-black uppercase tracking-widest border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
+    <div className={`${AUTH_SHELL_GRID_BG_CLASS} pt-24 pb-16 flex items-center justify-center ${AUTH_SHELL_PAGE_X_PADDING_CLASS}`}>
+      <div className="w-full min-w-0 max-w-md bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-6 md:p-8 relative">
+        <div className="absolute -top-4 -right-2 sm:-right-4 bg-destructive text-destructive-foreground px-3 py-1 font-mono text-[10px] font-black uppercase tracking-widest border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
           SECURE PORTAL
         </div>
 

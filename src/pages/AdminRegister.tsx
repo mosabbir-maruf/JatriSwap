@@ -4,12 +4,23 @@ import { ShieldAlert, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AvatarChoiceTrigger } from "@/src/components/common/AvatarChoiceTrigger";
+import { ProfileAvatarPickerDialog } from "@/src/components/common/ProfileAvatarPickerDialog";
 import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from "firebase/auth";
 import { auth, db } from "@/src/lib/firebase/firebase";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { toast } from "sonner";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { getAuthErrorMessage } from "@/src/lib/firebase/authErrors";
+import { useSignupAvatarDraft } from "@/src/hooks/useSignupAvatarDraft";
+import { AUTH_SHELL_GRID_BG_CLASS, AUTH_SHELL_PAGE_X_PADDING_CLASS } from "@/src/lib/ui/authShellClasses";
+import { initialsFromDisplayName } from "@/src/lib/initialsFromDisplayName";
+
+const ADMIN_REGISTER_DISCLAIMER =
+  "You are attempting to create an account with elevated privileges. An existing Super Admin must approve your request before you can log in.";
+
+const disclaimerSpanClass =
+  "shrink-0 whitespace-nowrap pr-12 font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground";
 
 export default function AdminRegister() {
   const navigate = useNavigate();
@@ -25,6 +36,10 @@ export default function AdminRegister() {
   const [emailErr, setEmailErr] = React.useState("");
   const [passwordErr, setPasswordErr] = React.useState("");
   const [confirmErr, setConfirmErr] = React.useState("");
+  const [avatarPickerOpen, setAvatarPickerOpen] = React.useState(false);
+  const { effectiveAvatarPath, setPickedAvatar, previewPath } = useSignupAvatarDraft();
+
+  const profileInitials = React.useMemo(() => initialsFromDisplayName(name), [name]);
 
   if (loading) {
     return <div className="flex-1 min-h-screen flex items-center justify-center font-mono font-bold uppercase">Verifying Status...</div>;
@@ -88,7 +103,7 @@ export default function AdminRegister() {
       await setDoc(userRef, {
         name: name,
         email: result.user.email,
-        avatar: "",
+        avatar: effectiveAvatarPath,
         role: "pending_admin", // Needs super admin approval
         joinedAt: serverTimestamp()
       });
@@ -98,7 +113,7 @@ export default function AdminRegister() {
         description: "Check inbox and spam folder for the verification link.",
       });
       navigate("/verify-email");
-    } catch (e: any) {
+    } catch (e: unknown) {
       toast.error(getAuthErrorMessage(e));
     } finally {
         setIsSubmitting(false);
@@ -106,23 +121,43 @@ export default function AdminRegister() {
   };
 
   return (
-    <div className="flex-1 bg-background bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] min-h-screen pt-24 pb-16 flex items-start justify-center px-4">
-      <div className="w-full max-w-xl bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-6 md:p-8 relative mt-4">
-        <div className="absolute -top-4 -right-4 bg-destructive text-destructive-foreground px-3 py-1 font-mono text-[10px] font-black uppercase tracking-widest border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
+    <div className={`${AUTH_SHELL_GRID_BG_CLASS} pt-20 pb-10 flex items-start justify-center ${AUTH_SHELL_PAGE_X_PADDING_CLASS}`}>
+      <div className="w-full min-w-0 max-w-xl bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-6 md:p-8 relative mt-4 sm:mt-8">
+        <div className="absolute -top-4 -right-2 sm:-right-4 bg-destructive text-destructive-foreground px-3 py-1 font-mono text-[10px] font-black uppercase tracking-widest border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
           RESTRICTED AREA
         </div>
 
-        <div className="flex flex-col items-center mb-16 mt-8">
-            <ShieldAlert className="w-16 h-16 mb-4 text-destructive" />
-            <h1 className="font-heading text-3xl font-black uppercase tracking-tighter text-foreground text-center">Provision Admin</h1>
-            <p className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground mt-2 text-center text-balance">
-                You are attempting to create an account with elevated privileges. An existing Super Admin must approve your request before you can log in.
+        <div className="flex flex-col items-center mb-8 mt-6">
+            <ShieldAlert className="w-12 h-12 mb-3 text-destructive" />
+            <h1 className="font-heading text-2xl font-black uppercase tracking-tighter text-foreground text-center">Provision Admin</h1>
+            <p className="mt-2 hidden w-full text-center font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground sm:block sm:text-balance">
+              {ADMIN_REGISTER_DISCLAIMER}
             </p>
+            <div
+              className="admin-register-notice-marquee mt-2 w-full sm:hidden"
+              role="note"
+              aria-label={ADMIN_REGISTER_DISCLAIMER}
+            >
+              <div className="admin-register-notice-marquee-track">
+                <span className={disclaimerSpanClass}>{ADMIN_REGISTER_DISCLAIMER}</span>
+                <span className={disclaimerSpanClass} aria-hidden>
+                  {ADMIN_REGISTER_DISCLAIMER}
+                </span>
+              </div>
+            </div>
         </div>
 
-        <form className="space-y-4 mt-8" onSubmit={handleRegister}>
+        <form className="space-y-4 mt-5" onSubmit={handleRegister}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="space-y-1 md:col-span-2">
+            <div className="md:col-span-2">
+              <AvatarChoiceTrigger
+                previewSrc={previewPath}
+                initials={profileInitials}
+                onOpen={() => setAvatarPickerOpen(true)}
+                footnote="Choose Avatar (Optional) We assign one at random if you skip."
+              />
+            </div>
+            <div className="space-y-1.5 md:col-span-2">
                 <Label className="font-mono text-[10px] uppercase tracking-widest text-foreground font-black">Full Name</Label>
                 <Input 
                     type="text" 
@@ -134,7 +169,7 @@ export default function AdminRegister() {
                 />
             </div>
             
-            <div className="space-y-1 md:col-span-2">
+            <div className="space-y-1.5 md:col-span-2">
               <Label className="font-mono text-[10px] uppercase tracking-widest text-foreground font-black">Admin Email</Label>
               <Input 
                   type="email" 
@@ -147,7 +182,7 @@ export default function AdminRegister() {
               {emailErr && <p className="text-destructive text-[10px] font-mono font-bold uppercase tracking-wider mt-1">{emailErr}</p>}
             </div>
 
-            <div className="space-y-1 md:col-span-2">
+            <div className="space-y-1.5 md:col-span-2">
               <Label className="font-mono text-[10px] uppercase tracking-widest text-foreground font-black">Secure Password</Label>
               <div className="relative">
                 <Input 
@@ -169,7 +204,7 @@ export default function AdminRegister() {
               {passwordErr && <p className="text-destructive text-[10px] font-mono font-bold uppercase tracking-wider mt-1">{passwordErr}</p>}
             </div>
 
-            <div className="space-y-1 md:col-span-2">
+            <div className="space-y-1.5 md:col-span-2">
               <Label className="font-mono text-[10px] uppercase tracking-widest text-foreground font-black flex items-center gap-2">
                 Re-enter Password
               </Label>
@@ -194,16 +229,26 @@ export default function AdminRegister() {
             </div>
           </div>
 
-          <Button type="submit" disabled={isSubmitting || !!emailErr || !!passwordErr || !!confirmErr} size="lg" className="w-full rounded-none h-14 text-xs font-mono uppercase tracking-widest font-bold mt-6 shadow-[8px_8px_0_0_rgba(239,68,68,1)] hover:translate-y-1 hover:shadow-[4px_4px_0_0_rgba(239,68,68,1)] transition-all bg-destructive text-destructive-foreground border-2 border-destructive hover:bg-destructive/90 disabled:opacity-50 disabled:cursor-not-allowed">
+          <Button type="submit" disabled={isSubmitting || !!emailErr || !!passwordErr || !!confirmErr} size="lg" className="w-full rounded-none h-12 text-xs font-mono uppercase tracking-widest font-bold mt-5 shadow-[8px_8px_0_0_rgba(239,68,68,1)] hover:translate-y-1 hover:shadow-[4px_4px_0_0_rgba(239,68,68,1)] transition-all bg-destructive text-destructive-foreground border-2 border-destructive hover:bg-destructive/90 disabled:opacity-50 disabled:cursor-not-allowed">
             {isSubmitting ? "Provisioning..." : "Execute Provision"}
           </Button>
         </form>
 
-        <div className="mt-8 pt-6 border-t-2 border-border text-center flex flex-col space-y-4">
+        <div className="mt-5 pt-5 border-t-2 border-border text-center flex flex-col space-y-2">
             <p className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
                 Already provisioned? <Link to="/admin/login" className="text-foreground hover:underline">Access Portal</Link>
             </p>
         </div>
+
+        <ProfileAvatarPickerDialog
+          open={avatarPickerOpen}
+          onOpenChange={setAvatarPickerOpen}
+          currentValue={previewPath}
+          onPick={(url) => {
+            setPickedAvatar(url);
+            setAvatarPickerOpen(false);
+          }}
+        />
       </div>
     </div>
   );

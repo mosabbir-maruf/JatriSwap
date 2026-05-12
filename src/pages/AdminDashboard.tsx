@@ -17,6 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { BuyerPurchaseRequestCard } from "@/src/components/common/BuyerPurchaseRequestCard";
+import { AdminUserFirestoreAvatar } from "@/src/components/common/AdminUserFirestoreAvatar";
 import { Navigate, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { needsEmailVerification } from "@/src/lib/firebase/authVerification";
@@ -2110,6 +2111,15 @@ export default function AdminDashboard() {
                            </p>
                         </td>
                         <td className={cn(adminTableTdBase, "min-w-0")}>
+                          <div className="flex items-start gap-2.5">
+                            <AdminUserFirestoreAvatar
+                              avatar={user.avatar}
+                              googleAvatarUrl={user.googleAvatarUrl}
+                              name={user.name}
+                              className="size-8 shrink-0 rounded-none border border-foreground shadow-[1px_1px_0_0_rgba(0,0,0,1)]"
+                              fallbackClassName="text-[9px]"
+                            />
+                            <div className="min-w-0 flex-1">
                           <p className="font-heading font-bold text-sm uppercase">
                             <Link
                               to={adminUserProfilePath(user.id, "users")}
@@ -2141,6 +2151,8 @@ export default function AdminDashboard() {
                               {user.phone}
                             </a>
                           ) : null}
+                            </div>
+                          </div>
                         </td>
                         <AdminUserPerformanceTableCell
                           postsCount={postsCount}

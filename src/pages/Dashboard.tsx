@@ -3,7 +3,6 @@ import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +24,7 @@ import { Ticket as TicketType, Notification as NotificationType, BuyerPurchaseRe
 import { subscribeToSellerTickets, deleteTicket, updateTicketStatus } from "@/src/lib/firebase/tickets";
 import { isTicketPubliclyListed } from "@/src/lib/ticketExpiration";
 import { scheduleTicketDeleteWithUndo } from "@/src/lib/scheduledDeleteUndo";
+import { initialsFromDisplayName } from "@/src/lib/initialsFromDisplayName";
 import {
   canSellerDeleteListing,
   canSellerEditListingFields,
@@ -38,6 +38,8 @@ import { toast } from "sonner";
 
 import { EditTicketDialog } from "@/src/components/common/EditTicketDialog";
 import { EditProfileDialog } from "@/src/components/common/EditProfileDialog";
+import { ProfileAvatarPickerDialog } from "@/src/components/common/ProfileAvatarPickerDialog";
+import { AvatarChoiceTrigger } from "@/src/components/common/AvatarChoiceTrigger";
 import {
   readSellDraft,
   sellDraftHasMeaningfulContent,
@@ -55,6 +57,8 @@ import { DashboardAlertRow } from "@/src/components/common/DashboardAlertRow";
 import { MarkAllNotificationsReadButton } from "@/src/components/common/MarkAllNotificationsReadButton";
 import { AuthLoadingPlaceholder } from "@/src/components/common/AuthLoadingPlaceholder";
 import { useSellerNotificationsSubscription } from "@/src/hooks/useSellerNotificationsSubscription";
+import { useAvatarPickerFromProfile } from "@/src/hooks/useAvatarPickerFromProfile";
+import { persistProfileDisplayAvatar } from "@/src/lib/avatar";
 
 /** Sidebar shows newest subset; full history on `/alerts`. */
 const ALERTS_SIDEBAR_PREVIEW_LIMIT = 4;
@@ -71,6 +75,7 @@ const Dashboard = () => {
   
   const [searchParams, setSearchParams] = useSearchParams();
   const [profileDialogOpen, setProfileDialogOpen] = useState(() => searchParams.get("action") === "profile");
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
   /** Bump when localStorage draft may have changed (other tab or revisiting drafts tab). */
   const [sellDraftRevision, setSellDraftRevision] = useState(0);
 
@@ -107,6 +112,34 @@ const Dashboard = () => {
     authLoading,
     currentUser,
     firebaseUser?.uid,
+  );
+
+  const { displaySrc: dashboardAvatarSrc, googlePickerUrl: dashboardGooglePickerUrl } = useAvatarPickerFromProfile(
+    currentUser,
+    firebaseUser,
+  );
+
+  const handleDashboardAvatarPick = useCallback(
+    async (url: string) => {
+      if (!firebaseUser?.uid || !currentUser) return;
+      try {
+        await persistProfileDisplayAvatar({
+          uid: firebaseUser.uid,
+          role: currentUser.role,
+          chosenDisplayUrl: url,
+          googleAvatarUrlStored: currentUser.googleAvatarUrl,
+          currentAvatarStored: currentUser.avatar,
+          authPhotoURL: firebaseUser.photoURL ?? null,
+        });
+        toast.success("Profile photo updated");
+        setAvatarPickerOpen(false);
+      } catch (e: unknown) {
+        const msg =
+          typeof e === "object" && e !== null && "message" in e ? String((e as { message?: string }).message) : "";
+        toast.error(msg ? `Could not update photo: ${msg}` : "Could not update photo.");
+      }
+    },
+    [firebaseUser, currentUser],
   );
 
   const { purchaseLeadCount, purchaseTapTotal } = useMemo(() => {
@@ -196,30 +229,11 @@ const Dashboard = () => {
     };
   }, [currentUser, firebaseUser?.uid, authLoading]);
 
-  if (authLoading) {
-    return <AuthLoadingPlaceholder />;
-  }
+  const sellerUidForTickets = firebaseUser?.uid ?? currentUser?.id ?? "";
 
-  if (firebaseUser && needsEmailVerification(firebaseUser)) {
-    return <Navigate to="/verify-email" replace />;
-  }
-
-  if (!currentUser) {
-    return <Unauthorized />;
-  }
-
-  const profileUiLabel = currentUser.role === "admin" ? "Profile" : "Edit Profile";
-
-  const sellerUid = firebaseUser?.uid ?? currentUser.id;
-
-  /**
-   * Memoize all seller-ticket derivations in a single pass so unrelated state
-   * (tab change, profile dialog, draft edits) doesn't retrigger 3+ array walks.
-   * Active count uses derived public visibility (sold + expired excluded).
-   */
   const { myListings, activeListingsCount, ticketsSoldCount, totalViews } = useMemo(() => {
     const now = Date.now();
-    const owned = tickets.filter((t) => t.sellerId === sellerUid);
+    const owned = tickets.filter((t) => t.sellerId === sellerUidForTickets);
     let active = 0;
     let sold = 0;
     let views = 0;
@@ -234,7 +248,21 @@ const Dashboard = () => {
       ticketsSoldCount: sold,
       totalViews: views,
     };
-  }, [tickets, sellerUid]);
+  }, [tickets, sellerUidForTickets]);
+
+  if (authLoading) {
+    return <AuthLoadingPlaceholder />;
+  }
+
+  if (firebaseUser && needsEmailVerification(firebaseUser)) {
+    return <Navigate to="/verify-email" replace />;
+  }
+
+  if (!currentUser) {
+    return <Unauthorized />;
+  }
+
+  const profileUiLabel = currentUser.role === "admin" ? "Profile" : "Edit Profile";
 
   const DASHBOARD_STATS = {
     ...currentUser,
@@ -245,14 +273,7 @@ const Dashboard = () => {
     purchaseTapTotal,
   };
 
-  const profileInitials =
-    currentUser.name
-      ?.split(/\s+/)
-      .filter(Boolean)
-      .map((w) => w[0])
-      .slice(0, 2)
-      .join("")
-      .toUpperCase() || "?";
+  const profileInitials = initialsFromDisplayName(currentUser.name);
 
   return (
     <div className="flex-1 bg-background min-h-screen pt-32 pb-24 relative">
@@ -261,10 +282,13 @@ const Dashboard = () => {
         {/* Profile Header */}
         <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 md:p-10 mb-16 flex flex-col md:flex-row items-center gap-8 relative">
            <div className="relative shrink-0">
-              <Avatar className="w-28 h-28 border-4 border-foreground rounded-none shadow-[8px_8px_0_0_rgba(0,0,0,1)] bg-card">
-                 <AvatarImage src={DASHBOARD_STATS.avatar} className="object-cover" />
-                 <AvatarFallback className="bg-background text-2xl font-black font-heading rounded-none">{profileInitials}</AvatarFallback>
-              </Avatar>
+              <AvatarChoiceTrigger
+                orientation="vertical"
+                size="hero"
+                previewSrc={dashboardAvatarSrc}
+                initials={profileInitials}
+                onOpen={() => setAvatarPickerOpen(true)}
+              />
            </div>
            
            <div className="text-center md:text-left flex-1 min-w-0">
@@ -400,7 +424,7 @@ const Dashboard = () => {
                    {notificationsReady && unreadNotificationCount > 0 ? (
                      <div className="shrink-0 ml-auto">
                        <MarkAllNotificationsReadButton
-                         userId={sellerUid}
+                         userId={sellerUidForTickets}
                          unreadCount={unreadNotificationCount}
                          compact
                        />
@@ -598,6 +622,13 @@ const Dashboard = () => {
         ticket={editingTicket}
         isOpen={!!editingTicket}
         onClose={() => setEditingTicket(null)}
+      />
+      <ProfileAvatarPickerDialog
+        open={avatarPickerOpen}
+        onOpenChange={setAvatarPickerOpen}
+        googlePhotoUrl={dashboardGooglePickerUrl}
+        currentValue={dashboardAvatarSrc}
+        onPick={handleDashboardAvatarPick}
       />
       <EditProfileDialog
         open={profileDialogOpen}

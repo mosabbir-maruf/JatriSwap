@@ -112,6 +112,56 @@
   }
 }
 
+/**
+ * Admin register disclaimer: horizontal auto-scroll on narrow viewports only.
+ * Uses translate3d (composited). Animation runs only when prefers-reduced-motion: no-preference.
+ */
+@keyframes admin-register-notice-marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@media (max-width: 639.98px) {
+  .admin-register-notice-marquee {
+    overflow: hidden;
+    contain: layout paint;
+  }
+
+  .admin-register-notice-marquee-track {
+    display: flex;
+    width: max-content;
+    backface-visibility: hidden;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .admin-register-notice-marquee-track {
+      animation: admin-register-notice-marquee 28s linear infinite;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .admin-register-notice-marquee-track > span:last-child {
+      display: none;
+    }
+
+    .admin-register-notice-marquee-track {
+      width: 100%;
+      max-width: 100%;
+      justify-content: center;
+    }
+
+    .admin-register-notice-marquee-track > span:first-child {
+      white-space: normal;
+      text-align: center;
+      padding-right: 0;
+    }
+  }
+}
+
 /* Minimal Modern Utility Theme in Light Mode */
 :root {
     /** Main layout max width — drives `.max-w-page` / `.page-shell*` (one knob for site column). */

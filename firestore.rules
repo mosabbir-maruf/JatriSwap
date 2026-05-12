@@ -20,7 +20,9 @@ service cloud.firestore {
       return data.keys().hasAll(['name', 'email', 'role', 'joinedAt']) &&
              data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
              data.email is string && data.email.size() > 0 && data.email.size() <= 200 &&
-             data.role is string && (data.role == 'user' || data.role == 'admin' || data.role == 'pending_admin' || data.role == 'rejected');
+             data.role is string && (data.role == 'user' || data.role == 'admin' || data.role == 'pending_admin' || data.role == 'rejected') &&
+             (data.get('avatar', '') is string) && data.get('avatar', '').size() <= 500 &&
+             (data.get('googleAvatarUrl', '') is string) && data.get('googleAvatarUrl', '').size() <= 500;
              // data.joinedAt == request.time;
     }
     
@@ -28,6 +30,8 @@ service cloud.firestore {
       return data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
              (data.get('avatar', '') is string) &&
              data.get('avatar', '').size() <= 500 &&
+             (data.get('googleAvatarUrl', '') is string) &&
+             data.get('googleAvatarUrl', '').size() <= 500 &&
              (data.get('role', existing().role) is string) && (data.get('role', existing().role) == 'user' || data.get('role', existing().role) == 'admin' || data.get('role', existing().role) == 'pending_admin' || data.get('role', existing().role) == 'rejected');
     }
 
@@ -263,8 +267,8 @@ service cloud.firestore {
                     isValidUser(incoming()) && 
                     (incoming().role == 'pending_admin');
       allow update: if isSignedIn() && isValidId(adminId) && isValidUserUpdate(incoming()) && (
-        (isOwner(adminId) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatar'])) ||
-        (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatar', 'role']))
+        (isOwner(adminId) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatar', 'googleAvatarUrl'])) ||
+        (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatar', 'googleAvatarUrl', 'role']))
       );
       allow delete: if isAdmin();
     }
@@ -278,10 +282,10 @@ service cloud.firestore {
                     isValidUser(incoming()) && 
                     (incoming().role == 'user' || incoming().role == 'pending_admin');
       allow update: if isSignedIn() && isValidId(userId) && isValidUserUpdate(incoming()) && (
-        (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatar'])) ||
+        (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatar', 'googleAvatarUrl'])) ||
         (
           isAdmin() &&
-          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatar', 'role', 'status']) &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatar', 'googleAvatarUrl', 'role', 'status']) &&
           isValidUserModerationStatus(incoming().get('status', existing().get('status', 'active')))
         )
       );

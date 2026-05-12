@@ -6,12 +6,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from "firebase/auth";
 import { auth, db } from "@/src/lib/firebase/firebase";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { toast } from "sonner";
 import { useAuth } from "@/src/contexts/AuthContext";
 import { getAuthErrorMessage } from "@/src/lib/firebase/authErrors";
 import { needsEmailVerification } from "@/src/lib/firebase/authVerification";
 import { JatriSwapLogo } from "@/src/components/branding/JatriSwapLogo";
+import { AvatarChoiceTrigger } from "@/src/components/common/AvatarChoiceTrigger";
+import { ProfileAvatarPickerDialog } from "@/src/components/common/ProfileAvatarPickerDialog";
+import { googleUserProfileFieldsForCreate, googleAvatarMergePatchForExistingUser } from "@/src/lib/avatar";
+import { useSignupAvatarDraft } from "@/src/hooks/useSignupAvatarDraft";
+import { AUTH_SHELL_GRID_BG_CLASS, AUTH_SHELL_PAGE_X_PADDING_CLASS } from "@/src/lib/ui/authShellClasses";
+import { initialsFromDisplayName } from "@/src/lib/initialsFromDisplayName";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -27,6 +33,10 @@ export default function Register() {
   const [emailErr, setEmailErr] = React.useState("");
   const [passwordErr, setPasswordErr] = React.useState("");
   const [confirmErr, setConfirmErr] = React.useState("");
+  const [avatarPickerOpen, setAvatarPickerOpen] = React.useState(false);
+  const { effectiveAvatarPath, setPickedAvatar, previewPath } = useSignupAvatarDraft();
+
+  const profileInitials = React.useMemo(() => initialsFromDisplayName(name), [name]);
 
   if (!authLoading && firebaseUser && needsEmailVerification(firebaseUser)) {
     return <Navigate to="/verify-email" replace />;
@@ -74,17 +84,19 @@ export default function Register() {
       const userSnap = await getDoc(userRef);
       if (!userSnap.exists()) {
         await setDoc(userRef, {
-          name: result.user.displayName || "User",
-          email: result.user.email,
-          avatar: result.user.photoURL || "",
-          role: "user",
-          status: "active",
-          joinedAt: serverTimestamp()
+          ...googleUserProfileFieldsForCreate(result.user),
+          joinedAt: serverTimestamp(),
         });
+      } else {
+        const raw = userSnap.data() as Record<string, unknown>;
+        const patch = googleAvatarMergePatchForExistingUser(raw, result.user.photoURL);
+        if (patch) {
+          await updateDoc(userRef, patch);
+        }
       }
       toast.success("Successfully registered / logged in");
       navigate("/dashboard");
-    } catch (e: any) {
+    } catch (e: unknown) {
       toast.error(getAuthErrorMessage(e));
     } finally {
       setLoading(false);
@@ -115,7 +127,7 @@ export default function Register() {
       await setDoc(userRef, {
         name: name,
         email: result.user.email,
-        avatar: "",
+        avatar: effectiveAvatarPath,
         role: "user",
         status: "active",
         joinedAt: serverTimestamp()
@@ -124,57 +136,65 @@ export default function Register() {
       await sendEmailVerification(result.user);
       toast.success("Account created. Check your email (including spam) for a verification link.");
       navigate("/verify-email");
-    } catch (e: any) {
+    } catch (e: unknown) {
       toast.error(getAuthErrorMessage(e));
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="flex-1 bg-background bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] min-h-screen pt-24 pb-16 flex items-center justify-center px-4">
-      <div className="w-full max-w-lg bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-6 md:p-8">
-        <div className="flex flex-col items-center mb-6">
+    <div className={`${AUTH_SHELL_GRID_BG_CLASS} pt-20 pb-10 flex items-center justify-center ${AUTH_SHELL_PAGE_X_PADDING_CLASS}`}>
+      <div className="w-full min-w-0 max-w-lg max-sm:-translate-y-2 sm:translate-y-2 bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-5 md:p-6">
+        <div className="flex flex-col items-center mb-4">
             <Link
               to="/"
-              className="mb-4 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="mb-3 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               aria-label="JatriSwap home"
             >
               <JatriSwapLogo variant="auth" showDot={false} />
             </Link>
             <h1 className="font-heading text-2xl font-black uppercase tracking-tighter text-center">Create Account</h1>
-            <p className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground mt-2 text-center">Join the premier ticket marketplace</p>
+            <p className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground mt-1 text-center">Join the premier ticket marketplace</p>
         </div>
 
-        <form className="space-y-4" onSubmit={handleEmailSignUp}>
-          <div className="grid grid-cols-1 gap-4">
-            <div className="space-y-2">
+        <form className="space-y-3" onSubmit={handleEmailSignUp}>
+          <div className="grid grid-cols-1 gap-3">
+            <div>
+              <AvatarChoiceTrigger
+                previewSrc={previewPath}
+                initials={profileInitials}
+                onOpen={() => setAvatarPickerOpen(true)}
+                footnote="Choose Avatar (Optional) We assign one at random if you skip."
+              />
+            </div>
+            <div className="space-y-1.5">
                 <Label className="font-mono text-[10px] uppercase tracking-widest text-foreground font-black">Full Name</Label>
                 <Input 
                     type="text" 
                     placeholder="John Doe" 
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="rounded-none h-12 bg-background border-2 border-foreground focus:ring-0 focus:border-foreground px-4 font-mono font-bold text-sm w-full shadow-[4px_4px_0_0_rgba(0,0,0,1)]" 
+                    className="rounded-none h-11 bg-background border-2 border-foreground focus:ring-0 focus:border-foreground px-4 font-mono font-bold text-sm w-full shadow-[4px_4px_0_0_rgba(0,0,0,1)]" 
                     required
                 />
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label className="font-mono text-[10px] uppercase tracking-widest text-foreground font-black">Email</Label>
             <Input 
                 type="email" 
                 placeholder="you@example.com"
                 value={email}
                 onChange={handleEmailChange} 
-                className={`rounded-none h-12 bg-background border-2 ${emailErr ? 'border-destructive focus:border-destructive text-destructive' : 'border-foreground focus:border-foreground'} focus:ring-0 px-4 font-mono font-bold text-sm w-full shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-colors`} 
+                className={`rounded-none h-11 bg-background border-2 ${emailErr ? 'border-destructive focus:border-destructive text-destructive' : 'border-foreground focus:border-foreground'} focus:ring-0 px-4 font-mono font-bold text-sm w-full shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-colors`} 
                 required
             />
             {emailErr && <p className="text-destructive text-[10px] font-mono font-bold uppercase tracking-wider mt-1">{emailErr}</p>}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label className="font-mono text-[10px] uppercase tracking-widest text-foreground font-black">Password</Label>
             <div className="relative">
               <Input 
@@ -182,7 +202,7 @@ export default function Register() {
                   placeholder="••••••••" 
                   value={password}
                   onChange={handlePasswordChange}
-                  className={`rounded-none h-12 bg-background border-2 ${passwordErr ? 'border-destructive focus:border-destructive text-destructive' : 'border-foreground focus:border-foreground'} focus:ring-0 px-4 pr-10 font-mono font-bold text-sm w-full shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-colors`} 
+                  className={`rounded-none h-11 bg-background border-2 ${passwordErr ? 'border-destructive focus:border-destructive text-destructive' : 'border-foreground focus:border-foreground'} focus:ring-0 px-4 pr-10 font-mono font-bold text-sm w-full shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-colors`} 
                   required
               />
               <button 
@@ -196,7 +216,7 @@ export default function Register() {
             {passwordErr && <p className="text-destructive text-[10px] font-mono font-bold uppercase tracking-wider mt-1">{passwordErr}</p>}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label className="font-mono text-[10px] uppercase tracking-widest text-foreground font-black flex items-center gap-2">
               Re-enter Password
             </Label>
@@ -206,7 +226,7 @@ export default function Register() {
                   placeholder="••••••••" 
                   value={confirmPassword}
                   onChange={handleConfirmChange}
-                  className={`rounded-none h-12 bg-background border-2 ${confirmErr ? 'border-destructive focus:border-destructive text-destructive' : 'border-foreground focus:border-foreground'} focus:ring-0 px-4 pr-10 font-mono font-bold text-sm w-full shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-colors`} 
+                  className={`rounded-none h-11 bg-background border-2 ${confirmErr ? 'border-destructive focus:border-destructive text-destructive' : 'border-foreground focus:border-foreground'} focus:ring-0 px-4 pr-10 font-mono font-bold text-sm w-full shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-colors`} 
                   required
               />
               <button 
@@ -220,12 +240,12 @@ export default function Register() {
             {confirmErr && <p className="text-destructive text-[10px] font-mono font-bold uppercase tracking-wider mt-1">{confirmErr}</p>}
           </div>
 
-          <Button type="submit" disabled={loading || !!emailErr || !!passwordErr || !!confirmErr} size="lg" className="w-full rounded-none h-14 text-xs font-mono uppercase tracking-widest font-bold mt-6 shadow-[8px_8px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-all bg-foreground text-background border-2 border-transparent hover:bg-primary hover:text-primary-foreground hover:border-foreground disabled:opacity-50 disabled:cursor-not-allowed">
+          <Button type="submit" disabled={loading || !!emailErr || !!passwordErr || !!confirmErr} size="lg" className="w-full rounded-none h-12 text-xs font-mono uppercase tracking-widest font-bold mt-4 shadow-[8px_8px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-all bg-foreground text-background border-2 border-transparent hover:bg-primary hover:text-primary-foreground hover:border-foreground disabled:opacity-50 disabled:cursor-not-allowed">
             Sign Up {loading && "..."}
           </Button>
         </form>
 
-        <div className="relative my-6">
+        <div className="relative my-4">
             <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t-2 border-foreground"></span>
             </div>
@@ -234,7 +254,7 @@ export default function Register() {
             </div>
         </div>
 
-        <Button onClick={handleGoogleSignIn} disabled={loading} variant="outline" size="lg" className="w-full rounded-none h-14 text-xs font-mono uppercase tracking-widest font-bold shadow-[8px_8px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-all bg-background text-foreground border-2 border-foreground">
+        <Button onClick={handleGoogleSignIn} disabled={loading} variant="outline" size="lg" className="w-full rounded-none h-12 text-xs font-mono uppercase tracking-widest font-bold shadow-[8px_8px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[4px_4px_0_0_rgba(0,0,0,1)] transition-all bg-background text-foreground border-2 border-foreground">
             <svg viewBox="0 0 24 24" className="w-5 h-5 mr-3 shrink-0" fill="currentColor">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                 <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -244,12 +264,22 @@ export default function Register() {
             Sign up with Google
         </Button>
 
-        <div className="mt-6 text-center border-t-2 border-foreground pt-6">
+        <div className="mt-4 text-center border-t-2 border-foreground pt-4">
             <p className="font-mono text-xs uppercase tracking-widest font-bold text-muted-foreground">
                 Already have an account?{" "}
                 <Link to="/login" className="text-foreground border-b-2 border-primary hover:text-primary transition-colors pb-0.5">Log In</Link>
             </p>
         </div>
+
+        <ProfileAvatarPickerDialog
+          open={avatarPickerOpen}
+          onOpenChange={setAvatarPickerOpen}
+          currentValue={previewPath}
+          onPick={(url) => {
+            setPickedAvatar(url);
+            setAvatarPickerOpen(false);
+          }}
+        />
       </div>
     </div>
   );

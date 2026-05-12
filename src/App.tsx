@@ -66,6 +66,7 @@ import Unauthorized from "./pages/Unauthorized";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { JatriSwapLogo } from "./components/branding/JatriSwapLogo";
 import { FloatingWhatsAppHelp } from "./components/common/FloatingWhatsAppHelp";
+import { isAdminAppRoute } from "./lib/isAdminAppRoute";
 
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -432,7 +433,7 @@ const AppLayout = () => {
         </AnimatePresence>
       </main>
       <Footer />
-      <FloatingWhatsAppHelp />
+      {!isAdminAppRoute(location.pathname) ? <FloatingWhatsAppHelp /> : null}
       <Toaster />
     </div>
   );

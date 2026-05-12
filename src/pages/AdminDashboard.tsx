@@ -1698,7 +1698,7 @@ export default function AdminDashboard() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Daily/Weekly Stats */}
-              <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 lg:col-span-2">
+              <div className="bg-background border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] md:shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 lg:col-span-2">
                 <AdminOverviewCardSectionHeader
                   title="Recent Ticket Posts"
                   badge={<AdminRecentPostsLiveUpdatesBadge />}
@@ -1758,7 +1758,7 @@ export default function AdminDashboard() {
               </AdminPagedOverviewDialog>
               
               {/* Most Searched */}
-              <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8">
+              <div className="bg-background border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] md:shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8">
                 <h3 className="font-heading text-xl font-black uppercase tracking-tighter mb-4 border-b-4 border-foreground pb-2">Top Destinations</h3>
                 <div className="space-y-4 font-mono uppercase text-xs font-bold">
                   {Object.entries(destinationCounts)
@@ -1780,7 +1780,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Recent Buyer Requests */}
-               <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 lg:col-span-3">
+               <div className="bg-background border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] md:shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 lg:col-span-3">
                  <AdminOverviewCardSectionHeader
                    title="Recent Buyer Requests"
                    badge={<AdminBuyerRequestsWhatsAppHandoffBadge />}
@@ -1825,7 +1825,7 @@ export default function AdminDashboard() {
               </AdminPagedOverviewDialog>
 
               {/* Admin Notes */}
-              <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 lg:col-span-3">
+              <div className="bg-background border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] md:shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 lg:col-span-3">
                  <h3 className="font-heading text-xl font-black uppercase tracking-tighter mb-4 flex items-center gap-2"><FileText className="w-5 h-5"/> Admin Notes System</h3>
                  <Textarea 
                    value={adminNotes} 
@@ -1849,7 +1849,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="tickets" className="mt-4 md:mt-10 animate-in fade-in zoom-in-95 duration-200">
-            <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 flex flex-col min-h-[600px]">
+            <div className="bg-background border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] md:shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 flex flex-col min-h-[600px]">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                 <h3 className="font-heading text-3xl font-black uppercase tracking-tighter bg-foreground text-background px-3 py-1 border-2 border-foreground inline-block">Manage Tickets</h3>
                 
@@ -2073,7 +2073,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="users" className="mt-4 md:mt-10 animate-in fade-in zoom-in-95 duration-200">
-            <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 flex flex-col min-h-[600px]">
+            <div className="bg-background border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] md:shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 flex flex-col min-h-[600px]">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                 <div className="space-y-1">
                   <h3 className="font-heading text-3xl font-black uppercase tracking-tighter bg-foreground text-background px-3 py-1 border-2 border-foreground inline-block">
@@ -2254,7 +2254,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="reports" className="mt-4 md:mt-10 animate-in fade-in zoom-in-95 duration-200">
-            <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8">
+            <div className="bg-background border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] md:shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8">
               <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <h3 className="font-heading inline-block border-2 border-foreground bg-destructive px-3 py-1 text-3xl font-black uppercase tracking-tighter text-destructive-foreground">
                   Scam Reporting System
@@ -2457,7 +2457,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="logs" className="mt-4 md:mt-10 animate-in fade-in zoom-in-95 duration-200">
-             <div className="bg-background border-4 border-foreground shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8">
+             <div className="bg-background border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] md:shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8">
                 <h3 className="font-heading text-3xl font-black uppercase tracking-tighter bg-muted text-foreground px-3 py-1 border-2 border-foreground inline-block mb-8">Audit Logs</h3>
                 <div className="space-y-4">
                   {logs.map((activity, i) => (

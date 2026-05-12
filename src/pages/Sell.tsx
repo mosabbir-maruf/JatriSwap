@@ -357,12 +357,12 @@ const Sell = () => {
     <div className="flex-1 bg-background min-h-screen pt-32 pb-24 relative">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
-          <div className="flex justify-between items-end border-b-4 border-foreground pb-6 mb-16">
-            <div>
-              <h1 className="font-heading text-4xl md:text-5xl font-black uppercase tracking-tighter mb-2">Sell Your <span className="text-primary">Ticket</span></h1>
+          <div className="flex flex-col items-center gap-6 md:flex-row md:justify-between md:items-end border-b-4 border-foreground pb-6 mb-16">
+            <div className="text-center md:text-left">
+              <h1 className="font-heading text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tighter mb-2">Sell Your <span className="text-primary">Ticket</span></h1>
               <p className="font-mono text-muted-foreground uppercase tracking-widest text-[10px] font-bold">List your unused public transit ticket securely.</p>
             </div>
-            <div className="flex flex-col items-end gap-2">
+            <div className="flex flex-col items-center gap-2 md:items-end">
               <Button type="button" variant="outline" onClick={saveDraft} className="rounded-none h-12 border-2 border-foreground px-5 flex items-center gap-2 shadow-[4px_4px_0_0_rgba(0,0,0,1)] text-[10px] uppercase tracking-widest font-bold hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all">
                 <Save className="w-3.5 h-3.5" /> Save Draft
               </Button>

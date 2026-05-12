@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useParams, Link, useLocation } from "react-router-dom";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,10 @@ import { formatDepartureTimeDisplay } from "@/src/lib/formatDepartureTime";
 import { COPY_TO_CLIPBOARD_FEEDBACK, copyTextWithToast } from "@/src/lib/copyTextWithToast";
 import { ticketDisplayStatus } from "@/src/lib/ticketExpiration";
 import { resolveTicketDetailBackNav } from "@/src/lib/ticketDetailAdminReturn";
+import { applyDocumentMeta } from "@/src/lib/seo/applyDocumentMeta";
+import { applyListingDocumentMeta } from "@/src/lib/seo/listingDocumentMeta";
+import { NOT_FOUND_SEO } from "@/src/lib/seo/routeSeo";
+import { resolveSeoOrigin } from "@/src/lib/seo/publicOrigin";
 
 const TicketDetails = () => {
   const { firebaseUser, currentUser, loading: authLoading } = useAuth();
@@ -36,6 +40,45 @@ const TicketDetails = () => {
     () => resolveTicketDetailBackNav(location.search, location.state),
     [location.search, location.state],
   );
+
+  useEffect(() => {
+    if (isLoading) return;
+    const origin = resolveSeoOrigin();
+    const pathSuffix = `${location.pathname}${location.search}${location.hash}`;
+    const selfCanonical = origin ? `${origin}${pathSuffix}` : null;
+
+    const viewerIsAdmin = currentUser?.role === "admin";
+
+    if (!ticket) {
+      applyDocumentMeta({
+        ...NOT_FOUND_SEO,
+        canonicalUrl: selfCanonical,
+      });
+      return;
+    }
+
+    const detailHiddenFromBuyer = isTicketDetailHiddenFromPublicBuyer(ticket, viewerUid, viewerIsAdmin);
+    if (detailHiddenFromBuyer) {
+      if (!authLoading) {
+        applyDocumentMeta({
+          ...NOT_FOUND_SEO,
+          canonicalUrl: selfCanonical,
+        });
+      }
+      return;
+    }
+
+    applyListingDocumentMeta(ticket, `${origin}/ticket/${ticket.id}`);
+  }, [
+    isLoading,
+    ticket,
+    currentUser?.role,
+    viewerUid,
+    authLoading,
+    location.pathname,
+    location.search,
+    location.hash,
+  ]);
 
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");

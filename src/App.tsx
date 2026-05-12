@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { lazy, Suspense, useState, useEffect, useRef, type ReactNode } from "react";
+import { useRouteDocumentMeta } from "./hooks/useRouteDocumentMeta";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Ticket,
@@ -401,7 +402,8 @@ import { Toaster } from "@/components/ui/sonner";
 
 const AppLayout = () => {
   const location = useLocation();
-  
+  useRouteDocumentMeta();
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);

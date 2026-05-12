@@ -36,6 +36,7 @@ Always read and follow:
 | **debugging-strategies** | Reproducing bugs, narrowing causes, production regressions — complements **systematic-debugging** |
 | **api-design** | Designing or reviewing **HTTP REST** APIs (e.g. future Cloud Functions) — not the primary model for raw Firestore access patterns |
 | **performance-investigation** | Perf regressions; **adapt** to this repo (Firestore/query costs, bundle size, React re-renders) — the bundled SKILL may reference unrelated benchmark scripts |
+| **seo** | Search visibility: technical SEO, titles and meta descriptions, structured data (JSON-LD), sitemap/robots, Core Web Vitals guidance — see **`.agents/skills/seo/SKILL.md`** |
 
 ## Development workflow
 

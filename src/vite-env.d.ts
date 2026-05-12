@@ -26,6 +26,8 @@ interface ImportMetaEnv {
    * (no trailing slash). When unset, the client posts to same-origin `/api/contact` and `/api/admin-delete-auth-user`.
    */
   readonly VITE_CONTACT_API_URL?: string;
+  /** Google Analytics 4 measurement ID (`G-…`). When unset or empty, gtag is not loaded. */
+  readonly VITE_PUBLIC_GA_MEASUREMENT_ID?: string;
 }
 
 interface ImportMeta {

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { motion } from "motion/react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
@@ -31,7 +32,31 @@ const faqs = [
   }
 ];
 
+const FAQ_JSON_LD_ID = "jatriswap-faq-jsonld";
+
 const FAQ = () => {
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.type = "application/ld+json";
+    script.id = FAQ_JSON_LD_ID;
+    script.textContent = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: faqs.map((item) => ({
+        "@type": "Question",
+        name: item.question,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: item.answer,
+        },
+      })),
+    });
+    document.head.appendChild(script);
+    return () => {
+      document.getElementById(FAQ_JSON_LD_ID)?.remove();
+    };
+  }, []);
+
   return (
     <div className="flex-1 bg-background bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] min-h-screen pt-24 pb-24">
       <div className="page-shell-md relative z-10">

@@ -31,6 +31,12 @@
       "skillPath": ".agents/skills/performance-investigation/SKILL.md",
       "computedHash": "3d008ff2e61e5484a340dc947611ea7635be064d2143ff1e9226e8f571806af1"
     },
+    "seo": {
+      "source": "affaan-m/everything-claude-code",
+      "sourceType": "github",
+      "skillPath": "skills/seo/SKILL.md",
+      "computedHash": "bed0668abba0f43512ba190c9c2c46d3a7e983583997783bf600f2ed5587b351"
+    },
     "systematic-debugging": {
       "source": "obra/superpowers",
       "sourceType": "github",

@@ -1,17 +1,69 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import path from 'path';
-import {defineConfig} from 'vite';
+import { defineConfig, loadEnv } from 'vite';
+import type { Plugin } from 'vite';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+/** Emits `sitemap.xml` and appends `Sitemap:` to `robots.txt` when `VITE_PUBLIC_SITE_URL` is set at build time. */
+function jatriswapSeoArtifactsPlugin(): Plugin {
+  let root = process.cwd();
+  let mode = 'production';
+  return {
+    name: 'jatriswap-seo-artifacts',
+    configResolved(config) {
+      root = config.root;
+      mode = config.mode;
+    },
+    writeBundle(outputOptions) {
+      const env = loadEnv(mode, root, '');
+      const base = (env.VITE_PUBLIC_SITE_URL ?? '').trim().replace(/\/+$/, '');
+      const dir = outputOptions.dir;
+      if (!base || !dir) return;
+
+      const paths = [
+        '/',
+        '/browse',
+        '/sell',
+        '/contact',
+        '/faq',
+        '/terms',
+        '/privacy',
+        '/cookie',
+        '/login',
+        '/register',
+        '/forgot-password',
+        '/verify-email',
+      ];
+      const urlEntries = paths.map((p) => {
+        const loc = p === '/' ? base : `${base}${p}`;
+        const priority = p === '/' ? '1.0' : '0.8';
+        return `  <url>\n    <loc>${loc}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>${priority}</priority>\n  </url>`;
+      });
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urlEntries.join('\n')}\n</urlset>\n`;
+      fs.writeFileSync(path.join(dir, 'sitemap.xml'), xml, 'utf-8');
+
+      const robotsSrc = path.join(root, 'public', 'robots.txt');
+      if (!fs.existsSync(robotsSrc)) return;
+      const baseRobots = fs.readFileSync(robotsSrc, 'utf-8').replace(/\s+$/, '');
+      const robotsOut = `${baseRobots}\n\nSitemap: ${base}/sitemap.xml\n`;
+      fs.writeFileSync(path.join(dir, 'robots.txt'), robotsOut, 'utf-8');
+    },
+  };
+}
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), jatriswapSeoArtifactsPlugin()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),
     },
   },
   server: {
-      // Set DISABLE_HMR=true if hot reload causes issues in constrained environments.
+    // Set DISABLE_HMR=true if hot reload causes issues in constrained environments.
     hmr: process.env.DISABLE_HMR !== 'true',
   },
   build: {

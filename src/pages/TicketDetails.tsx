@@ -72,6 +72,9 @@ const TicketDetails = () => {
     return <NotFound />;
   }
 
+  const sellerNotesTrimmed = (ticket.additionalNotes ?? "").trim();
+  const hasSellerNotes = sellerNotesTrimmed.length > 0;
+
   const handleReportSubmit = async () => {
     if (!ticket) return;
     if (!reportReason.trim()) {
@@ -292,18 +295,9 @@ const TicketDetails = () => {
                        </div>
                     </div>
 
-                    {(ticket.additionalNotes ?? "").trim().length > 0 && (
-                      <div className="mb-6 border-2 border-foreground bg-muted p-4 shadow-[4px_4px_0_0_rgba(0,0,0,1)] sm:mb-10 sm:p-5">
-                        <p className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground mb-2">
-                          Seller notes
-                        </p>
-                        <p className="font-mono text-sm font-medium whitespace-pre-wrap leading-relaxed text-foreground">
-                          {(ticket.additionalNotes ?? "").trim()}
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="mb-6 grid grid-cols-1 gap-3 sm:mb-10 sm:grid-cols-3 sm:gap-4">
+                    <div
+                      className={`grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4 ${hasSellerNotes ? "mb-4 sm:mb-4" : "mb-6 sm:mb-10"}`}
+                    >
                       <div className="bg-background border-2 border-foreground p-4 shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
                         <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-2 flex items-center gap-1">
                           <Calendar className="w-3 h-3" /> Date
@@ -323,6 +317,17 @@ const TicketDetails = () => {
                         <span className="font-mono font-black text-sm uppercase">{ticket.passengerCount} Adult</span>
                       </div>
                     </div>
+
+                    {hasSellerNotes && (
+                      <div className="mb-6 border-2 border-foreground bg-muted p-4 shadow-[4px_4px_0_0_rgba(0,0,0,1)] sm:mb-10 sm:p-5">
+                        <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                          Seller notes
+                        </p>
+                        <p className="font-mono text-sm font-medium leading-relaxed whitespace-pre-wrap text-foreground">
+                          {sellerNotesTrimmed}
+                        </p>
+                      </div>
+                    )}
                  </div>
               </div>
 

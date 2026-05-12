@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { lazy, Suspense, useState, useEffect, useRef, type ReactNode } from "react";
+import { lazy, Suspense, useState, useEffect, useRef, useMemo, type ReactNode } from "react";
 import { useRouteDocumentMeta } from "./hooks/useRouteDocumentMeta";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -16,6 +16,7 @@ import {
   LogOut,
   Bell,
   ChevronDown,
+  type LucideIcon,
 } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { auth } from "./lib/firebase/firebase";
@@ -70,13 +71,32 @@ import { JatriSwapLogo } from "./components/branding/JatriSwapLogo";
 import { FloatingWhatsAppHelp } from "./components/common/FloatingWhatsAppHelp";
 import { shouldShowFloatingWhatsAppHelp } from "./lib/isAdminAppRoute";
 
+const NAV_DROPDOWN_ITEM_CLASS =
+  "rounded-none px-4 py-3 font-mono text-[10px] xl:text-xs uppercase font-bold tracking-widest cursor-pointer hover:bg-muted focus:bg-muted focus:text-foreground";
+const NAV_DROPDOWN_LOGOUT_ITEM_CLASS =
+  "rounded-none px-4 py-3 font-mono text-[10px] xl:text-xs uppercase font-bold tracking-widest cursor-pointer text-destructive hover:bg-destructive hover:text-destructive-foreground focus:bg-destructive focus:text-destructive-foreground";
+const NAV_MOBILE_ACCOUNT_ROW_CLASS = "p-6 flex justify-between items-center hover:bg-muted";
+
+type AccountMenuLink = { to: string; label: string; Icon: LucideIcon };
+
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const location = useLocation();
   const navigate = useNavigate();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { currentUser, firebaseUser, loading: authLoading } = useAuth();
   const isLoggedIn = !!firebaseUser;
+  const isAdmin = currentUser?.role === "admin";
+
+  const accountMenuLinks = useMemo((): AccountMenuLink[] => {
+    if (!isLoggedIn || authLoading) return [];
+    if (isAdmin) {
+      return [
+        { to: "/admin", label: "Admin Panel", Icon: Shield },
+        { to: "/dashboard", label: "Dashboard", Icon: Menu },
+      ];
+    }
+    return [{ to: "/dashboard", label: "Dashboard", Icon: Menu }];
+  }, [isLoggedIn, authLoading, isAdmin]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -153,24 +173,30 @@ const Navbar = () => {
                    <div className="flex items-center gap-4 hidden sm:flex">
                       <DropdownMenu>
                        <DropdownMenuTrigger className="h-9 xl:h-10 border-2 border-foreground bg-muted flex items-center justify-center gap-1.5 px-2.5 xl:px-3 hover:bg-foreground hover:text-background transition-colors shadow-[2px_2px_0_0_rgba(0,0,0,1)] outline-none">
-                         {currentUser?.role === 'admin' ? <Shield className="w-4 h-4 xl:w-5 xl:h-5" /> : <User className="w-4 h-4 xl:w-5 xl:h-5" />}
+                         {isAdmin ? <Shield className="w-4 h-4 xl:w-5 xl:h-5" /> : <User className="w-4 h-4 xl:w-5 xl:h-5" />}
                          <ChevronDown className="h-3 w-3 opacity-80" aria-hidden />
                        </DropdownMenuTrigger>
                        <DropdownMenuContent align="end" className="w-48 bg-background border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] rounded-none p-0 mt-2">
-                         <DropdownMenuItem onClick={() => navigate(currentUser?.role === 'admin' ? '/admin' : '/dashboard')} className="rounded-none px-4 py-3 font-mono text-[10px] xl:text-xs uppercase font-bold tracking-widest cursor-pointer hover:bg-muted focus:bg-muted focus:text-foreground">
-                           {currentUser?.role === 'admin' ? <Shield className="w-4 h-4 mr-2" /> : <Menu className="w-4 h-4 mr-2" />} 
-                           {currentUser?.role === 'admin' ? 'Admin Panel' : 'Dashboard'}
-                         </DropdownMenuItem>
+                         {accountMenuLinks.map(({ to, label, Icon }) => (
+                           <DropdownMenuItem
+                             key={to}
+                             onClick={() => navigate(to)}
+                             className={NAV_DROPDOWN_ITEM_CLASS}
+                           >
+                             <Icon className="w-4 h-4 mr-2" aria-hidden />
+                             {label}
+                           </DropdownMenuItem>
+                         ))}
                          <DropdownMenuSeparator className="m-0 bg-foreground/20" />
-                         {currentUser?.role !== 'admin' && (
+                         {!isAdmin && (
                            <>
-                             <DropdownMenuItem onClick={() => navigate('/alerts')} className="rounded-none px-4 py-3 font-mono text-[10px] xl:text-xs uppercase font-bold tracking-widest cursor-pointer hover:bg-muted focus:bg-muted focus:text-foreground">
+                             <DropdownMenuItem onClick={() => navigate('/alerts')} className={NAV_DROPDOWN_ITEM_CLASS}>
                                <Bell className="w-4 h-4 mr-2" aria-hidden /> Alerts
                              </DropdownMenuItem>
                              <DropdownMenuSeparator className="m-0 bg-foreground/20" />
                            </>
                          )}
-                         <DropdownMenuItem onClick={handleLogout} className="rounded-none px-4 py-3 font-mono text-[10px] xl:text-xs uppercase font-bold tracking-widest cursor-pointer text-destructive hover:bg-destructive hover:text-destructive-foreground focus:bg-destructive focus:text-destructive-foreground">
+                         <DropdownMenuItem onClick={handleLogout} className={NAV_DROPDOWN_LOGOUT_ITEM_CLASS}>
                            <LogOut className="w-4 h-4 mr-2" /> Log Out
                          </DropdownMenuItem>
                        </DropdownMenuContent>
@@ -231,27 +257,20 @@ const Navbar = () => {
                 </div>
               ) : isLoggedIn ? (
                 <>
-                  <Link
-                    to={currentUser?.role === 'admin' ? '/admin' : '/dashboard'}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="p-6 flex justify-between items-center hover:bg-muted"
-                  >
-                    {currentUser?.role === 'admin' ? (
-                      <>
-                        Admin Panel <ArrowRight className="w-4 h-4" aria-hidden />
-                      </>
-                    ) : (
-                      <>
-                        Dashboard <ArrowRight className="w-4 h-4" aria-hidden />
-                      </>
-                    )}
-                  </Link>
-                  {currentUser?.role !== 'admin' && (
-                    <>
-                      <Link to="/alerts" onClick={() => setMobileMenuOpen(false)} className="p-6 flex justify-between items-center hover:bg-muted">
-                        Alerts <ArrowRight className="w-4 h-4" aria-hidden />
-                      </Link>
-                    </>
+                  {accountMenuLinks.map(({ to, label }) => (
+                    <Link
+                      key={to}
+                      to={to}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={NAV_MOBILE_ACCOUNT_ROW_CLASS}
+                    >
+                      {label} <ArrowRight className="w-4 h-4" aria-hidden />
+                    </Link>
+                  ))}
+                  {!isAdmin && (
+                    <Link to="/alerts" onClick={() => setMobileMenuOpen(false)} className={NAV_MOBILE_ACCOUNT_ROW_CLASS}>
+                      Alerts <ArrowRight className="w-4 h-4" aria-hidden />
+                    </Link>
                   )}
                   <div className="p-6 flex flex-col gap-4 bg-muted/30">
                      <Button variant="outline" className="w-full rounded-none border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)] font-mono text-xs font-bold uppercase tracking-widest h-12" onClick={handleLogout}>Log Out</Button>

@@ -204,7 +204,7 @@ export default function AdminUserProfile() {
   return (
     <div className="flex-1 bg-background bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] min-h-screen pt-24 pb-24 relative px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto space-y-8 relative z-10">
-        <div className="flex flex-wrap items-center gap-4 justify-between">
+        <div className="mb-4 flex flex-col items-start gap-3 sm:mb-5 md:flex-row md:items-start md:justify-between md:gap-6">
           <Button
             variant="outline"
             render={<Link to={adminDashboardPath(backTab)} />}
@@ -213,7 +213,7 @@ export default function AdminUserProfile() {
             <ArrowLeft className="w-4 h-4 shrink-0" aria-hidden />
             Back to dashboard
           </Button>
-          <Badge className="rounded-none border-2 border-foreground font-black text-[10px] uppercase shadow-[2px_2px_0_0_rgba(0,0,0,1)] bg-primary text-primary-foreground px-3 py-1.5">
+          <Badge className="shrink-0 rounded-none border-2 border-foreground font-black text-[10px] uppercase shadow-[2px_2px_0_0_rgba(0,0,0,1)] bg-primary text-primary-foreground px-3 py-1.5 md:self-start">
             Admin view · read-only
           </Badge>
         </div>

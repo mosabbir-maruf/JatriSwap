@@ -1,25 +1,13 @@
-import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv } from 'vite';
 import type { Plugin } from 'vite';
-import { SITEMAP_DEFAULT_PRODUCTION_ORIGIN, SITEMAP_PUBLIC_PATHS } from './src/lib/seo/sitemapPublicPaths';
+import { emitSitemapAndRobots, resolveSitemapBuildOrigin } from './src/lib/seo/sitemapBuild';
+import { SITEMAP_PUBLIC_PATHS } from './src/lib/seo/sitemapPublicPaths';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-function resolveSitemapOrigin(env: Record<string, string>): string {
-  const explicit = (env.VITE_PUBLIC_SITE_URL ?? '').trim().replace(/\/+$/, '');
-  if (explicit) return explicit;
-  if (process.env.VERCEL_ENV === 'production') return SITEMAP_DEFAULT_PRODUCTION_ORIGIN;
-  const vercelUrl = process.env.VERCEL_URL?.trim();
-  if (vercelUrl) {
-    const host = vercelUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '');
-    return `https://${host}`;
-  }
-  return '';
-}
 
 /** Emits `sitemap.xml` and appends `Sitemap:` to `robots.txt` when a public origin is resolved (env or Vercel). */
 function jatriswapSeoArtifactsPlugin(): Plugin {
@@ -33,23 +21,15 @@ function jatriswapSeoArtifactsPlugin(): Plugin {
     },
     writeBundle(outputOptions) {
       const env = loadEnv(mode, root, '');
-      const base = resolveSitemapOrigin(env);
+      const base = resolveSitemapBuildOrigin(env);
       const dir = outputOptions.dir;
       if (!base || !dir) return;
-
-      const urlEntries = SITEMAP_PUBLIC_PATHS.map((p) => {
-        const loc = p === '/' ? base : `${base}${p}`;
-        const priority = p === '/' ? '1.0' : '0.8';
-        return `  <url>\n    <loc>${loc}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>${priority}</priority>\n  </url>`;
+      emitSitemapAndRobots({
+        distDir: dir,
+        projectRoot: root,
+        base,
+        publicPaths: SITEMAP_PUBLIC_PATHS,
       });
-      const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urlEntries.join('\n')}\n</urlset>\n`;
-      fs.writeFileSync(path.join(dir, 'sitemap.xml'), xml, 'utf-8');
-
-      const robotsSrc = path.join(root, 'public', 'robots.txt');
-      if (!fs.existsSync(robotsSrc)) return;
-      const baseRobots = fs.readFileSync(robotsSrc, 'utf-8').replace(/\s+$/, '');
-      const robotsOut = `${baseRobots}\n\nSitemap: ${base}/sitemap.xml\n`;
-      fs.writeFileSync(path.join(dir, 'robots.txt'), robotsOut, 'utf-8');
     },
   };
 }

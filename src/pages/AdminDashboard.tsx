@@ -54,6 +54,7 @@ import {
   ticketReportMatchesAdminSearch,
 } from "@/src/lib/adminTicketReportSearch";
 import { normalizeAdminSearchQuery } from "@/src/lib/adminSearchText";
+import { getPublicSiteOrigin } from "@/src/lib/seo/publicOrigin";
 import { scheduleTicketDeleteWithUndo, scheduleUserDeleteWithUndo } from "@/src/lib/scheduledDeleteUndo";
 import {
   fetchTicketAdminNotesForIds,
@@ -530,11 +531,8 @@ function looksLikeEmail(value: string): boolean {
 /** Absolute public URL for `/ticket/:id` (mailto bodies). Prefer `VITE_PUBLIC_SITE_URL` when set so links are not `localhost` in dev. */
 function ticketDetailsPageUrl(ticketId: string): string {
   const path = `/ticket/${ticketId}`;
-  const site =
-    typeof import.meta.env.VITE_PUBLIC_SITE_URL === "string"
-      ? import.meta.env.VITE_PUBLIC_SITE_URL.trim()
-      : "";
-  if (site.length > 0) {
+  const site = getPublicSiteOrigin();
+  if (site) {
     try {
       return new URL(path, site).href;
     } catch {

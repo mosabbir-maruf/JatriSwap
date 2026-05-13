@@ -56,8 +56,7 @@ function jatriswapGaBuildHintPlugin(): Plugin {
       if (html.includes('jatriswap-ga:')) return html;
       const env = loadEnv(mode, root, '');
       const measurementId = env.VITE_PUBLIC_GA_MEASUREMENT_ID?.trim();
-      const has = Boolean(measurementId);
-      const comment = `<!-- jatriswap-ga:${has ? 'measurement-id-at-build' : 'missing-VITE_PUBLIC_GA_MEASUREMENT_ID'} -->`;
+      const comment = `<!-- jatriswap-ga:${measurementId ? 'measurement-id-at-build' : 'missing-VITE_PUBLIC_GA_MEASUREMENT_ID'} -->`;
       if (!measurementId) {
         return html.replace('<head>', `<head>\n    ${comment}`);
       }

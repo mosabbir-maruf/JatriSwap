@@ -62,7 +62,7 @@ All **`VITE_*`** keys are inlined at **build time** by Vite. Set them in the env
 | `VITE_FIREBASE_MEASUREMENT_ID` | No | Google Analytics measurement ID (if enabled) |
 | `VITE_PUBLIC_WHATSAPP_NUMBER` | Recommended | Platform WhatsApp (any formatting); used on Contact and **Request to buy** prefilled messages |
 | `VITE_PUBLIC_SUPPORT_PHONE` | No | Optional phone line shown on Contact |
-| `VITE_PUBLIC_SITE_URL` | Recommended | Production site origin (no trailing slash); used for canonicals, `robots.txt`, `sitemap.xml`, and `sitemap-index.xml` at build time |
+| `VITE_PUBLIC_SITE_URL` | Recommended | Production site origin (no trailing slash); used for canonicals, `robots.txt`, and `sitemap-main.xml` at build time |
 | `VITE_PUBLIC_TELEGRAM_URL` | No | Full Telegram invite URL (e.g. `https://t.me/your_channel`); powers the footer **Join Telegram** button |
 
 If `VITE_PUBLIC_WHATSAPP_NUMBER` is empty, **Request to buy** still opens WhatsApp only after you configure this value.

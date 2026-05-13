@@ -73,15 +73,11 @@ function buildSitemapXml(origin: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urlEntries}\n</urlset>\n`;
 }
 
-function buildSitemapIndexXml(origin: string, isoTimestamp: string): string {
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <sitemap>\n    <loc>${origin}/sitemap.xml</loc>\n    <lastmod>${isoTimestamp}</lastmod>\n  </sitemap>\n</sitemapindex>\n`;
-}
-
 function buildRobotsTxt(origin: string): string {
-  return `User-agent: *\nAllow: /\n\nDisallow: /admin\n\nSitemap: ${origin}/sitemap-index.xml\n`;
+  return `User-agent: *\nAllow: /\n\nDisallow: /admin\n\nSitemap: ${origin}/sitemap-main.xml\n`;
 }
 
-/** Generate robots.txt, sitemap.xml, and sitemap-index.xml from deployment origin. */
+/** Generate robots.txt and a single sitemap file from deployment origin. */
 function seoStaticFilesPlugin(): Plugin {
   let root = process.cwd();
   let mode = 'development';
@@ -97,15 +93,9 @@ function seoStaticFilesPlugin(): Plugin {
     async closeBundle() {
       const distDir = path.resolve(root, outDir);
       const publicOrigin = resolvePublicOrigin(root, mode);
-      const generatedAtIso = new Date().toISOString();
       await mkdir(distDir, { recursive: true });
       await Promise.all([
-        writeFile(path.join(distDir, 'sitemap.xml'), buildSitemapXml(publicOrigin), 'utf8'),
-        writeFile(
-          path.join(distDir, 'sitemap-index.xml'),
-          buildSitemapIndexXml(publicOrigin, generatedAtIso),
-          'utf8'
-        ),
+        writeFile(path.join(distDir, 'sitemap-main.xml'), buildSitemapXml(publicOrigin), 'utf8'),
         writeFile(path.join(distDir, 'robots.txt'), buildRobotsTxt(publicOrigin), 'utf8'),
       ]);
     },

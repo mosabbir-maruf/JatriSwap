@@ -129,6 +129,7 @@ export default defineConfig({
             id.includes('node_modules/scheduler')
           )
             return 'vendor-react';
+          if (id.includes('node_modules/qrcode.react')) return 'vendor-qrcode';
           if (id.includes('motion')) return 'vendor-motion';
           return 'vendor-misc';
         },

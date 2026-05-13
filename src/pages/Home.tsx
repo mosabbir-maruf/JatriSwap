@@ -38,15 +38,41 @@ const Home = () => {
   const [destination, setDestination] = React.useState<string>("");
 
   React.useEffect(() => {
-    const unsubscribe = subscribeToTickets(
-      (rows) => {
-        setHomePreviewRaw(filterPubliclyListedTickets(rows).slice(0, 6));
-        setHomePreviewReady(true);
-      },
-      undefined,
-      { maxDocuments: 24 },
+    let unsubscribe: (() => void) | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let disposed = false;
+
+    const start = () => {
+      if (disposed) return;
+      unsubscribe = subscribeToTickets(
+        (rows) => {
+          setHomePreviewRaw(filterPubliclyListedTickets(rows).slice(0, 6));
+          setHomePreviewReady(true);
+        },
+        undefined,
+        { maxDocuments: 12 },
+      );
+    };
+
+    const idleCallback = (
+      typeof window !== "undefined"
+        ? (window as Window & { requestIdleCallback?: (callback: IdleRequestCallback) => number })
+            .requestIdleCallback
+        : undefined
     );
-    return () => unsubscribe();
+    if (typeof idleCallback === "function") {
+      idleCallback(() => start());
+    } else {
+      timer = globalThis.setTimeout(start, 0);
+    }
+
+    return () => {
+      disposed = true;
+      if (timer !== undefined) {
+        window.clearTimeout(timer);
+      }
+      unsubscribe?.();
+    };
   }, []);
 
   const homePreviewTickets = React.useMemo(

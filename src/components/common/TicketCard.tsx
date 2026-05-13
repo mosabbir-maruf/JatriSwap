@@ -4,7 +4,6 @@ import { format } from "date-fns";
 import { formatDepartureTimeDisplay } from "@/src/lib/formatDepartureTime";
 import { MapPin, Train, BusFront, Edit2, Trash2, CheckCircle2, AlertTriangle, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { QRCodeSVG } from "qrcode.react";
 import { cn } from "@/lib/utils";
 import { COPY_TO_CLIPBOARD_FEEDBACK, copyTextWithToast } from "@/src/lib/copyTextWithToast";
 import type { Ticket as TicketModel } from "@/src/types";
@@ -24,6 +23,11 @@ interface TicketProps {
   onMarkSold?: (id: string) => void;
   fromDashboard?: boolean;
 }
+
+const QRCodeSVG = React.lazy(async () => {
+  const mod = await import("qrcode.react");
+  return { default: mod.QRCodeSVG };
+});
 
 export const TicketCard: React.FC<TicketProps> = ({ ticket, mode = "default", onEdit, onDelete, onMarkSold, fromDashboard = false }) => {
 
@@ -169,7 +173,9 @@ export const TicketCard: React.FC<TicketProps> = ({ ticket, mode = "default", on
           </button>
         </div>
         <div className="shrink-0 bg-white p-0.5 rounded-sm" aria-hidden>
-          <QRCodeSVG value={`${window.location.origin}/ticket/${ticket.id}`} size={32} />
+          <React.Suspense fallback={<div className="h-8 w-8 bg-muted/30" />}>
+            <QRCodeSVG value={`${window.location.origin}/ticket/${ticket.id}`} size={32} />
+          </React.Suspense>
         </div>
         {mode === "seller" ? (
           <div className="flex shrink-0 items-center gap-1">

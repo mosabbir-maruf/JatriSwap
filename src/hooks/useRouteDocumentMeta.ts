@@ -3,7 +3,12 @@ import { useLocation } from "react-router-dom";
 import { applyDocumentMeta } from "@/src/lib/seo/applyDocumentMeta";
 import { resolveSeoOrigin } from "@/src/lib/seo/publicOrigin";
 import { isAdminAppRoute } from "@/src/lib/isAdminAppRoute";
-import { ADMIN_STAFF_ROBOTS, DEFAULT_DESCRIPTION, getRouteSeo } from "@/src/lib/seo/routeSeo";
+import {
+  CRAWL_BLOCK_ROBOTS,
+  DEFAULT_DESCRIPTION,
+  getRouteSeo,
+  isPrivateAppRoute,
+} from "@/src/lib/seo/routeSeo";
 
 const HOME_JSON_LD_ID = "jatriswap-home-jsonld";
 
@@ -39,7 +44,7 @@ function injectHomeJsonLd(siteUrl: string) {
 
 /**
  * Keeps title, meta description, canonical, Open Graph, and Twitter tags aligned with the route.
- * Staff `/admin` routes get `ADMIN_STAFF_ROBOTS`. Home route gets WebSite + Organization JSON-LD.
+ * Staff/private app routes get crawl-blocking robots. Home route gets WebSite + Organization JSON-LD.
  */
 export function useRouteDocumentMeta() {
   const location = useLocation();
@@ -49,14 +54,15 @@ export function useRouteDocumentMeta() {
     const origin = resolveSeoOrigin();
     const pathWithQuery = `${pathname}${search}${hash}`;
     const canonicalUrl = origin ? `${origin}${pathWithQuery}` : null;
-    const admin = isAdminAppRoute(pathname);
+    const robots =
+      isAdminAppRoute(pathname) || isPrivateAppRoute(pathname) ? CRAWL_BLOCK_ROBOTS : undefined;
     const seo = getRouteSeo(pathname);
 
     applyDocumentMeta({
       title: seo.title,
       description: seo.description,
       canonicalUrl,
-      robots: admin ? ADMIN_STAFF_ROBOTS : undefined,
+      robots,
     });
 
     if (pathname === "/") {

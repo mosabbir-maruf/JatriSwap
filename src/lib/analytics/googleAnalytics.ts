@@ -15,8 +15,9 @@ declare global {
 }
 
 /**
- * Injects gtag.js once when `VITE_PUBLIC_GA_MEASUREMENT_ID` is set. Uses `send_page_view: false`;
- * page views are sent from `trackGoogleAnalyticsPageView` after the document title is updated.
+ * Ensures gtag is available when `VITE_PUBLIC_GA_MEASUREMENT_ID` is set.
+ * Production builds receive the official snippet from `vite.config.ts`; this is a fallback for
+ * environments that serve `index.html` without Vite's HTML transform.
  */
 export function loadGoogleAnalytics(): void {
   if (!GA4_MEASUREMENT_ID) {
@@ -36,7 +37,7 @@ export function loadGoogleAnalytics(): void {
   window.gtag = gtag;
 
   gtag("js", new Date());
-  gtag("config", GA4_MEASUREMENT_ID, { send_page_view: false });
+  gtag("config", GA4_MEASUREMENT_ID);
 
   const script = document.createElement("script");
   script.async = true;
@@ -46,12 +47,19 @@ export function loadGoogleAnalytics(): void {
 }
 
 let lastPageViewKey: string | null = null;
+let skippedInitialAutoPageView = false;
 
-/** GA4 `page_view` after `document.title` reflects the current screen (deduped for identical URL + title). */
+/** GA4 `page_view` for SPA navigations after `document.title` reflects the current screen. */
 export function trackGoogleAnalyticsPageView(): void {
   if (!GA4_MEASUREMENT_ID || typeof window.gtag !== "function") return;
 
   const key = `${window.location.href}\0${document.title}`;
+  if (!skippedInitialAutoPageView) {
+    skippedInitialAutoPageView = true;
+    lastPageViewKey = key;
+    return;
+  }
+
   if (lastPageViewKey === key) return;
   lastPageViewKey = key;
 

@@ -42,7 +42,7 @@ function jatriswapSeoArtifactsPlugin(): Plugin {
   };
 }
 
-/** HTML comment: View Source shows whether `VITE_PUBLIC_GA_MEASUREMENT_ID` was set when Vite built `index.html`. */
+/** HTML comment + official gtag snippet when `VITE_PUBLIC_GA_MEASUREMENT_ID` was set at build time. */
 function jatriswapGaBuildHintPlugin(): Plugin {
   let root = process.cwd();
   let mode = 'development';
@@ -55,9 +55,26 @@ function jatriswapGaBuildHintPlugin(): Plugin {
     transformIndexHtml(html) {
       if (html.includes('jatriswap-ga:')) return html;
       const env = loadEnv(mode, root, '');
-      const has = Boolean(env.VITE_PUBLIC_GA_MEASUREMENT_ID?.trim());
+      const measurementId = env.VITE_PUBLIC_GA_MEASUREMENT_ID?.trim();
+      const has = Boolean(measurementId);
       const comment = `<!-- jatriswap-ga:${has ? 'measurement-id-at-build' : 'missing-VITE_PUBLIC_GA_MEASUREMENT_ID'} -->`;
-      return html.replace('<head>', `<head>\n    ${comment}`);
+      if (!measurementId) {
+        return html.replace('<head>', `<head>\n    ${comment}`);
+      }
+
+      const id = JSON.stringify(measurementId);
+      const snippet = [
+        comment,
+        `<script async src="https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}" data-jatriswap-ga-measurement-id=${id}></script>`,
+        '<script>',
+        '  window.dataLayer = window.dataLayer || [];',
+        '  function gtag(){dataLayer.push(arguments);}',
+        '  gtag("js", new Date());',
+        `  gtag("config", ${id});`,
+        '</script>',
+      ].join('\n    ');
+
+      return html.replace('<head>', `<head>\n    ${snippet}`);
     },
   };
 }

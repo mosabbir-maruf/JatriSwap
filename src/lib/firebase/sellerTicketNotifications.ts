@@ -1,5 +1,6 @@
 import { createNotification } from "@/src/lib/firebase/notifications";
 import type { Notification } from "@/src/types";
+import { clientLogger } from "@/src/lib/runtime/clientLogger";
 
 /** Keep in sync with seller dashboard Alerts highlighting. */
 export const SELLER_PURCHASE_REQUEST_NOTIFICATION_TITLE = "Purchase request";
@@ -10,7 +11,9 @@ export function isSellerPurchaseRequestNotification(n: Pick<Notification, "title
 
 /** Fire-and-forget; never throws to callers (logs on failure). */
 function safeNotify(label: string, fn: () => Promise<void>): void {
-  void fn().catch((err) => console.error(`[sellerTicketNotifications] ${label}`, err));
+  void fn().catch((err: unknown) => {
+    clientLogger.error("seller-ticket-notifications.enqueue", err, { label });
+  });
 }
 
 const LISTING_TITLE_NOTIFY_MAX = 80;

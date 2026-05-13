@@ -44,7 +44,7 @@ const TicketDetails = () => {
   useEffect(() => {
     if (isLoading) return;
     const origin = resolveSeoOrigin();
-    const pathSuffix = `${location.pathname}${location.search}${location.hash}`;
+    const pathSuffix = `${location.pathname}${location.search}`;
     const selfCanonical = origin ? `${origin}${pathSuffix}` : null;
 
     const viewerIsAdmin = currentUser?.role === "admin";
@@ -77,7 +77,6 @@ const TicketDetails = () => {
     authLoading,
     location.pathname,
     location.search,
-    location.hash,
   ]);
 
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -195,7 +194,7 @@ const TicketDetails = () => {
   };
 
   const shareUrl = `${window.location.origin}/ticket/${ticket.id}`;
-  const shareTitle = `Buy ${ticket.transportName} Ticket on RailSwap!`;
+  const shareTitle = `Buy ${ticket.transportName} ticket on JatriSwap`;
 
   const handleCopyId = () => {
     void copyTextWithToast(ticket.id, COPY_TO_CLIPBOARD_FEEDBACK.ticketId);
@@ -220,7 +219,7 @@ const TicketDetails = () => {
         void copyTextWithToast(shareUrl, COPY_TO_CLIPBOARD_FEEDBACK.shareLink);
         return;
     }
-    if (url) window.open(url, "_blank");
+    if (url) window.open(url, "_blank", "noopener,noreferrer");
   };
 
   return (

@@ -1,9 +1,25 @@
-export const getAuthErrorMessage = (error: any): string => {
-  if (!error || !error.code) {
-    return error?.message || "An unexpected error occurred. Please try again.";
+const IS_DEV = import.meta.env.DEV;
+
+function getErrorCode(error: unknown): string {
+  if (!error || typeof error !== "object" || !("code" in error)) return "";
+  const raw = (error as { code?: unknown }).code;
+  return typeof raw === "string" ? raw : "";
+}
+
+function getErrorMessage(error: unknown): string {
+  if (!error || typeof error !== "object" || !("message" in error)) return "";
+  const raw = (error as { message?: unknown }).message;
+  return typeof raw === "string" ? raw : "";
+}
+
+export const getAuthErrorMessage = (error: unknown): string => {
+  const code = getErrorCode(error);
+  const message = getErrorMessage(error);
+  if (!code) {
+    return message || "An unexpected error occurred. Please try again.";
   }
 
-  switch (error.code) {
+  switch (code) {
     case "auth/popup-closed-by-user":
       return "Sign-in popup was closed before completing.";
     case "auth/user-not-found":
@@ -27,26 +43,27 @@ export const getAuthErrorMessage = (error: any): string => {
     case "auth/operation-not-allowed":
       return "This sign-in method is currently disabled.";
     case "auth/unauthorized-domain":
-      return (
-        "This exact website address is not allowed to sign in. In Firebase Console → Authentication → Settings → Authorized domains, add the hostname from your browser bar (each Vercel preview URL, e.g. project-git-branch-*.vercel.app, needs its own entry — Firebase does not use *.wildcards)."
-      );
+      return IS_DEV
+        ? "This exact website address is not allowed to sign in. In Firebase Console → Authentication → Settings → Authorized domains, add the hostname from your browser bar (each Vercel preview URL needs its own entry)."
+        : "Sign-in is unavailable from this domain right now.";
     case "auth/popup-blocked":
       return "The browser blocked the sign-in popup. Allow popups for this site and try again.";
     case "auth/cancelled-popup-request":
       return "Another sign-in popup was already open. Close it and try again.";
     case "auth/invalid-api-key":
-      return (
-        "Firebase rejected the API key. On Vercel, confirm all VITE_FIREBASE_* variables match the Firebase project. In Google Cloud Console → Credentials, ensure the browser API key’s HTTP referrer restrictions include your production URL (e.g. https://jatriswap.vercel.app/*)."
-      );
+      return IS_DEV
+        ? "Firebase rejected the API key. Verify VITE_FIREBASE_* variables and browser key referrer restrictions."
+        : "Authentication service is temporarily unavailable.";
     case "auth/project-not-found":
-      return "Firebase project not found. Check VITE_FIREBASE_PROJECT_ID and related env vars on Vercel.";
+      return IS_DEV
+        ? "Firebase project not found. Check VITE_FIREBASE_PROJECT_ID and related env vars."
+        : "Authentication service is temporarily unavailable.";
     default: {
-      const message = typeof error.message === "string" ? error.message : "";
       // Don’t hide Firebase’s message — production issues (domains, keys) were invisible before.
-      if (message.includes("Firebase:")) {
+      if (IS_DEV && message.includes("Firebase:")) {
         return message.replace(/^Firebase:\s*/i, "").trim() || "Authentication failed. Please try again.";
       }
-      return message || "An unexpected error occurred.";
+      return IS_DEV ? message || "An unexpected error occurred." : "Authentication failed. Please try again.";
     }
   }
 };

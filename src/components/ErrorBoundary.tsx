@@ -1,7 +1,9 @@
-import React, { Component, ErrorInfo, ReactNode } from "react";
-import { Link } from "react-router-dom";
+import React, { Component, ReactNode } from "react";
 import { AlertCircle, RefreshCcw, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { clientLogger } from "@/src/lib/runtime/clientLogger";
+
+const IS_DEV = import.meta.env.DEV;
 
 interface Props {
   children?: ReactNode;
@@ -13,7 +15,9 @@ interface State {
   error: Error | null;
 }
 
-export class ErrorBoundary extends React.Component<Props, State> {
+export class ErrorBoundary extends Component<Props, State> {
+  declare props: Readonly<Props>;
+
   public state: State = {
     hasError: false,
     error: null
@@ -24,17 +28,12 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    if (process.env.NODE_ENV === "development") {
-      console.error("Uncaught error:", error, errorInfo);
-    } else {
-      // In production, we might want to log this to an error reporting service
-      // console.log("An error occurred.");
-    }
+    clientLogger.error("react_error_boundary", error, { componentStack: errorInfo.componentStack });
   }
 
   public render() {
-    const { hasError, error } = this.state;
-    const { fallback, children } = (this as any).props as unknown as Props;
+    const { hasError } = this.state;
+    const { fallback, children } = this.props;
     if (hasError) {
       if (fallback) {
         return fallback;
@@ -52,12 +51,12 @@ export class ErrorBoundary extends React.Component<Props, State> {
             </h1>
             
             <p className="font-mono text-sm md:text-base text-muted-foreground uppercase tracking-widest font-bold max-w-xl mx-auto mb-10 leading-relaxed text-balance">
-              {process.env.NODE_ENV === "development" 
+              {IS_DEV
                 ? this.state.error?.message || "An unexpected error occurred during execution."
                 : "A critical system error has occurred. Our engineers have been notified. Please attempt to refresh the interface."}
             </p>
 
-            {process.env.NODE_ENV === "development" && this.state.error?.stack && (
+            {IS_DEV && this.state.error?.stack && (
               <div className="w-full bg-muted/30 border-2 border-foreground p-4 mb-8 text-left overflow-auto max-h-48 text-xs font-mono text-muted-foreground">
                 <pre>{this.state.error.stack}</pre>
               </div>
@@ -83,6 +82,6 @@ export class ErrorBoundary extends React.Component<Props, State> {
       );
     }
 
-    return ((this as any).props as unknown as Props).children;
+    return children;
   }
 }

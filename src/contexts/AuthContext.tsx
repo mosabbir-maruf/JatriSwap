@@ -9,6 +9,7 @@ import {
   normalizeUserAccountStatus,
   sessionBannedToastMessage,
 } from '../lib/userAccountStatus';
+import { clientLogger } from '../lib/runtime/clientLogger';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -90,7 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               toast.info("Your account is no longer available. You have been signed out.");
             })
             .catch((e: unknown) => {
-              console.error("AuthContext signOut after remote profile delete:", e);
+              clientLogger.error("auth-context.remote-signout", e);
               remoteSignOutInFlightRef.current = false;
             });
         };
@@ -119,7 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           maybeSetLoadingFalse();
         }, (error) => {
-          console.error("AuthContext user snapshot error:", error);
+          clientLogger.error("auth-context.user-snapshot", error);
           initialUserLoadDone = true;
           maybeSetLoadingFalse();
         });
@@ -139,7 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           maybeSetLoadingFalse();
         }, (error) => {
-          console.error("AuthContext admin snapshot error:", error);
+          clientLogger.error("auth-context.admin-snapshot", error);
           initialAdminLoadDone = true;
           maybeSetLoadingFalse();
         });

@@ -1,6 +1,7 @@
 import { toast } from "sonner";
 import { FirestoreServiceError, firebaseErrorCode } from "@/src/lib/firebase/errors";
 import { normalizeUserAccountStatus, sellListingBlockedMessage } from "@/src/lib/userAccountStatus";
+import { clientLogger } from "@/src/lib/runtime/clientLogger";
 
 /** Sell + EditTicketDialog — single source for seller-profile verification failures. */
 export const LISTING_SELLER_PROFILE_MISSING_MESSAGE =
@@ -28,12 +29,12 @@ export function toastFirestoreListingSaveFailure(error: unknown): boolean {
     toast.error("Service is temporarily unavailable. Try again in a moment.");
     return true;
   }
-  console.error("Listing save Firestore error:", error.causeUnknown ?? error);
+  clientLogger.error("listing-save.firestore", error.causeUnknown ?? error);
   toast.error("Couldn't save your listing. Check your connection and try again.");
   return true;
 }
 
 export function toastListingSaveUnexpectedError(error: unknown): void {
-  console.error("Listing save unexpected error:", error);
+  clientLogger.error("listing-save.unexpected", error);
   toast.error("Couldn't submit your listing. Try again or contact support.");
 }

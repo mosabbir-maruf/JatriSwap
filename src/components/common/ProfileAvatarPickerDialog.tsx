@@ -2,6 +2,7 @@ import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { PUBLIC_AVATAR_PATHS } from "@/src/lib/avatar/catalog";
+import { clientLogger } from "@/src/lib/runtime/clientLogger";
 
 export interface ProfileAvatarPickerDialogProps {
   open: boolean;
@@ -67,7 +68,7 @@ export const ProfileAvatarPickerDialog = React.memo(function ProfileAvatarPicker
   const handlePick = React.useCallback(
     (url: string) => {
       void Promise.resolve(onPick(url)).catch((e: unknown) => {
-        console.error("ProfileAvatarPickerDialog onPick:", e);
+        clientLogger.error("avatar-picker.on-pick", e);
       });
     },
     [onPick],

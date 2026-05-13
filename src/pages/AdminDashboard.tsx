@@ -110,6 +110,7 @@ import {
 import { adminTableTdBase, adminTableTdMobileMin12, adminTableTdMobileMin13 } from "@/src/lib/adminTableUi";
 import type { TicketDetailLocationState } from "@/src/lib/ticketDetailAdminReturn";
 import { useTicketDetailAdminLinkState } from "@/src/hooks/useTicketDetailAdminLinkState";
+import { clientLogger, userVisibleErrorMessage } from "@/src/lib/runtime/clientLogger";
 
 const AVAILABLE_PERMISSIONS = [
   { id: "manage_users", label: "Manage users", category: "User Management" },
@@ -521,7 +522,7 @@ function AdminTicketStatusBadge({ ticket }: { ticket: Ticket }) {
 }
 
 function formatUnknownError(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
+  return userVisibleErrorMessage(err, "Unexpected error");
 }
 
 function looksLikeEmail(value: string): boolean {
@@ -985,23 +986,41 @@ export default function AdminDashboard() {
     getAdminNotes().then((notes) => setAdminNotes(notes ?? ""));
     getAdminLogs().then((loadedLogs) => setLogs(loadedLogs));
 
-    getDocs(query(collection(db, "admins"), where("role", "==", "admin")))
+    getDocs(query(collection(db, "admins"), where("role", "in", ["admin", "pending_admin"])))
       .then((snapshot) => {
-        setAdminsList(
-          snapshot.docs.map((d) => {
-            const data = d.data();
-            return {
+        const nextAdmins: Array<{
+          id: string;
+          name: string;
+          email: string;
+          role: string;
+          permissions: string[];
+          isSelf: boolean;
+        }> = [];
+        const nextPending: PendingAdminRow[] = [];
+        snapshot.docs.forEach((d) => {
+          const data = d.data();
+          const role = String(data.role ?? "");
+          if (role === "admin") {
+            nextAdmins.push({
               id: d.id,
               name: String(data.name ?? ""),
               email: String(data.email ?? ""),
               role: "Administrator",
               permissions: Array.isArray(data.permissions) ? (data.permissions as string[]) : [],
               isSelf: d.id === currentUser?.id,
-            };
-          }),
+            });
+            return;
+          }
+          if (role === "pending_admin") {
+            nextPending.push({ id: d.id, ...data } as PendingAdminRow);
+          }
+        });
+        setAdminsList(
+          nextAdmins,
         );
+        setPendingAdmins(nextPending);
       })
-      .catch((err: unknown) => console.error("Failed to load admins", err));
+      .catch((err: unknown) => clientLogger.error("admin-dashboard.load-admins", err));
 
     getTicketReports()
       .then(setTicketReports)
@@ -1110,25 +1129,6 @@ export default function AdminDashboard() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [currentEditTicket, setCurrentEditTicket] = useState<Ticket | null>(null);
   const [staffNoteTicket, setStaffNoteTicket] = useState<Ticket | null>(null);
-
-  useEffect(() => {
-    if (currentUser?.role !== 'admin') return;
-    
-    const fetchPendingAdmins = async () => {
-      try {
-        const q = query(collection(db, "admins"), where("role", "==", "pending_admin"));
-        const snapshot = await getDocs(q);
-        const approvals: PendingAdminRow[] = [];
-        snapshot.forEach((docSnap) => {
-          approvals.push({ id: docSnap.id, ...docSnap.data() } as PendingAdminRow);
-        });
-        setPendingAdmins(approvals);
-      } catch (err: unknown) {
-        console.error("Failed to fetch pending admins", err);
-      }
-    };
-    fetchPendingAdmins();
-  }, [currentUser]);
 
   const destinationCounts = useMemo(() => {
     const acc: Record<string, number> = {};
@@ -1285,7 +1285,7 @@ export default function AdminDashboard() {
 
   const addLog = (action: string, details: string) => {
     const newLog = { id: String(Date.now()), action, details, time: "Just now", createdAt: new Date() };
-    setLogs([newLog, ...logs]);
+    setLogs((prev) => [newLog, ...prev]);
     void addAdminLog(action, details);
   };
 
@@ -1311,7 +1311,7 @@ export default function AdminDashboard() {
         });
       })
       .catch((err: unknown) => {
-        console.error(err);
+        clientLogger.error("admin-dashboard.toggle-ticket-status", err);
         toast.error("Failed to update ticket status.");
         setTickets((prev) =>
           prev.map((t) => (t.id === id ? { ...t, status: prevStatus } : t)),
@@ -1362,7 +1362,7 @@ export default function AdminDashboard() {
         }
       },
       onCommitFailed: (err: unknown) => {
-        console.error(err);
+        clientLogger.error("admin-dashboard.delete-ticket", err);
         toast.error("Failed to delete listing.");
         restoreRemoved();
       },
@@ -1407,12 +1407,12 @@ export default function AdminDashboard() {
           const { title, message } = moderationAlertPayload(alertKind);
           await createNotification(userId, "alert", title, message);
         } catch (notifyErr: unknown) {
-          console.error(notifyErr);
+          clientLogger.error("admin-dashboard.user-moderation-notify", notifyErr);
           toast.error("Account updated, but the in-app alert failed to send.");
         }
       }
     } catch (err: unknown) {
-      console.error(err);
+      clientLogger.error("admin-dashboard.user-moderation", err);
       toast.error("Failed to update account status.");
       if (rollbackStatus !== undefined) {
         setUsers((prev) =>
@@ -1511,13 +1511,13 @@ export default function AdminDashboard() {
         syncBuyerPurchaseOverviewFromServer();
       },
       onCommitFailed: (err: unknown) => {
-        console.error(err);
+        clientLogger.error("admin-dashboard.delete-user", err);
         const hint =
           err instanceof Error && /fetch|network|Failed to fetch|404|401|403|502/i.test(err.message)
             ? " If this persists, confirm Vercel has deployed `/api/admin-delete-auth-user` and the same Firebase Admin env as `/api/contact`."
             : "";
         toast.error(`Failed to delete user.${hint}`, {
-          description: err instanceof Error ? err.message : undefined,
+          description: userVisibleErrorMessage(err, "Could not complete the account cleanup."),
         });
         restoreRemoved();
       },
@@ -1536,7 +1536,7 @@ export default function AdminDashboard() {
       toast.success("Admin note saved");
       return true;
     } catch (err: unknown) {
-      console.error(err);
+      clientLogger.error("admin-dashboard.save-ticket-note", err);
       toast.error("Failed to save admin note");
       return false;
     }
@@ -2716,7 +2716,7 @@ export default function AdminDashboard() {
               }
             })
             .catch((err: unknown) => {
-              console.error(err);
+              clientLogger.error("admin-dashboard.refresh-ticket-after-edit", err);
               toast.error("Ticket saved but failed to refresh the listing.");
             });
         }}

@@ -21,13 +21,20 @@ import { AUTH_SHELL_GRID_BG_CLASS, AUTH_SHELL_PAGE_X_PADDING_CLASS } from "@/src
  * Ban toast + sign-out are handled in AuthContext (user snapshot). If that runs first,
  * our `getDoc` can hit permission-denied once auth is cleared — treat as blocked login, no extra toast.
  */
-async function blockLoginIfUserBanned(uid: string): Promise<boolean> {
+async function blockLoginIfUserBanned(
+  uid: string,
+  knownStatus?: { provided: true; status: unknown },
+): Promise<boolean> {
+  const banStatus = (status: unknown) => accountIsBanned(normalizeUserAccountStatus(status));
   try {
-    const userRef = doc(db, "users", uid);
-    const userSnap = await getDoc(userRef);
+    if (knownStatus?.provided) {
+      if (!banStatus(knownStatus.status)) return false;
+      await signOut(auth);
+      return true;
+    }
+    const userSnap = await getDoc(doc(db, "users", uid));
     if (!userSnap.exists()) return false;
-    const st = normalizeUserAccountStatus(userSnap.data().status);
-    if (!accountIsBanned(st)) return false;
+    if (!banStatus(userSnap.data().status)) return false;
     await signOut(auth);
     return true;
   } catch (e: unknown) {
@@ -87,9 +94,14 @@ export default function Login() {
         if (patch) {
           await updateDoc(userRef, patch);
         }
-      }
-      if (await blockLoginIfUserBanned(result.user.uid)) {
-        return;
+        if (
+          await blockLoginIfUserBanned(result.user.uid, {
+            provided: true,
+            status: raw.status,
+          })
+        ) {
+          return;
+        }
       }
       toast.success("Successfully logged in");
       navigate("/dashboard");

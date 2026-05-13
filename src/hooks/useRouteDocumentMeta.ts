@@ -50,9 +50,9 @@ export function useRouteDocumentMeta() {
   const location = useLocation();
 
   useEffect(() => {
-    const { pathname, search, hash } = location;
+    const { pathname, search } = location;
     const origin = resolveSeoOrigin();
-    const pathWithQuery = `${pathname}${search}${hash}`;
+    const pathWithQuery = `${pathname}${search}`;
     const canonicalUrl = origin ? `${origin}${pathWithQuery}` : null;
     const robots =
       isAdminAppRoute(pathname) || isPrivateAppRoute(pathname) ? CRAWL_BLOCK_ROBOTS : undefined;
@@ -70,5 +70,5 @@ export function useRouteDocumentMeta() {
     } else {
       removeHomeJsonLd();
     }
-  }, [location.pathname, location.search, location.hash]);
+  }, [location.pathname, location.search]);
 }

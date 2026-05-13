@@ -1,5 +1,8 @@
 import { auth } from './firebase';
 import { OperationType } from '../../types';
+import { clientLogger } from '@/src/lib/runtime/clientLogger';
+
+const IS_DEV = import.meta.env.DEV;
 
 /** Thrown on Firestore failures — safe message for UI; no emails or provider data in `message`. */
 export class FirestoreServiceError extends Error {
@@ -8,7 +11,7 @@ export class FirestoreServiceError extends Error {
     public readonly path: string | null,
     public readonly causeUnknown: unknown,
   ) {
-    super(`Firestore ${operationType}${path ? ` (${path})` : ''}`);
+    super(IS_DEV ? `Firestore ${operationType}${path ? ` (${path})` : ''}` : 'Request failed');
     this.name = 'FirestoreServiceError';
   }
 }
@@ -24,13 +27,11 @@ export function firebaseErrorCode(error: unknown): string | undefined {
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
   const uid = auth.currentUser?.uid ?? undefined;
-  const msg = error instanceof Error ? error.message : String(error);
-  console.error('Firestore Error:', {
+  clientLogger.error('firestore_error', error, {
     operationType,
     path,
     userId: uid,
     code: typeof error === 'object' && error !== null && 'code' in error ? String((error as { code?: unknown }).code) : undefined,
-    message: msg,
   });
   throw new FirestoreServiceError(operationType, path, error);
 }

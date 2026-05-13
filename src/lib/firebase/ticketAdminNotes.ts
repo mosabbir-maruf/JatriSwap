@@ -2,6 +2,7 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { handleFirestoreError } from './errors';
 import { OperationType } from '../../types';
+import { clientLogger } from '../runtime/clientLogger';
 
 export const TICKET_ADMIN_NOTE_MAX_CHARS = 4000;
 
@@ -21,7 +22,7 @@ export async function fetchTicketAdminNotesForIds(ticketIds: string[]): Promise<
             if (typeof n === 'string') out[id] = n;
           }
         } catch (e: unknown) {
-          console.error('[fetchTicketAdminNotesForIds]', id, e);
+          clientLogger.error("ticket-admin-notes.fetch-by-id", e, { id });
         }
       }),
     );

@@ -44,7 +44,7 @@ const Home = () => {
         setHomePreviewReady(true);
       },
       undefined,
-      { maxDocuments: 120 },
+      { maxDocuments: 24 },
     );
     return () => unsubscribe();
   }, []);

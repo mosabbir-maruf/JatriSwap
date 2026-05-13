@@ -21,6 +21,7 @@ import { ticketDisplayStatus } from "@/src/lib/ticketExpiration";
 import { useTicketDetailAdminLinkState } from "@/src/hooks/useTicketDetailAdminLinkState";
 import { cn } from "@/lib/utils";
 import { adminTableTdBase, adminTableTdMobileMin12 } from "@/src/lib/adminTableUi";
+import { clientLogger, userVisibleErrorMessage } from "@/src/lib/runtime/clientLogger";
 
 const adminTelLinkClass =
   "underline-offset-4 hover:underline hover:text-foreground text-primary inline-flex items-center gap-1 max-w-full min-w-0 break-all";
@@ -165,9 +166,10 @@ export default function AdminUserProfile() {
         setSellerTickets(Array.isArray(tickets) ? tickets : []);
       } catch (e: unknown) {
         if (cancelled) return;
+        clientLogger.error("admin-user-profile.load", e, { userId });
         setProfile(null);
         setSellerTickets([]);
-        setLoadError(e instanceof Error ? e.message : String(e));
+        setLoadError(userVisibleErrorMessage(e, "Failed to load profile."));
       }
     })();
     return () => {

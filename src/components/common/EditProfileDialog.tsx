@@ -17,6 +17,7 @@ import { ProfileAvatarPickerDialog } from "@/src/components/common/ProfileAvatar
 import { persistProfileDisplayAvatar, profileDocRef } from "@/src/lib/avatar";
 import { useAvatarPickerFromProfile } from "@/src/hooks/useAvatarPickerFromProfile";
 import { initialsFromDisplayName } from "@/src/lib/initialsFromDisplayName";
+import { clientLogger, userVisibleErrorMessage } from "@/src/lib/runtime/clientLogger";
 
 interface EditProfileDialogProps {
   open: boolean;
@@ -77,10 +78,10 @@ export function EditProfileDialog({ open, onOpenChange, dialogTitle = "Edit Prof
         toast.success("Profile photo updated");
         setAvatarPickerOpen(false);
       } catch (e: unknown) {
-        console.error("EditProfileDialog avatar update:", e);
+        clientLogger.error("edit-profile.avatar-update", e);
         const msg =
           typeof e === "object" && e !== null && "message" in e ? String((e as { message?: string }).message) : "";
-        toast.error(msg ? `Could not update photo: ${msg}` : "Could not update photo.");
+        toast.error(msg ? userVisibleErrorMessage(e, "Could not update photo.") : "Could not update photo.");
       } finally {
         setIsAvatarSaving(false);
       }
@@ -95,16 +96,14 @@ export function EditProfileDialog({ open, onOpenChange, dialogTitle = "Edit Prof
       try {
         if (hasPassword && !oldPassword) {
            toast.error("Please enter your current password to verify it's you before deleting the account.");
-           setIsDeleting(false);
            return;
         }
         if (hasPassword) {
           const credential = EmailAuthProvider.credential(user.email!, oldPassword);
           try {
              await reauthenticateWithCredential(user, credential);
-          } catch (err: any) {
+          } catch {
              toast.error("Incorrect current password.");
-             setIsDeleting(false);
              return;
           }
         }
@@ -116,12 +115,14 @@ export function EditProfileDialog({ open, onOpenChange, dialogTitle = "Edit Prof
         await deleteUser(user);
         toast.success("Account successfully deleted");
         onOpenChange(false);
-      } catch (error: any) {
-        console.error("Failed to delete account:", error);
-        if (error.code === 'auth/requires-recent-login') {
+      } catch (error: unknown) {
+        clientLogger.error("edit-profile.delete-account", error);
+        const code =
+          typeof error === "object" && error !== null && "code" in error ? String((error as { code?: string }).code) : "";
+        if (code === 'auth/requires-recent-login') {
           toast.error("Security requirement: Please sign out and sign in again before deleting your account.");
         } else {
-          toast.error("Failed to delete account: " + (error.message || "Unknown error"));
+          toast.error(userVisibleErrorMessage(error, "Failed to delete account. Please try again."));
         }
       } finally {
         setIsDeleting(false);
@@ -147,7 +148,6 @@ export function EditProfileDialog({ open, onOpenChange, dialogTitle = "Edit Prof
         if (hasPassword) {
           if (!oldPassword) {
             toast.error("Please enter your current password to change email or password.");
-            setIsSubmitting(false);
             return;
           }
           const credential = EmailAuthProvider.credential(user.email!, oldPassword);
@@ -155,7 +155,6 @@ export function EditProfileDialog({ open, onOpenChange, dialogTitle = "Edit Prof
             await reauthenticateWithCredential(user, credential);
           } catch {
             toast.error("Incorrect current password.");
-            setIsSubmitting(false);
             return;
           }
         }
@@ -185,7 +184,7 @@ export function EditProfileDialog({ open, onOpenChange, dialogTitle = "Edit Prof
         onOpenChange(false);
       }
     } catch (error: unknown) {
-      console.error(error);
+      clientLogger.error("edit-profile.submit", error);
       const code =
         typeof error === "object" && error !== null && "code" in error ? String((error as { code?: string }).code) : "";
       if (code === "auth/requires-recent-login") {
@@ -197,7 +196,7 @@ export function EditProfileDialog({ open, onOpenChange, dialogTitle = "Edit Prof
           typeof error === "object" && error !== null && "message" in error
             ? String((error as { message?: string }).message)
             : "";
-        toast.error("Failed to update profile: " + (msg || "Unknown error"));
+        toast.error(msg ? userVisibleErrorMessage(error, "Failed to update profile.") : "Failed to update profile.");
       }
     } finally {
       setIsSubmitting(false);

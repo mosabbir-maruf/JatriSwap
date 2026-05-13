@@ -47,6 +47,41 @@ interface ServiceAccountFields {
 }
 
 let cachedServiceAccount: ServiceAccountFields | undefined;
+const IS_DEV = process.env.NODE_ENV !== "production";
+
+function logServerError(event: string, error?: unknown, meta?: Record<string, unknown>): void {
+  const payload = {
+    ...(meta ?? {}),
+    ...(error
+      ? {
+          error:
+            error instanceof Error
+              ? IS_DEV
+                ? { name: error.name, message: error.message, stack: error.stack }
+                : { name: error.name }
+              : IS_DEV
+                ? { value: String(error) }
+                : { type: typeof error },
+        }
+      : {}),
+  };
+  console.error(`[server:${event}]`, payload);
+}
+
+function publicHttpErrorMessage(statusCode: number): string {
+  switch (statusCode) {
+    case 400:
+      return "Invalid request.";
+    case 401:
+      return "Unauthorized.";
+    case 403:
+      return "Forbidden.";
+    case 405:
+      return "Method not allowed.";
+    default:
+      return "Could not complete authentication cleanup.";
+  }
+}
 
 function parseServiceAccountJson(raw: string): ServiceAccountFields {
   const trimmed = raw.replace(/^\ufeff/, "").trim();
@@ -283,7 +318,10 @@ async function getGoogleAccessToken(): Promise<string> {
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    console.error("[admin-delete-auth-user] OAuth token exchange failed", { status: res.status, text });
+    logServerError("admin-delete-auth-user.oauth-token-exchange", undefined, {
+      status: res.status,
+      ...(IS_DEV ? { responseText: text } : {}),
+    });
     throw new HttpError(503, "Could not acquire Google access token.");
   }
 
@@ -321,7 +359,10 @@ async function deleteFirebaseAuthUser(targetUid: string): Promise<void> {
   // Identity Toolkit returns USER_NOT_FOUND when the user is already gone — treat as success.
   if (/USER_NOT_FOUND/.test(text)) return;
 
-  console.error("[admin-delete-auth-user] REST deleteUser failed", { status: res.status, text });
+  logServerError("admin-delete-auth-user.rest-delete-user", undefined, {
+    status: res.status,
+    ...(IS_DEV ? { responseText: text } : {}),
+  });
   throw new HttpError(502, "Could not delete authentication record");
 }
 
@@ -419,10 +460,11 @@ export default async function adminDeleteAuthUser(
     res.status(200).json({ ok: true });
   } catch (err) {
     if (isHttpError(err)) {
-      res.status(err.statusCode).json({ error: err.message });
+      const error = IS_DEV ? err.message : publicHttpErrorMessage(err.statusCode);
+      res.status(err.statusCode).json({ error });
       return;
     }
-    console.error("[admin-delete-auth-user]", err);
+    logServerError("admin-delete-auth-user.unhandled", err);
     res.status(500).json({ error: "Could not complete authentication cleanup." });
   }
 }

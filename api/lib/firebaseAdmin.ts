@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 import { ContactHttpError } from "./contact/httpError";
 import { Firestore } from "./contact/firestoreRest";
+import { logServerError } from "./serverLogging";
 
 let firestore: Firestore | undefined;
 
@@ -125,7 +126,10 @@ async function getGoogleAccessToken(): Promise<string> {
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    console.error("[firebaseAdmin] OAuth token exchange failed", { status: res.status, text });
+    logServerError("firebase-admin.oauth-token-exchange", undefined, {
+      status: res.status,
+      ...(process.env.NODE_ENV !== "production" ? { responseText: text } : {}),
+    });
     throw new ContactHttpError(503, "Could not acquire Google access token.");
   }
 

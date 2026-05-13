@@ -18,6 +18,7 @@ import {
 import { db } from "./firebase";
 import { sliceQueryDocsPage } from "./queryPageSlice";
 import { BuyerPurchaseRequest, Ticket } from "../../types";
+import { clientLogger } from "../runtime/clientLogger";
 
 /** Must match Firestore rules for unsigned buyers logging a WhatsApp intent. */
 export const ANONYMOUS_BUYER_ID = "anonymous";
@@ -156,7 +157,10 @@ export async function recordBuyerPurchaseRequest(input: {
 
     const docId = signedBuyerPurchaseDocId(ticket.id, buyerUserId);
     if (!docId) {
-      console.error("[recordBuyerPurchaseRequest] invalid stable doc id", ticket.id, buyerUserId);
+      clientLogger.error("purchase-requests.invalid-stable-doc-id", undefined, {
+        ticketId: ticket.id,
+        buyerUserId,
+      });
       return { shouldNotifySeller: false };
     }
 
@@ -193,7 +197,7 @@ export async function recordBuyerPurchaseRequest(input: {
 
     return { shouldNotifySeller };
   } catch (error) {
-    console.error("[recordBuyerPurchaseRequest]", path, error);
+    clientLogger.error("purchase-requests.record", error, { path });
     return { shouldNotifySeller: false };
   }
 }
@@ -220,7 +224,7 @@ export function subscribeToSellerPurchaseRequests(
       onNext(snapshot.docs.map((d) => mapPurchaseRequestDoc(d as QueryDocumentSnapshot<DocumentData>)));
     },
     (error) => {
-      console.error("[subscribeToSellerPurchaseRequests]", path, error);
+      clientLogger.error("purchase-requests.subscribe-seller", error, { path });
       onNext([]);
     },
   );
@@ -271,7 +275,7 @@ export async function fetchBuyerPurchaseRequestsPage(
     );
     return sliceQueryDocsPage(snapshot.docs, capped, mapPurchaseRequestDoc);
   } catch (error) {
-    console.error("[fetchBuyerPurchaseRequestsPage]", path, error);
+    clientLogger.error("purchase-requests.fetch-page", error, { path });
     return { items: [], endCursor: null, hasMore: false };
   }
 }

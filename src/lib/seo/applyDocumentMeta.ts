@@ -69,6 +69,8 @@ export function applyDocumentMeta(input: DocumentMetaInput) {
   upsertMetaByProperty("og:type", "website");
   if (canonicalUrl) {
     upsertMetaByProperty("og:url", canonicalUrl);
+  } else {
+    document.querySelector('meta[property="og:url"]')?.remove();
   }
 
   upsertMetaByName("twitter:card", "summary_large_image");

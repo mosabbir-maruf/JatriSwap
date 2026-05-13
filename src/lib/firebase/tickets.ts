@@ -29,6 +29,8 @@ import {
 } from '../listingWriteGuard';
 import { sliceQueryDocsPage } from './queryPageSlice';
 import { OperationType, Ticket } from '../../types';
+import { clientLogger } from '../runtime/clientLogger';
+import { getOrLoadCached, invalidateCachedKey } from '../runtime/requestCache';
 
 /** Cap for public/marketing ticket subscriptions (reduces read blast radius). */
 export const TICKETS_SUBSCRIPTION_CAP = 200;
@@ -40,6 +42,11 @@ export const TICKETS_ADMIN_QUERY_LIMIT = 500;
 export const TICKETS_ADMIN_RECENT_OVERVIEW_SIZE = 3;
 /** Admin “Recent Ticket Posts” dialog — each Load more batch. */
 export const TICKETS_ADMIN_RECENT_DIALOG_PAGE_SIZE = 20;
+const TICKET_DOC_CACHE_TTL_MS = 20_000;
+
+function ticketCacheKey(ticketId: string): string {
+  return `tickets:doc:${ticketId}`;
+}
 
 function buildTicketsPostedAtConstraints(
   filters: TicketListFilters | undefined,
@@ -160,12 +167,14 @@ export async function fetchTicketsRecentOverview(
 export const getTicket = async (ticketId: string): Promise<Ticket | null> => {
   const path = `tickets/${ticketId}`;
   try {
-    const docRef = doc(db, 'tickets', ticketId);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      return { id: docSnap.id, ...docSnap.data() } as Ticket;
-    }
-    return null;
+    return getOrLoadCached(ticketCacheKey(ticketId), TICKET_DOC_CACHE_TTL_MS, async () => {
+      const docRef = doc(db, 'tickets', ticketId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() } as Ticket;
+      }
+      return null;
+    });
   } catch (error) {
     handleFirestoreError(error, OperationType.GET, path);
   }
@@ -198,6 +207,7 @@ export const updateTicketStatus = async (ticketId: string, status: Ticket['statu
   try {
     const docRef = doc(db, 'tickets', ticketId);
     await updateDoc(docRef, { status });
+    invalidateCachedKey(ticketCacheKey(ticketId));
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, path);
   }
@@ -222,6 +232,7 @@ export const updateTicket = async (
     }
     const docRef = doc(db, 'tickets', ticketId);
     await updateDoc(docRef, data);
+    invalidateCachedKey(ticketCacheKey(ticketId));
   } catch (error) {
     if (error instanceof ListingWriteBlockedError) throw error;
     if (error instanceof SellerProfileMissingError) throw error;
@@ -234,6 +245,7 @@ export const deleteTicket = async (ticketId: string): Promise<void> => {
   try {
     await deleteDoc(doc(db, 'ticketAdminNotes', ticketId)).catch(() => {});
     await deleteDoc(doc(db, 'tickets', ticketId));
+    invalidateCachedKey(ticketCacheKey(ticketId));
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
   }
@@ -260,8 +272,9 @@ export const incrementTicketViews = async (ticketId: string): Promise<void> => {
   try {
     const docRef = doc(db, 'tickets', ticketId);
     await updateDoc(docRef, { views: increment(1) });
+    invalidateCachedKey(ticketCacheKey(ticketId));
   } catch (error) {
-    console.error('Failed to increment views:', error);
+    clientLogger.error("tickets.increment-views", error, { path });
   }
 };
 
@@ -288,7 +301,7 @@ export const subscribeToTickets = (
       callback(tickets);
     },
     (error) => {
-      console.error('[subscribeToTickets]', path, error);
+      clientLogger.error("tickets.subscribe", error, { path });
       callback([]);
     },
   );
@@ -335,13 +348,13 @@ export const subscribeToSellerTickets = (
       callback(mapDocs(snapshot));
     },
     (error) => {
-      console.error('[subscribeToSellerTickets]', path, error);
+      clientLogger.error("tickets.subscribe-seller", error, { path });
       orderedUnsub();
       cleanup = onSnapshot(
         qFallback,
         applyFallbackSorted,
         (err2) => {
-          console.error('[subscribeToSellerTickets] fallback', path, err2);
+          clientLogger.error("tickets.subscribe-seller-fallback", err2, { path });
           callback([]);
         },
       );

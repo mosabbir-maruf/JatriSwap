@@ -87,7 +87,7 @@ export default function AdminLogin() {
         toast.error("Access Denied: You do not have administrator privileges.");
         await auth.signOut();
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       toast.error(getAuthErrorMessage(e));
     } finally {
       setIsSubmitting(false);
@@ -102,9 +102,6 @@ export default function AdminLogin() {
         </div>
 
         <div className="flex flex-col items-center mb-8">
-            <div className="w-16 h-16 bg-foreground text-background flex items-center justify-center mb-4 hidden">
-                 {/*  We can remove the hidden if we want to show a big shield instead */}
-            </div>
             <Shield className="w-16 h-16 mb-4 text-foreground" />
             <h1 className="font-heading text-3xl font-black uppercase tracking-tighter text-foreground text-center">Admin Access</h1>
             <p className="font-mono text-[10px] uppercase tracking-widest font-bold text-muted-foreground mt-2 text-center">System Administrators Only</p>

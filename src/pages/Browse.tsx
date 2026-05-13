@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { STATIONS, TRANSPORTS, ALL_SEAT_CLASS_FILTER_OPTIONS, seatClassesForMode } from "@/src/constants";
@@ -51,6 +51,10 @@ const Browse = () => {
   const [seatClasses, setSeatClasses] = useState<string[]>([]);
   const [transportTypes, setTransportTypes] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<string>("newest");
+  const [isDesktopViewport, setIsDesktopViewport] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return window.matchMedia("(min-width: 1024px)").matches;
+  });
 
   const seatClassFilterOptions = useMemo(() => {
     if (transportMode === "all") return ALL_SEAT_CLASS_FILTER_OPTIONS;
@@ -66,6 +70,31 @@ const Browse = () => {
   useEffect(() => {
     if (transportMode === "bus") setTransportTypes([]);
   }, [transportMode]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const media = window.matchMedia("(min-width: 1024px)");
+    const onChange = (event: MediaQueryListEvent) => {
+      setIsDesktopViewport(event.matches);
+    };
+    setIsDesktopViewport(media.matches);
+    media.addEventListener("change", onChange);
+    return () => {
+      media.removeEventListener("change", onChange);
+    };
+  }, []);
+
+  const resetFilters = useCallback(() => {
+    setPriceRange([100, 10000]);
+    setSearchQuery("");
+    setDate(undefined);
+    setTransportMode("all");
+    setOrigin("");
+    setDestination("");
+    setSeatClasses([]);
+    setTransportTypes([]);
+    setSortBy("newest");
+  }, []);
   const [isLoading, setIsLoading] = useState(true);
   const [ticketsRaw, setTicketsRaw] = useState<Ticket[]>([]);
   const [listCursor, setListCursor] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
@@ -214,7 +243,7 @@ const Browse = () => {
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Filters Sidebar */}
           <AnimatePresence>
-            {(showFilters || window.innerWidth >= 1024) && (
+            {(showFilters || isDesktopViewport) && (
               <motion.aside 
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -228,17 +257,7 @@ const Browse = () => {
                       variant="ghost" 
                       size="sm" 
                       className="h-8 rounded-none border border-transparent hover:border-foreground text-[10px] uppercase tracking-widest text-muted-foreground px-2 font-bold transition-all"
-                      onClick={() => {
-                        setPriceRange([100, 10000]);
-                        setSearchQuery("");
-                        setDate(undefined);
-                        setTransportMode("all");
-                        setOrigin("");
-                        setDestination("");
-                        setSeatClasses([]);
-                        setTransportTypes([]);
-                        setSortBy("newest");
-                      }}
+                      onClick={resetFilters}
                     >
                       Reset all
                     </Button>
@@ -400,17 +419,7 @@ const Browse = () => {
                     
                     <Button 
                       className="w-full rounded-none h-12 text-[10px] mt-8 uppercase tracking-widest font-bold shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all bg-destructive text-destructive-foreground border-2 border-destructive"
-                      onClick={() => {
-                        setPriceRange([100, 10000]);
-                        setSearchQuery("");
-                        setDate(undefined);
-                        setTransportMode("all");
-                        setOrigin("");
-                        setDestination("");
-                        setSeatClasses([]);
-                        setTransportTypes([]);
-                        setSortBy("newest");
-                      }}
+                      onClick={resetFilters}
                     >
                       Clear All Filters
                     </Button>
@@ -512,7 +521,7 @@ const Browse = () => {
                 </div>
                 <h3 className="font-heading text-2xl font-black uppercase tracking-tighter mb-2">No tickets found</h3>
                 <p className="font-mono text-muted-foreground text-xs uppercase tracking-widest font-medium max-w-md mx-auto mb-8 leading-relaxed">We couldn't find any tickets matching your filters. Try adjusting your search criteria.</p>
-                <Button className="rounded-none h-12 px-8 text-[10px] uppercase tracking-widest font-bold shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all" onClick={() => {setPriceRange([100, 10000]); setSearchQuery(""); setDate(undefined); setTransportMode("all"); setOrigin(""); setDestination(""); setSeatClasses([]); setTransportTypes([]); setSortBy("newest");}}>Clear all filters</Button>
+                <Button className="rounded-none h-12 px-8 text-[10px] uppercase tracking-widest font-bold shadow-[4px_4px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all" onClick={resetFilters}>Clear all filters</Button>
               </div>
             )}
             

@@ -9,6 +9,8 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_APP_ID: string;
   readonly VITE_FIREBASE_MEASUREMENT_ID?: string;
   readonly VITE_FIREBASE_FIRESTORE_DATABASE_ID: string;
+  /** Optional Firebase App Check reCAPTCHA v3 site key. */
+  readonly VITE_FIREBASE_APP_CHECK_SITE_KEY?: string;
   /** Platform WhatsApp — Contact page + listing “Request to Buy” (digits extracted for wa.me). */
   readonly VITE_PUBLIC_WHATSAPP_NUMBER?: string;
   /** Optional — support phone shown on Contact (display / tel: link). */

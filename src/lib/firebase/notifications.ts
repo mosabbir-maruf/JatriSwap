@@ -15,6 +15,7 @@ import {
 import { db } from './firebase';
 import { handleFirestoreError } from './errors';
 import { OperationType, Notification } from '../../types';
+import { clientLogger } from '../runtime/clientLogger';
 
 /** Keep dashboard Alerts subscription bounded (newest first). */
 const NOTIFICATIONS_SUBSCRIPTION_LIMIT = 80;
@@ -39,7 +40,7 @@ export const subscribeToNotifications = (userId: string, callback: (notification
     });
     callback(notifications);
   }, (error) => {
-    console.error('[subscribeToNotifications]', path, error);
+    clientLogger.error("notifications.subscribe", error, { path });
     callback([]);
   });
 };

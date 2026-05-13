@@ -34,7 +34,11 @@ Concise long-term reference for **JatriSwap** (transit ticket marketplace). Full
 ## Important decisions
 
 - **Profile source**: `AuthContext` listens to **`users/{uid}` and `admins/{uid}`**; whichever exists drives `currentUser` (admins are not only in `users`). **Remote-delete sign-out** — when *both* docs were seen at least once this session and then vanish, the context calls `signOut(auth)` and toasts. Guards (`userProfileEverExistedRef`, `adminProfileEverExistedRef`, `remoteSignOutInFlightRef`) prevent signing users out during signup race windows.
-- **Errors**: [`handleFirestoreError`](src/lib/firebase/errors.ts) logs a **small structured object** (`operationType`, `path`, `userId`, optional Firebase **`code`**, **`message`**) — **no** provider/email payloads — then throws **`FirestoreServiceError`** with a generic **`message`** for callers/UI. Catch paths should assume **`FirestoreServiceError`** (legacy **`FirestoreErrorInfo`** type may still exist in types but is not what gets logged anymore).
+- **Errors/logging hardening**:
+  - Client-side logs now go through [`clientLogger`](src/lib/runtime/clientLogger.ts), which is **DEV-only** (`import.meta.env.DEV` gate). Production browser builds suppress debug/info/warn/error console output from app code paths migrated to this logger.
+  - User-visible messages should use `userVisibleErrorMessage(error, fallback)` so production keeps sanitized fallback copy while development can still show actionable detail.
+  - [`handleFirestoreError`](src/lib/firebase/errors.ts) logs structured metadata (`operationType`, `path`, `userId`, optional Firebase `code`) then throws `FirestoreServiceError` with a production-safe message.
+  - Server-side logs are centralized in [`api/lib/serverLogging.ts`](api/lib/serverLogging.ts): production logs keep terse error shape (name/type), while detailed message/stack stays development-only.
 - **Tickets — queries & listeners** ([`tickets.ts`](src/lib/firebase/tickets.ts)):
   - **`subscribeToSellerTickets(sellerId)`**: Dashboard — **`where('sellerId','==', …)`** + **`orderBy('postedAt','desc')`** + **`limit`** (default cap 120).
   - **`subscribeToTickets`**: Home/marketing — optional filters; **`orderBy('postedAt','desc')`** + **`limit`** using **`TICKETS_SUBSCRIPTION_CAP`** (200) unless **`maxDocuments`** overrides (e.g. Home uses a lower cap).
@@ -45,7 +49,7 @@ Concise long-term reference for **JatriSwap** (transit ticket marketplace). Full
 - **`deleteTicket`**: Deletes **`ticketAdminNotes/{id}`** best-effort **before** the ticket doc (ordering matters for seller-driven cleanup vs rules).
 - **Public contact env**: [`src/lib/env/publicContact.ts`](src/lib/env/publicContact.ts) — **`getPublicWhatsAppLink`**, **`getPublicSupportPhone`**, **`phoneDisplayToTelHref`** / **`supportPhoneTelHref`** (`tel:` normalization for admin/contact links). **`VITE_PUBLIC_WHATSAPP_NUMBER`**, **`VITE_PUBLIC_SUPPORT_PHONE`** in `.env.example`.
 - **Public site / footer**: **`VITE_PUBLIC_SITE_URL`** — optional production origin for admin mailto listing links (avoids localhost in emails during dev). **`VITE_PUBLIC_TELEGRAM_URL`** — optional full Telegram invite URL; footer **Stay in the loop** shows **Join Telegram** when set (see [`src/App.tsx`](src/App.tsx) `Footer`).
-- **Vite**: [`vite.config.ts`](vite.config.ts) uses modular plugins only; **`DISABLE_HMR`** may disable HMR when set.
+- **Vite**: [`vite.config.ts`](vite.config.ts) uses modular plugins only; production build explicitly sets `build.sourcemap = false`; **`DISABLE_HMR`** may disable HMR when set.
 - **Admin user hard-delete** ([`AdminDashboard`](src/pages/AdminDashboard.tsx) + [`scheduledDeleteUndo`](src/lib/scheduledDeleteUndo.ts) + [`deleteUserData`](src/lib/firebase/users.ts) + [`adminDeleteTargetAuth`](src/lib/firebase/adminDeleteTargetAuth.ts)):
   - 30-second Sonner toast countdown with **Undo**. UI optimistically removes the user row and their listings; restores on undo or commit failure.
   - On commit: **Auth first** via `/api/admin-delete-auth-user`, then Firestore cleanup in parallel batches — `tickets` (+ `ticketAdminNotes`), `purchaseRequests` (seller + buyer), `ticketReports` (seller + reporter), `notifications`, optional `admins/{uid}`, then `users/{uid}`. Auth-first ordering avoids leaving Firestore-wiped accounts with usable login.
@@ -86,7 +90,7 @@ Concise long-term reference for **JatriSwap** (transit ticket marketplace). Full
 - Auth session uses **two** Firestore listeners while signed in; changing role resolution may affect listener count and billing.
 - **Server cold starts** are minimal: no `firebase-admin` / `@google-cloud/firestore` / gRPC; only native `fetch` + `node:crypto`. JWKS public keys cached per Google's `Cache-Control: max-age`; service-account → OAuth access token cached at module scope until 60s before expiry; Firestore REST client cached after first init (warm-lambda reuse).
 - **`deleteUserData`** parallelizes all six independent Firestore reads with `Promise.all`, then the three independent batched delete chains (`ticketReports` / `purchaseRequests` / `notifications`) before the ordered `ticketAdminNotes`→`tickets` batch.
-- **Firebase App Check** is not wired in the client bootstrap yet — optional hardening for abuse-prone writes beyond rule checks.
+- **Firebase App Check** is wired in client bootstrap via `initializeFirebaseAppCheck()` and gated by `VITE_FIREBASE_APP_CHECK_SITE_KEY`; absent key keeps behavior unchanged.
 
 ## Repo / agent tooling
 
@@ -121,4 +125,4 @@ Concise long-term reference for **JatriSwap** (transit ticket marketplace). Full
 - **Tooling**: `npm run lint` → `tsc --noEmit` only (no ESLint script in `package.json`).
 - **Product naming**: UI branding **JatriSwap**; [`index.html`](index.html) title **JatriSwap**.
 - **Dependencies**: **No** Google Gemini SDK (**`@google/genai`** was removed). **No** `firebase-admin`, **no** `@google-cloud/firestore` — server uses a custom Firestore REST client + native `node:crypto`. `npm audit` shows **0 vulnerabilities** with the **only** override being `uuid` (unrelated to security).
-- **Gaps**: Chat/messaging in rules but not in client; App Check not enabled; admin screen is a candidate for hook/component splits per `.agents/rules/react.mdc`.
+- **Gaps**: Chat/messaging in rules but not in client; admin screen is a candidate for hook/component splits per `.agents/rules/react.mdc`.

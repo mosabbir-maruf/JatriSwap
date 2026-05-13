@@ -19,6 +19,7 @@ const CORS: Record<string, string> = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
+const IS_DEV = process.env.NODE_ENV !== "production";
 
 function applyCors(res: VercelResponse): void {
   for (const [k, v] of Object.entries(CORS)) res.setHeader(k, v);
@@ -51,7 +52,9 @@ export default async function contactApi(req: VercelRequest, res: VercelResponse
     res.status(200).json(result);
   } catch (err) {
     if (isContactHttpError(err)) {
-      res.status(err.statusCode).json({ error: err.message });
+      res.status(err.statusCode).json({
+        error: IS_DEV ? err.message : "Could not send your message right now. Please try again later.",
+      });
       return;
     }
     logUnexpectedContactError("handler", err);

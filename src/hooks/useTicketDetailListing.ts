@@ -5,6 +5,7 @@ import { redactSellerPhoneForViewer } from "@/src/lib/ticketPrivacy";
 import type { Ticket } from "@/src/types";
 import { useTicketSellerPrivacy } from "@/src/hooks/useTicketSellerPrivacy";
 import { isTicketPubliclyListed } from "@/src/lib/ticketExpiration";
+import { clientLogger } from "@/src/lib/runtime/clientLogger";
 
 const ticketViewSessionKey = (ticketId: string) => `ticketDetailView:${ticketId}`;
 
@@ -66,12 +67,14 @@ export function useTicketDetailListing(ticketId: string | undefined): {
             // sessionStorage unavailable; still attempt server bump
           }
 
-          void incrementTicketViews(ticketId).catch(console.error);
+          void incrementTicketViews(ticketId).catch((error: unknown) => {
+            clientLogger.error("ticket-detail.increment-views", error, { ticketId });
+          });
         });
       })
       .catch((err) => {
         if (!cancelled) {
-          console.error("Failed to load ticket", err);
+          clientLogger.error("ticket-detail.load", err, { ticketId });
           resetSnapshot();
         }
       })

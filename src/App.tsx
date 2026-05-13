@@ -35,25 +35,34 @@ import {
 import { useAuth } from "./contexts/AuthContext";
 
 import Home from "./pages/Home";
-import Browse from "./pages/Browse";
-import Sell from "./pages/Sell";
-import Dashboard from "./pages/Dashboard";
-import Alerts from "./pages/Alerts";
-import TicketDetails from "./pages/TicketDetails";
-import TermsOfService from "./pages/TermsOfService";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import CookiePolicy from "./pages/CookiePolicy";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import ForgotPassword from "./pages/ForgotPassword";
-import VerifyEmail from "./pages/VerifyEmail";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { JatriSwapLogo } from "./components/branding/JatriSwapLogo";
+import { FloatingWhatsAppHelp } from "./components/common/FloatingWhatsAppHelp";
+import { shouldShowFloatingWhatsAppHelp } from "./lib/isAdminAppRoute";
 
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const AdminUserProfile = lazy(() => import("./pages/AdminUserProfile"));
 const AdminLogin = lazy(() => import("./pages/AdminLogin"));
 const AdminRegister = lazy(() => import("./pages/AdminRegister"));
+const Browse = lazy(() => import("./pages/Browse"));
+const Sell = lazy(() => import("./pages/Sell"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Alerts = lazy(() => import("./pages/Alerts"));
+const TicketDetails = lazy(() => import("./pages/TicketDetails"));
+const TermsOfService = lazy(() => import("./pages/TermsOfService"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const CookiePolicy = lazy(() => import("./pages/CookiePolicy"));
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
+const Contact = lazy(() => import("./pages/Contact"));
+const FAQ = lazy(() => import("./pages/FAQ"));
+const Transit = lazy(() => import("./pages/Transit"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const Unauthorized = lazy(() => import("./pages/Unauthorized"));
 
-function AdminRouteSuspense({ children }: { children: ReactNode }) {
+function RouteSuspense({ children }: { children: ReactNode }) {
   return (
     <Suspense
       fallback={<BrutalistIdleLoader className="min-h-[50vh] gap-3" />}
@@ -62,15 +71,6 @@ function AdminRouteSuspense({ children }: { children: ReactNode }) {
     </Suspense>
   );
 }
-import Contact from "./pages/Contact";
-import FAQ from "./pages/FAQ";
-import Transit from "./pages/Transit";
-import NotFound from "./pages/NotFound";
-import Unauthorized from "./pages/Unauthorized";
-import { ErrorBoundary } from "./components/ErrorBoundary";
-import { JatriSwapLogo } from "./components/branding/JatriSwapLogo";
-import { FloatingWhatsAppHelp } from "./components/common/FloatingWhatsAppHelp";
-import { shouldShowFloatingWhatsAppHelp } from "./lib/isAdminAppRoute";
 
 const NAV_DROPDOWN_ITEM_CLASS =
   "rounded-none px-4 py-3 font-mono text-[10px] xl:text-xs uppercase font-bold tracking-widest cursor-pointer hover:bg-muted focus:bg-muted focus:text-foreground";
@@ -459,57 +459,176 @@ export default function App() {
         <Routes>
           <Route path="/" element={<AppLayout />}>
             <Route index element={<Home />} />
-            <Route path="browse" element={<Browse />} />
-            <Route path="ticket/:id" element={<TicketDetails />} />
-            <Route path="sell" element={<Sell />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="alerts" element={<Alerts />} />
-            <Route path="terms" element={<TermsOfService />} />
-            <Route path="privacy" element={<PrivacyPolicy />} />
-            <Route path="cookie" element={<CookiePolicy />} />
-            <Route path="login" element={<Login />} />
-            <Route path="register" element={<Register />} />
-            <Route path="verify-email" element={<VerifyEmail />} />
-            <Route path="forgot-password" element={<ForgotPassword />} />
+            <Route
+              path="browse"
+              element={
+                <RouteSuspense>
+                  <Browse />
+                </RouteSuspense>
+              }
+            />
+            <Route
+              path="ticket/:id"
+              element={
+                <RouteSuspense>
+                  <TicketDetails />
+                </RouteSuspense>
+              }
+            />
+            <Route
+              path="sell"
+              element={
+                <RouteSuspense>
+                  <Sell />
+                </RouteSuspense>
+              }
+            />
+            <Route
+              path="dashboard"
+              element={
+                <RouteSuspense>
+                  <Dashboard />
+                </RouteSuspense>
+              }
+            />
+            <Route
+              path="alerts"
+              element={
+                <RouteSuspense>
+                  <Alerts />
+                </RouteSuspense>
+              }
+            />
+            <Route
+              path="terms"
+              element={
+                <RouteSuspense>
+                  <TermsOfService />
+                </RouteSuspense>
+              }
+            />
+            <Route
+              path="privacy"
+              element={
+                <RouteSuspense>
+                  <PrivacyPolicy />
+                </RouteSuspense>
+              }
+            />
+            <Route
+              path="cookie"
+              element={
+                <RouteSuspense>
+                  <CookiePolicy />
+                </RouteSuspense>
+              }
+            />
+            <Route
+              path="login"
+              element={
+                <RouteSuspense>
+                  <Login />
+                </RouteSuspense>
+              }
+            />
+            <Route
+              path="register"
+              element={
+                <RouteSuspense>
+                  <Register />
+                </RouteSuspense>
+              }
+            />
+            <Route
+              path="verify-email"
+              element={
+                <RouteSuspense>
+                  <VerifyEmail />
+                </RouteSuspense>
+              }
+            />
+            <Route
+              path="forgot-password"
+              element={
+                <RouteSuspense>
+                  <ForgotPassword />
+                </RouteSuspense>
+              }
+            />
             <Route
               path="admin"
               element={
-                <AdminRouteSuspense>
+                <RouteSuspense>
                   <AdminDashboard />
-                </AdminRouteSuspense>
+                </RouteSuspense>
               }
             />
             <Route
               path="admin/users/:userId"
               element={
-                <AdminRouteSuspense>
+                <RouteSuspense>
                   <AdminUserProfile />
-                </AdminRouteSuspense>
+                </RouteSuspense>
               }
             />
             <Route
               path="admin/login"
               element={
-                <AdminRouteSuspense>
+                <RouteSuspense>
                   <AdminLogin />
-                </AdminRouteSuspense>
+                </RouteSuspense>
               }
             />
             <Route
               path="admin/register"
               element={
-                <AdminRouteSuspense>
+                <RouteSuspense>
                   <AdminRegister />
-                </AdminRouteSuspense>
+                </RouteSuspense>
               }
             />
-            <Route path="contact" element={<Contact />} />
-            <Route path="faq" element={<FAQ />} />
-            <Route path="transit" element={<Transit />} />
+            <Route
+              path="contact"
+              element={
+                <RouteSuspense>
+                  <Contact />
+                </RouteSuspense>
+              }
+            />
+            <Route
+              path="faq"
+              element={
+                <RouteSuspense>
+                  <FAQ />
+                </RouteSuspense>
+              }
+            />
+            <Route
+              path="transit"
+              element={
+                <RouteSuspense>
+                  <Transit />
+                </RouteSuspense>
+              }
+            />
             
             {/* Built-in unauthorized testing state optionally or catch-all */}
-            <Route path="unauthorized" element={<Unauthorized />} />
-            <Route path="*" element={<NotFound />} />
+            <Route
+              path="unauthorized"
+              element={
+                <RouteSuspense>
+                  <Unauthorized />
+                </RouteSuspense>
+              }
+            />
+            <Route
+              path="*"
+              element={
+                <RouteSuspense>
+                  <NotFound />
+                </RouteSuspense>
+              }
+            />
           </Route>
         </Routes>
       </ErrorBoundary>

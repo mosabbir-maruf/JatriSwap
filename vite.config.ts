@@ -5,11 +5,23 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv } from 'vite';
 import type { Plugin } from 'vite';
-import { SITEMAP_PUBLIC_PATHS } from './src/lib/seo/sitemapPublicPaths';
+import { SITEMAP_DEFAULT_PRODUCTION_ORIGIN, SITEMAP_PUBLIC_PATHS } from './src/lib/seo/sitemapPublicPaths';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-/** Emits `sitemap.xml` and appends `Sitemap:` to `robots.txt` when `VITE_PUBLIC_SITE_URL` is set at build time. */
+function resolveSitemapOrigin(env: Record<string, string>): string {
+  const explicit = (env.VITE_PUBLIC_SITE_URL ?? '').trim().replace(/\/+$/, '');
+  if (explicit) return explicit;
+  if (process.env.VERCEL_ENV === 'production') return SITEMAP_DEFAULT_PRODUCTION_ORIGIN;
+  const vercelUrl = process.env.VERCEL_URL?.trim();
+  if (vercelUrl) {
+    const host = vercelUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    return `https://${host}`;
+  }
+  return '';
+}
+
+/** Emits `sitemap.xml` and appends `Sitemap:` to `robots.txt` when a public origin is resolved (env or Vercel). */
 function jatriswapSeoArtifactsPlugin(): Plugin {
   let root = process.cwd();
   let mode = 'production';
@@ -21,7 +33,7 @@ function jatriswapSeoArtifactsPlugin(): Plugin {
     },
     writeBundle(outputOptions) {
       const env = loadEnv(mode, root, '');
-      const base = (env.VITE_PUBLIC_SITE_URL ?? '').trim().replace(/\/+$/, '');
+      const base = resolveSitemapOrigin(env);
       const dir = outputOptions.dir;
       if (!base || !dir) return;
 

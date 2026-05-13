@@ -1,9 +1,11 @@
 import path from 'node:path';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv } from 'vite';
 import type { Plugin } from 'vite';
+import { normalizePublicSiteUrl } from './src/lib/seo/publicOrigin';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -43,8 +45,65 @@ function jatriswapGaBuildHintPlugin(): Plugin {
   };
 }
 
+const SITEMAP_PATHS = ['/', '/browse', '/sell', '/contact', '/faq', '/transit', '/terms', '/privacy', '/cookie'] as const;
+
+function toHttpsOrigin(hostOrUrl: string | undefined): string {
+  const normalized = normalizePublicSiteUrl(hostOrUrl);
+  if (!normalized) return '';
+  if (normalized.startsWith('http://') || normalized.startsWith('https://')) return normalized;
+  return `https://${normalized}`;
+}
+
+function resolvePublicOrigin(root: string, mode: string): string {
+  const env = loadEnv(mode, root, '');
+  return (
+    normalizePublicSiteUrl(env.VITE_PUBLIC_SITE_URL) ||
+    toHttpsOrigin(env.VERCEL_PROJECT_PRODUCTION_URL) ||
+    toHttpsOrigin(env.VERCEL_URL) ||
+    'https://jatriswap.vercel.app'
+  );
+}
+
+function buildSitemapXml(origin: string): string {
+  const urlEntries = SITEMAP_PATHS.map((pathName, index) => {
+    const loc = `${origin}${pathName === '/' ? '/' : pathName}`;
+    const priority = index === 0 ? '1.0' : '0.8';
+    return `  <url>\n    <loc>${loc}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>${priority}</priority>\n  </url>`;
+  }).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urlEntries}\n</urlset>\n`;
+}
+
+function buildRobotsTxt(origin: string): string {
+  return `User-agent: *\nAllow: /\n\n# Staff SPA — disallow crawling (meta + X-Robots-Tag also set in app / Vercel).\nDisallow: /admin\n\nSitemap: ${origin}/sitemap.xml\n`;
+}
+
+/** Generate robots.txt and sitemap.xml from deployment origin to avoid cross-domain sitemap issues. */
+function seoStaticFilesPlugin(): Plugin {
+  let root = process.cwd();
+  let mode = 'development';
+  let outDir = 'dist';
+  return {
+    name: 'jatriswap-seo-static-files',
+    apply: 'build',
+    configResolved(config) {
+      root = config.root;
+      mode = config.mode;
+      outDir = config.build.outDir;
+    },
+    async closeBundle() {
+      const distDir = path.resolve(root, outDir);
+      const publicOrigin = resolvePublicOrigin(root, mode);
+      await mkdir(distDir, { recursive: true });
+      await Promise.all([
+        writeFile(path.join(distDir, 'sitemap.xml'), buildSitemapXml(publicOrigin), 'utf8'),
+        writeFile(path.join(distDir, 'robots.txt'), buildRobotsTxt(publicOrigin), 'utf8'),
+      ]);
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), jatriswapGaBuildHintPlugin()],
+  plugins: [react(), tailwindcss(), jatriswapGaBuildHintPlugin(), seoStaticFilesPlugin()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),

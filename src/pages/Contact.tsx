@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
-import { ArrowLeft, Mail, MessageCircle, MessageSquare, Phone, Send } from "lucide-react";
+import { ArrowLeft, MessageCircle, MessageSquare, Phone, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   getPublicSupportPhone,
@@ -121,10 +121,6 @@ const Contact = () => {
                  <h3 className="font-heading text-2xl font-black uppercase tracking-tighter mb-8">Get in Touch</h3>
                  
                  <div className="space-y-6">
-                    <ContactChannelRow icon={<Mail className="w-5 h-5 text-foreground" />} title="Email">
-                      <p className="font-sans font-bold text-foreground">support@railswap.com</p>
-                    </ContactChannelRow>
-
                     {supportPhone ? (
                       <ContactChannelRow icon={<Phone className="w-5 h-5 text-foreground" />} title="Phone">
                         <a href={supportPhoneTelHref(supportPhone)} className={contactLinkClass}>

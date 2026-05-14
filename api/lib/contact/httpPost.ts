@@ -1,4 +1,5 @@
 import { getContactFirestore } from "../firebaseAdmin.js";
+import type { DocumentReference, Firestore } from "./firestoreRest.js";
 import {
   contactClientKeyFromIp,
   clientIpFromHeaders,
@@ -12,6 +13,11 @@ import { formatContactTelegramText, sendTelegramPlainText } from "./telegram.js"
 import { ContactHttpError, isContactHttpError } from "./httpError.js";
 import { logUnexpectedContactError } from "./logUnexpectedContact.js";
 import { isContactHoneypotTripped } from "../../../shared/contactValidation.js";
+
+const NOT_CONFIGURED = "Contact delivery is not configured yet. Please use WhatsApp or phone.";
+const FIRESTORE_UNAVAILABLE =
+  "Contact delivery is temporarily unavailable. Please try again later or use WhatsApp.";
+const DELIVERY_FAILED = "Could not deliver your message right now. Please try again in a few minutes.";
 
 /** Vercel may supply `body` as an object or as a raw JSON string depending on runtime/content-type. */
 function normalizeJsonBody(body: unknown): Record<string, unknown> {
@@ -34,6 +40,24 @@ function normalizeJsonBody(body: unknown): Record<string, unknown> {
   return {};
 }
 
+function throw503UnlessContactHttp(err: unknown, context: string, message: string): never {
+  if (isContactHttpError(err)) throw err;
+  logUnexpectedContactError(context, err);
+  throw new ContactHttpError(503, message);
+}
+
+async function rollbackAndThrow500(
+  db: Firestore,
+  dedupeRef: DocumentReference,
+  rateRef: DocumentReference,
+  err: unknown,
+  context: string,
+): Promise<never> {
+  await rollbackContactReservation(db, dedupeRef, rateRef);
+  logUnexpectedContactError(context, err);
+  throw new ContactHttpError(500, DELIVERY_FAILED);
+}
+
 export async function handleContactPost(
   body: unknown,
   headers: ContactRequestHeaders,
@@ -48,24 +72,16 @@ export async function handleContactPost(
   const chatId = process.env.TELEGRAM_CHAT_ID?.trim() ?? "";
 
   if (!token || !chatId) {
-    throw new ContactHttpError(
-      503,
-      "Contact delivery is not configured yet. Please use WhatsApp or phone.",
-    );
+    throw new ContactHttpError(503, NOT_CONFIGURED);
   }
 
   const payload = sanitizeContactPayload(data);
 
-  let db;
+  let db: Firestore;
   try {
     db = getContactFirestore();
   } catch (err) {
-    if (isContactHttpError(err)) throw err;
-    logUnexpectedContactError("firestore_init", err);
-    throw new ContactHttpError(
-      503,
-      "Contact delivery is not configured yet. Please use WhatsApp or phone.",
-    );
+    throw503UnlessContactHttp(err, "firestore_init", NOT_CONFIGURED);
   }
 
   const clientKey = contactClientKeyFromIp(clientIpFromHeaders(headers));
@@ -75,16 +91,11 @@ export async function handleContactPost(
   );
   const nowMs = Date.now();
 
-  let reserved;
+  let reserved: Awaited<ReturnType<typeof reserveContactSlot>>;
   try {
     reserved = await reserveContactSlot(db, { submissionKey, clientKey, nowMs });
   } catch (err) {
-    if (isContactHttpError(err)) throw err;
-    logUnexpectedContactError("firestore_reserve", err);
-    throw new ContactHttpError(
-      503,
-      "Contact delivery is temporarily unavailable. Please try again later or use WhatsApp.",
-    );
+    throw503UnlessContactHttp(err, "firestore_reserve", FIRESTORE_UNAVAILABLE);
   }
 
   if (reserved.kind === "duplicate_silent") {
@@ -100,23 +111,13 @@ export async function handleContactPost(
       text: formatContactTelegramText(payload),
     });
   } catch (err) {
-    await rollbackContactReservation(db, dedupeRef, rateRef);
-    logUnexpectedContactError("telegram_send", err);
-    throw new ContactHttpError(
-      500,
-      "Could not deliver your message right now. Please try again in a few minutes.",
-    );
+    await rollbackAndThrow500(db, dedupeRef, rateRef, err, "telegram_send");
   }
 
   try {
     await finalizeSuccessfulContact(dedupeRef);
   } catch (err) {
-    await rollbackContactReservation(db, dedupeRef, rateRef);
-    logUnexpectedContactError("finalize_dedupe", err);
-    throw new ContactHttpError(
-      500,
-      "Could not deliver your message right now. Please try again in a few minutes.",
-    );
+    await rollbackAndThrow500(db, dedupeRef, rateRef, err, "finalize_dedupe");
   }
 
   return { ok: true };

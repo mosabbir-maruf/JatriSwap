@@ -20,6 +20,8 @@ interface AccessTokenCache {
 
 let cachedServiceAccount: ServiceAccountFields | undefined;
 let cachedAccessToken: AccessTokenCache | undefined;
+/** Coalesces concurrent token refreshes (e.g. parallel `/api/contact` cold starts). */
+let accessTokenInflight: Promise<string> | undefined;
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const ADMIN_SCOPES = [
@@ -95,53 +97,66 @@ async function getGoogleAccessToken(): Promise<string> {
     return cachedAccessToken.token;
   }
 
-  const sa = loadServiceAccount();
-  const nowSec = Math.floor(now / 1000);
-  const header = base64UrlEncode(Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT" })));
-  const payload = base64UrlEncode(
-    Buffer.from(
-      JSON.stringify({
-        iss: sa.client_email,
-        sub: sa.client_email,
-        aud: GOOGLE_TOKEN_URL,
-        scope: ADMIN_SCOPES,
-        iat: nowSec,
-        exp: nowSec + 3600,
-      }),
-    ),
-  );
-  const signature = base64UrlEncode(
-    cryptoSign("RSA-SHA256", Buffer.from(`${header}.${payload}`, "utf8"), sa.private_key),
-  );
-  const assertion = `${header}.${payload}.${signature}`;
+  if (accessTokenInflight) {
+    return accessTokenInflight;
+  }
 
-  const res = await fetch(GOOGLE_TOKEN_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion,
-    }).toString(),
-  });
+  accessTokenInflight = (async (): Promise<string> => {
+    const sa = loadServiceAccount();
+    const nowSec = Math.floor(Date.now() / 1000);
+    const header = base64UrlEncode(Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT" })));
+    const payload = base64UrlEncode(
+      Buffer.from(
+        JSON.stringify({
+          iss: sa.client_email,
+          sub: sa.client_email,
+          aud: GOOGLE_TOKEN_URL,
+          scope: ADMIN_SCOPES,
+          iat: nowSec,
+          exp: nowSec + 3600,
+        }),
+      ),
+    );
+    const signature = base64UrlEncode(
+      cryptoSign("RSA-SHA256", Buffer.from(`${header}.${payload}`, "utf8"), sa.private_key),
+    );
+    const assertion = `${header}.${payload}.${signature}`;
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    logServerError("firebase-admin.oauth-token-exchange", undefined, {
-      status: res.status,
-      ...(process.env.NODE_ENV !== "production" ? { responseText: text } : {}),
+    const res = await fetch(GOOGLE_TOKEN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+        assertion,
+      }).toString(),
     });
-    throw new ContactHttpError(503, "Could not acquire Google access token.");
-  }
 
-  const data = (await res.json()) as { access_token?: unknown; expires_in?: unknown };
-  if (typeof data.access_token !== "string" || typeof data.expires_in !== "number") {
-    throw new ContactHttpError(503, "Malformed Google access token response.");
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      logServerError("firebase-admin.oauth-token-exchange", undefined, {
+        status: res.status,
+        ...(process.env.NODE_ENV !== "production" ? { responseText: text } : {}),
+      });
+      throw new ContactHttpError(503, "Could not acquire Google access token.");
+    }
+
+    const data = (await res.json()) as { access_token?: unknown; expires_in?: unknown };
+    if (typeof data.access_token !== "string" || typeof data.expires_in !== "number") {
+      throw new ContactHttpError(503, "Malformed Google access token response.");
+    }
+    const issuedAt = Date.now();
+    cachedAccessToken = {
+      token: data.access_token,
+      expiresAt: issuedAt + data.expires_in * 1000,
+    };
+    return cachedAccessToken.token;
+  })();
+
+  try {
+    return await accessTokenInflight;
+  } finally {
+    accessTokenInflight = undefined;
   }
-  cachedAccessToken = {
-    token: data.access_token,
-    expiresAt: now + data.expires_in * 1000,
-  };
-  return cachedAccessToken.token;
 }
 
 export function getContactFirestore(): Firestore {

@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
+import { handleContactPost } from "./lib/contact/httpPost.js";
 import { isContactHttpError } from "./lib/contact/httpError.js";
 import { logUnexpectedContactError } from "./lib/contact/logUnexpectedContact.js";
 
@@ -47,7 +48,6 @@ export default async function contactApi(req: VercelRequest, res: VercelResponse
   }
 
   try {
-    const { handleContactPost } = await import("./lib/contact/httpPost.js");
     const result = await handleContactPost(req.body, req.headers);
     res.status(200).json(result);
   } catch (err) {

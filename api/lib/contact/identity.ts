@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import type { IncomingHttpHeaders } from "node:http";
 
-import type { SanitizedContactPayload } from "../../../shared/contactValidation";
+import type { SanitizedContactPayload } from "../../../shared/contactValidation.js";
 
 export function sha256Hex(input: string): string {
   return createHash("sha256").update(input, "utf8").digest("hex");

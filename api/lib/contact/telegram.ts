@@ -1,7 +1,7 @@
 import {
   CONTACT_TELEGRAM_TEXT_MAX,
   type SanitizedContactPayload,
-} from "../../../shared/contactValidation";
+} from "../../../shared/contactValidation.js";
 
 function truncateForTelegram(text: string): string {
   if (text.length <= CONTACT_TELEGRAM_TEXT_MAX) return text;

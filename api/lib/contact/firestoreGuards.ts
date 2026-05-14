@@ -4,15 +4,15 @@ import {
   Timestamp as AdminTimestamp,
   type DocumentReference,
   type Firestore,
-} from "./firestoreRest";
+} from "./firestoreRest.js";
 
 import {
   CONTACT_DEDUPE_MS,
   CONTACT_MAX_SUBMISSIONS_PER_WINDOW,
   CONTACT_RATE_WINDOW_MS,
   CONTACT_STALE_RESERVATION_MS,
-} from "./guardsConstants";
-import { ContactHttpError } from "./httpError";
+} from "./guardsConstants.js";
+import { ContactHttpError } from "./httpError.js";
 
 const COL_DEDUPE = "_svcContactDedupe";
 const COL_RATE = "_svcContactRate";

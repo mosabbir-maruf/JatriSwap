@@ -1,4 +1,4 @@
-import { logServerError } from "../serverLogging";
+import { logServerError } from "../serverLogging.js";
 
 export function logUnexpectedContactError(context: string, err: unknown): void {
   const isDev = process.env.NODE_ENV !== "production";

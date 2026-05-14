@@ -1,6 +1,6 @@
-import type { RawContactFields, SanitizedContactPayload } from "../../../shared/contactValidation";
-import { validateContactFields } from "../../../shared/contactValidation";
-import { ContactHttpError } from "./httpError";
+import type { RawContactFields, SanitizedContactPayload } from "../../../shared/contactValidation.js";
+import { validateContactFields } from "../../../shared/contactValidation.js";
+import { ContactHttpError } from "./httpError.js";
 
 export type RawContactPayload = RawContactFields;
 

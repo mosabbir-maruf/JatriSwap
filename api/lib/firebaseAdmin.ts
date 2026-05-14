@@ -1,9 +1,9 @@
 import { sign as cryptoSign } from "node:crypto";
 import { readFileSync } from "node:fs";
 
-import { ContactHttpError } from "./contact/httpError";
-import { Firestore } from "./contact/firestoreRest";
-import { logServerError } from "./serverLogging";
+import { ContactHttpError } from "./contact/httpError.js";
+import { Firestore } from "./contact/firestoreRest.js";
+import { logServerError } from "./serverLogging.js";
 
 let firestore: Firestore | undefined;
 

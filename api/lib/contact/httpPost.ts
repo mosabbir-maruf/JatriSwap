@@ -1,17 +1,17 @@
-import { getContactFirestore } from "../firebaseAdmin";
+import { getContactFirestore } from "../firebaseAdmin.js";
 import {
   contactClientKeyFromIp,
   clientIpFromHeaders,
   contactSubmissionContentHash,
   contactSubmissionKey,
   type ContactRequestHeaders,
-} from "./identity";
-import { finalizeSuccessfulContact, reserveContactSlot, rollbackContactReservation } from "./firestoreGuards";
-import { sanitizeContactPayload, type RawContactPayload } from "./sanitize";
-import { formatContactTelegramText, sendTelegramPlainText } from "./telegram";
-import { ContactHttpError, isContactHttpError } from "./httpError";
-import { logUnexpectedContactError } from "./logUnexpectedContact";
-import { isContactHoneypotTripped } from "../../../shared/contactValidation";
+} from "./identity.js";
+import { finalizeSuccessfulContact, reserveContactSlot, rollbackContactReservation } from "./firestoreGuards.js";
+import { sanitizeContactPayload, type RawContactPayload } from "./sanitize.js";
+import { formatContactTelegramText, sendTelegramPlainText } from "./telegram.js";
+import { ContactHttpError, isContactHttpError } from "./httpError.js";
+import { logUnexpectedContactError } from "./logUnexpectedContact.js";
+import { isContactHoneypotTripped } from "../../../shared/contactValidation.js";
 
 /** Vercel may supply `body` as an object or as a raw JSON string depending on runtime/content-type. */
 function normalizeJsonBody(body: unknown): Record<string, unknown> {

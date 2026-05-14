@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import { isContactHttpError } from "./lib/contact/httpError";
-import { logUnexpectedContactError } from "./lib/contact/logUnexpectedContact";
+import { isContactHttpError } from "./lib/contact/httpError.js";
+import { logUnexpectedContactError } from "./lib/contact/logUnexpectedContact.js";
 
 /**
  * Vercel's `@vercel/node` runtime decorates the standard Node request/response with `body` (auto-parsed
@@ -47,7 +47,7 @@ export default async function contactApi(req: VercelRequest, res: VercelResponse
   }
 
   try {
-    const { handleContactPost } = await import("./lib/contact/httpPost");
+    const { handleContactPost } = await import("./lib/contact/httpPost.js");
     const result = await handleContactPost(req.body, req.headers);
     res.status(200).json(result);
   } catch (err) {

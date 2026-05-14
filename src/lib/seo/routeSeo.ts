@@ -32,7 +32,7 @@ const PRIVATE_APP_ROUTES = new Set([
 
 const STATIC_ROUTES: Record<string, RouteSeo> = {
   "/": {
-    title: `Buy & Sell Train & Bus Tickets - ${BRAND}`,
+    title: `${BRAND} - Your unused ticket deserves a traveler`,
     description: DEFAULT_DESCRIPTION,
   },
   "/browse": {

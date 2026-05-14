@@ -83,9 +83,7 @@ export function JatriSwapLogo({
     variant === "footer" ? "h-8 w-8 p-1.5" : variant === "auth" ? "h-10 w-10 p-2" : "h-9 w-9 p-1.5";
 
   const markShell =
-    variant === "footer"
-      ? "border-2 border-background bg-background text-foreground shadow-[4px_4px_0_0_rgba(255,255,255,0.22)]"
-      : "border-2 border-foreground bg-primary text-primary-foreground shadow-[3px_3px_0_0_rgba(0,0,0,1)]";
+    "border-2 border-foreground bg-primary text-primary-foreground shadow-[3px_3px_0_0_rgba(0,0,0,1)]";
 
   const textSize =
     variant === "footer" ? "text-3xl" : variant === "auth" ? "text-2xl" : "text-2xl";

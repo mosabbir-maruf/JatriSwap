@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
-  <rect width="40" height="40" fill="#5b52e8"/>
-  <!-- Ticket stroke matches primary chip foreground -->
+  <!-- Fill: same blue as theme primary (navbar chip). Strokes: same as primary foreground. -->
+  <rect width="40" height="40" fill="#1c69e3"/>
   <path
     d="M 7 11 H 33 V 16 L 30 20 L 33 24 V 29 H 7 V 24 L 10 20 L 7 16 Z"
     fill="none"
-    stroke="#fafafa"
+    stroke="#fcfcfc"
     stroke-width="2"
     stroke-linejoin="miter"
   />
@@ -13,14 +13,14 @@
     y1="12"
     x2="20"
     y2="28"
-    stroke="#fafafa"
+    stroke="#fcfcfc"
     stroke-width="2"
     stroke-dasharray="3 3"
     stroke-linecap="square"
   />
   <path
     d="M12 17v6M14 15v10M16 18v4"
-    stroke="#fafafa"
+    stroke="#fcfcfc"
     stroke-width="1.5"
     stroke-linecap="square"
   />

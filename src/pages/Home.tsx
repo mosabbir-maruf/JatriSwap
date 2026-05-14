@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { motion } from "motion/react";
-import { MapPin, Calendar as CalendarIcon, Search, ArrowRight, ShieldCheck, Ticket, Users, Train, BusFront } from "lucide-react";
+import { MapPin, Calendar as CalendarIcon, Search, ArrowRight, ShieldCheck, Wallet, Users, Train, BusFront } from "lucide-react";
 import { STATIONS } from "@/src/constants";
 import { Autocomplete } from "@/src/components/common/Autocomplete";
 import { format } from "date-fns";
@@ -303,7 +303,7 @@ const Home = () => {
 
               <div className="space-y-6 flex flex-col items-center">
                 <div className="w-20 h-20 border-2 border-foreground flex items-center justify-center shrink-0 shadow-[4px_4px_0_0_rgba(0,0,0,1)] bg-card bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9IiNlN2U1ZTQiLz48L3N2Zz4=')]">
-                  <Ticket className="w-8 h-8 text-primary" strokeWidth={2} />
+                  <Wallet className="w-8 h-8 text-primary" strokeWidth={2} />
                 </div>
                 <h3 className="font-heading text-xl font-bold tracking-tighter uppercase">No Price Gouging</h3>
                 <p className="font-mono text-xs text-muted-foreground leading-relaxed font-semibold">Our platform caps resale prices. Never pay more than the original value.</p>

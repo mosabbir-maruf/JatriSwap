@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
@@ -41,6 +41,25 @@ function jatriswapGaBuildHintPlugin(): Plugin {
       ].join('\n    ');
 
       return html.replace('<head>', `<head>\n    ${snippet}`);
+    },
+  };
+}
+
+/** Regenerate `public/favicon.svg` from `jatriSwapTicketMarkGeometry` when it changes (single source of truth). */
+function jatriswapSyncFaviconPlugin(): Plugin {
+  const faviconPath = path.resolve(__dirname, 'public/favicon.svg');
+  return {
+    name: 'jatriswap-sync-favicon',
+    async buildStart() {
+      const { getJatriSwapFaviconSvgDocument } = await import('./src/lib/branding/jatriSwapFaviconSvg');
+      const next = getJatriSwapFaviconSvgDocument();
+      let prev = '';
+      try {
+        prev = await readFile(faviconPath, 'utf8');
+      } catch {
+        /* first run or missing file */
+      }
+      if (prev !== next) await writeFile(faviconPath, next, 'utf8');
     },
   };
 }
@@ -103,7 +122,7 @@ function seoStaticFilesPlugin(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), jatriswapGaBuildHintPlugin(), seoStaticFilesPlugin()],
+  plugins: [jatriswapSyncFaviconPlugin(), react(), tailwindcss(), jatriswapGaBuildHintPlugin(), seoStaticFilesPlugin()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),

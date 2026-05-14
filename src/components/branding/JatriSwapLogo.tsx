@@ -1,38 +1,44 @@
-import * as React from "react";
 import { cn } from "@/lib/utils";
+import {
+  JATRI_SWAP_TICK_MARK_BARCODE,
+  JATRI_SWAP_TICK_MARK_OUTLINE,
+  JATRI_SWAP_TICK_MARK_TEAR,
+  JATRI_SWAP_TICK_MARK_TEAR_DASH,
+  JATRI_SWAP_TICK_MARK_VIEWBOX,
+} from "@/src/lib/branding/jatriSwapTicketMarkGeometry";
 
 /**
  * App icon mark — perforated transit ticket stub (symmetrical tear notches, dashed tear line).
- * Stroke-only so `currentColor` matches header/footer chips; reads clearly at favicon + navbar sizes.
+ * Stroke-only so `currentColor` matches the icon rail; pair with `text-primary-foreground` on blue.
  */
 export function JatriSwapMark({ className }: { className?: string }) {
+  const t = JATRI_SWAP_TICK_MARK_TEAR;
   return (
     <svg
-      viewBox="0 0 40 40"
+      viewBox={JATRI_SWAP_TICK_MARK_VIEWBOX}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={cn("shrink-0", className)}
       aria-hidden
     >
       <path
-        d="M 7 11 H 33 V 16 L 30 20 L 33 24 V 29 H 7 V 24 L 10 20 L 7 16 Z"
+        d={JATRI_SWAP_TICK_MARK_OUTLINE}
         stroke="currentColor"
         strokeWidth="2"
         strokeLinejoin="miter"
       />
       <line
-        x1="20"
-        y1="12"
-        x2="20"
-        y2="28"
+        x1={t.x1}
+        y1={t.y1}
+        x2={t.x2}
+        y2={t.y2}
         stroke="currentColor"
         strokeWidth="2"
-        strokeDasharray="3 3"
+        strokeDasharray={JATRI_SWAP_TICK_MARK_TEAR_DASH}
         strokeLinecap="square"
       />
-      {/* Stylised barcode — left stub only */}
       <path
-        d="M12 17v6M14 15v10M16 18v4"
+        d={JATRI_SWAP_TICK_MARK_BARCODE}
         stroke="currentColor"
         strokeWidth="1.5"
         strokeLinecap="square"
@@ -43,29 +49,47 @@ export function JatriSwapMark({ className }: { className?: string }) {
 
 const wordmarkTitle = "JatriSwap";
 
-function JatriSwapWordmark({
-  variant,
-  sizeClass,
-  showDot = true,
-}: {
-  variant: "header" | "footer" | "auth";
-  sizeClass: string;
-  showDot?: boolean;
-}) {
-  const jatriClass =
-    variant === "footer"
-      ? "text-background"
-      : "text-foreground";
-  const swapClass = "text-primary";
+const LOGO_BRUTAL_SHADOW_BLACK = "shadow-[4px_4px_0_0_rgba(0,0,0,1)]" as const;
+const LOGO_BRUTAL_SHADOW_FOOTER = "shadow-[4px_4px_0_0_rgba(255,255,255,0.22)]" as const;
 
-  return (
-    <span className={cn("font-heading font-black tracking-tighter uppercase leading-none", sizeClass)}>
-      <span className={jatriClass}>Jatri</span>
-      <span className={swapClass}>Swap</span>
-      {showDot ? <span className={jatriClass}>.</span> : null}
-    </span>
-  );
-}
+/** Shared row layout for the word panel (padding differs by variant). */
+const LOGO_WORD_PANEL_ROW = "flex flex-nowrap flex-row items-stretch gap-0" as const;
+
+/** Shared typography for header, footer, and auth wordmark lines. */
+const LOGO_WORD_TEXT = {
+  jatri: "text-xl leading-none sm:text-2xl",
+} as const;
+
+/**
+ * Navbar + footer: same rail and type scale; footer only changes drop shadow.
+ * Mark rotation class must stay in sync with `JATRI_SWAP_TICK_MARK_ROTATE_DEG` in `jatriSwapTicketMarkGeometry.ts` (Tailwind cannot read that constant at compile time).
+ */
+const LOGO_HEADER_FOOTER_SIZING = {
+  rail: "w-12 shrink-0 sm:w-14",
+  mark: "h-8 w-8 sm:h-10 sm:w-10 -rotate-[38deg]",
+  wordPanel: `${LOGO_WORD_PANEL_ROW} px-2 py-1.5 sm:px-2.5 sm:py-1.5`,
+  ...LOGO_WORD_TEXT,
+  swap: "px-0.5 text-lg leading-none sm:px-1 sm:text-xl",
+} as const;
+
+const variantLayout = {
+  header: {
+    ...LOGO_HEADER_FOOTER_SIZING,
+    shadow: LOGO_BRUTAL_SHADOW_BLACK,
+  },
+  footer: {
+    ...LOGO_HEADER_FOOTER_SIZING,
+    shadow: LOGO_BRUTAL_SHADOW_FOOTER,
+  },
+  auth: {
+    ...LOGO_HEADER_FOOTER_SIZING,
+    rail: "w-[3.35rem] shrink-0 sm:w-14",
+    mark: "h-9 w-9 sm:h-10 sm:w-10 -rotate-[38deg]",
+    wordPanel: `${LOGO_WORD_PANEL_ROW} px-2.5 py-2 sm:px-3 sm:py-2`,
+    swap: "px-1 text-lg leading-none sm:px-1.5 sm:text-xl",
+    shadow: LOGO_BRUTAL_SHADOW_BLACK,
+  },
+} as const;
 
 export type JatriSwapLogoVariant = "header" | "footer" | "auth";
 
@@ -76,26 +100,52 @@ export function JatriSwapLogo({
 }: {
   variant: JatriSwapLogoVariant;
   className?: string;
-  /** Navbar/footer use a trailing period; auth cards match cleaner lockup without dot if desired */
+  /** When true, renders a period immediately after the wordmark: “JatriSwap.” */
   showDot?: boolean;
 }) {
-  const markSizes =
-    variant === "footer" ? "h-8 w-8 p-1.5" : variant === "auth" ? "h-10 w-10 p-2" : "h-9 w-9 p-1.5";
-
-  const markShell =
-    "border-2 border-foreground bg-primary text-primary-foreground shadow-[3px_3px_0_0_rgba(0,0,0,1)]";
-
-  const textSize =
-    variant === "footer" ? "text-3xl" : variant === "auth" ? "text-2xl" : "text-2xl";
-
-  const gap = variant === "footer" ? "gap-2.5" : variant === "auth" ? "gap-2.5" : "gap-3";
+  const L = variantLayout[variant];
 
   return (
-    <span className={cn("inline-flex items-center", gap, className)} title={wordmarkTitle}>
-      <span className={cn("flex shrink-0 items-center justify-center", markSizes, markShell)}>
-        <JatriSwapMark className="h-full w-full" />
+    <span
+      className={cn(
+        "group/logo inline-flex select-none items-stretch rounded-none border-2 border-foreground",
+        L.shadow,
+        className,
+      )}
+      title={wordmarkTitle}
+    >
+      <span
+        className={cn(
+          "flex items-center justify-center self-stretch border-r-2 border-foreground bg-primary text-primary-foreground",
+          L.rail,
+        )}
+        aria-hidden
+      >
+        <JatriSwapMark className={L.mark} />
       </span>
-      <JatriSwapWordmark variant={variant} sizeClass={textSize} showDot={showDot} />
+      <span
+        className={cn(
+          "flex shrink-0 self-stretch items-stretch bg-background font-heading font-black uppercase leading-none tracking-tighter text-foreground",
+          L.wordPanel,
+        )}
+      >
+        <span className="flex flex-nowrap items-stretch gap-0.5 flex-row group-hover/logo:flex-row-reverse">
+          <span className={cn("flex shrink-0 items-center whitespace-nowrap", L.jatri)}>Jatri</span>
+          <span
+            className={cn(
+              "inline-flex shrink-0 items-center justify-center self-stretch bg-foreground text-background",
+              L.swap,
+            )}
+          >
+            Swap
+          </span>
+        </span>
+        {showDot ? (
+          <span className={cn("flex shrink-0 items-center whitespace-nowrap text-foreground", L.jatri)} aria-hidden>
+            .
+          </span>
+        ) : null}
+      </span>
     </span>
   );
 }

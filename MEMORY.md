@@ -48,7 +48,7 @@ Concise long-term reference for **JatriSwap** (transit ticket marketplace). Full
   - **`incrementTicketViews`**: Invoked from **`useTicketDetailListing`** after **`auth.authStateReady()`**, only when the viewer is **not** the seller **and** the listing passes `isTicketPubliclyListed` (no bumps on sold / moderation-locked / Dhaka-time–expired listings); **`sessionStorage`** dedupes one bump per browser session per ticket (falls back to attempting bump if storage is unavailable). Anonymous viewers may still bump because rules allow unauthenticated **`views`** increments.
 - **`deleteTicket`**: Deletes **`ticketAdminNotes/{id}`** best-effort **before** the ticket doc (ordering matters for seller-driven cleanup vs rules).
 - **Public contact env**: [`src/lib/env/publicContact.ts`](src/lib/env/publicContact.ts) — **`getPublicWhatsAppLink`**, **`getPublicSupportPhone`**, **`phoneDisplayToTelHref`** / **`supportPhoneTelHref`** (`tel:` normalization for admin/contact links). **`VITE_PUBLIC_WHATSAPP_NUMBER`**, **`VITE_PUBLIC_SUPPORT_PHONE`** in `.env.example`.
-- **Public site / footer**: **`VITE_PUBLIC_SITE_URL`** — optional production origin for admin mailto listing links (avoids localhost in emails during dev). **`VITE_PUBLIC_TELEGRAM_URL`** — optional full Telegram invite URL; footer **Stay in the loop** shows **Join Telegram** when set (see [`src/App.tsx`](src/App.tsx) `Footer`).
+- **Public site / footer**: **`VITE_PUBLIC_SITE_URL`** — optional production origin for admin mailto listing links (avoids localhost in emails during dev). **`VITE_PUBLIC_FACEBOOK_URL`** — optional full Facebook page/group URL; footer **Stay in the loop** shows **Join Facebook** when set (see [`src/App.tsx`](src/App.tsx) `Footer`).
 - **Vite**: [`vite.config.ts`](vite.config.ts) uses modular plugins only; production build explicitly sets `build.sourcemap = false`; **`DISABLE_HMR`** may disable HMR when set.
 - **Admin user hard-delete** ([`AdminDashboard`](src/pages/AdminDashboard.tsx) + [`scheduledDeleteUndo`](src/lib/scheduledDeleteUndo.ts) + [`deleteUserData`](src/lib/firebase/users.ts) + [`adminDeleteTargetAuth`](src/lib/firebase/adminDeleteTargetAuth.ts)):
   - 30-second Sonner toast countdown with **Undo**. UI optimistically removes the user row and their listings; restores on undo or commit failure.
@@ -100,7 +100,7 @@ Concise long-term reference for **JatriSwap** (transit ticket marketplace). Full
 ## App shell (`App.tsx`)
 
 - **Navbar auth**: Uses **`loading`** from **`AuthContext`** — while **`authLoading`**, shows a neo-brutalist **session placeholder** (equalizer bars + optional **`Ticket`** glyph on mobile) instead of **Log In / Register**, so logged-in users do not flash guest CTAs on refresh. After resolve: dropdown for signed-in users; **admins** do **not** see **Alerts** or **Edit profile** in desktop dropdown or mobile sheet (sellers keep both).
-- **Footer**: Brand column + **Stay in the loop** Telegram block (no email capture). Neutral fallback copy when **`VITE_PUBLIC_TELEGRAM_URL`** is unset.
+- **Footer**: Brand column + **Stay in the loop** Facebook block (no email capture). Neutral fallback copy when **`VITE_PUBLIC_FACEBOOK_URL`** is unset.
 
 ## Dashboard / profile UI
 

@@ -20,8 +20,8 @@ interface ImportMetaEnv {
    * When set, admin email templates use this instead of window.location.origin so links are not localhost in dev.
    */
   readonly VITE_PUBLIC_SITE_URL?: string;
-  /** Optional — public Telegram channel / group invite shown in the footer. */
-  readonly VITE_PUBLIC_TELEGRAM_URL?: string;
+  /** Optional — public Facebook page / group shown in the footer. */
+  readonly VITE_PUBLIC_FACEBOOK_URL?: string;
   /**
    * Optional — origin of the deployed API when the Contact page is not served from the same host
    * (e.g. local Vite dev calling a preview deployment). Example: `https://your-app.vercel.app`

@@ -289,13 +289,13 @@ const Navbar = () => {
   );
 };
 
-/** Telegram mark — monochrome for footer on dark ground. */
-function TelegramGlyph({ className }: { className?: string }) {
+/** Facebook mark — monochrome for footer on dark ground. */
+function FacebookGlyph({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden>
       <path
         fill="currentColor"
-        d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"
+        d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"
       />
     </svg>
   );
@@ -303,14 +303,14 @@ function TelegramGlyph({ className }: { className?: string }) {
 
 const Footer = () => {
   const { currentUser } = useAuth();
-  const telegramUrl = (import.meta.env.VITE_PUBLIC_TELEGRAM_URL ?? "").trim();
+  const facebookUrl = (import.meta.env.VITE_PUBLIC_FACEBOOK_URL ?? "").trim();
 
   return (
   <footer className="bg-foreground text-background mt-auto relative pt-16 pb-8 max-md:pb-[calc(2.75rem+env(safe-area-inset-bottom,0px))] border-t border-border">
     <div className="page-shell-md relative z-10">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-12 lg:gap-8 mb-16">
         
-        {/* Brand & Telegram column */}
+        {/* Brand & Facebook column */}
         <div className="md:col-span-12 lg:col-span-5 space-y-8">
            <div>
              <Link
@@ -327,11 +327,11 @@ const Footer = () => {
            
            <div className="space-y-4 max-w-md">
               <h4 className="font-mono text-sm tracking-widest uppercase font-bold text-background">Stay in the loop</h4>
-              {telegramUrl ? (
+              {facebookUrl ? (
                 <Button
                   render={
                     <a
-                      href={telegramUrl}
+                      href={facebookUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex w-full items-center justify-center gap-2"
@@ -340,12 +340,12 @@ const Footer = () => {
                   variant="secondary"
                   className="h-12 w-full rounded-none border-2 border-background font-mono text-xs uppercase font-bold tracking-widest bg-background text-foreground shadow-[4px_4px_0_0_rgba(0,0,0,0.35)] hover:translate-y-px hover:shadow-[2px_2px_0_0_rgba(0,0,0,0.35)] transition-all"
                 >
-                  <TelegramGlyph className="h-5 w-5 shrink-0" />
-                  Join Telegram
+                  <FacebookGlyph className="h-5 w-5 shrink-0" />
+                  Join Facebook
                 </Button>
               ) : (
                 <p className="font-mono text-[11px] uppercase tracking-wider text-muted leading-relaxed border border-muted/30 px-4 py-3">
-                  Telegram invite link is added at deploy time — check back soon or use Contact for updates.
+                  Facebook page link is added at deploy time — check back soon or use Contact for updates.
                 </p>
               )}
            </div>

@@ -14,10 +14,10 @@ export default function TermsOfService() {
         <div className="mb-12 border-b-4 border-foreground pb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div>
             <h1 className="font-heading text-5xl md:text-7xl font-black uppercase tracking-tighter text-foreground mb-4 drop-shadow-[4px_4px_0_rgba(0,0,0,1)]">
-              Terms of <span className="text-primary">Service</span>
+              Terms <span className="text-primary">&</span> Conditions
             </h1>
             <p className="font-mono text-sm uppercase font-bold tracking-widest text-muted-foreground">
-              Last updated: October 24, 2023
+              Last updated: May 16, 2026
             </p>
           </div>
         </div>
@@ -25,46 +25,72 @@ export default function TermsOfService() {
         <div className="bg-background border-4 border-foreground shadow-[8px_8px_0_0_rgba(0,0,0,1)] sm:shadow-[16px_16px_0_0_rgba(0,0,0,1)] p-8 md:p-16">
             <div className="space-y-8">
               <section>
-                <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">1. Acceptance of Terms</h2>
+                <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">১. JatriSwap এর ভূমিকা</h2>
                 <p className="font-sans text-base leading-relaxed font-bold text-muted-foreground">
-                  By accessing or using JatriSwap, you agree to be bound by these Terms of Service. If you disagree with any part of the terms, you may not access the service. These terms apply to all visitors, users, and others who access or use the application.
+                  JatriSwap কোনো ট্রেন টিকিট বিক্রয়কারী প্রতিষ্ঠান নয়। আমরা কোনো টিকিট own, issue বা resell করি না। JatriSwap শুধুমাত্র buyer এবং seller এর মধ্যে একটি নিরাপদ মাধ্যম (facilitator) হিসেবে কাজ করে, যাতে অনলাইনে টিকিট কেনাবেচার সময় প্রতারণার ঝুঁকি কমানো যায়।
                 </p>
               </section>
               
               <section>
-                <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">2. Description of Service</h2>
-                <p className="font-sans text-base leading-relaxed font-bold text-muted-foreground mb-4">
-                  JatriSwap provides an online platform for users to list, buy, and sell train tickets. We act solely as a marketplace and are not a party to any transaction between buyers and sellers.
-                </p>
+                <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">২. User Generated Listing</h2>
                 <p className="font-sans text-base leading-relaxed font-bold text-muted-foreground">
-                  You understand and agree that the Platform is provided "AS-IS" and that JatriSwap assumes no responsibility for the timeliness, deletion, mis-delivery or failure to store any user communications or personalization settings.
+                  Website এ প্রকাশিত সকল ticket listing সম্পূর্ণভাবে users দ্বারা প্রদানকৃত। টিকিটের মূল্য, seat, train, journey date এবং অন্যান্য তথ্যের দায়িত্ব সংশ্লিষ্ট seller এর। JatriSwap কোনো ticket এর ownership দাবি করে না।
                 </p>
               </section>
 
               <section>
-                <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">3. User Obligations</h2>
-                <div className="bg-muted p-6 border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
-                  <ul className="list-disc list-inside space-y-2 font-mono text-sm font-bold text-foreground">
-                    <li>You must be at least 18 years old to use the Service.</li>
-                    <li>You must provide accurate and complete registration information.</li>
-                    <li>You are responsible for maintaining the confidentiality of your account.</li>
-                    <li>You agree not to sell tickets above the original purchase price.</li>
-                    <li>You agree to comply with all local railway laws and regulations.</li>
-                  </ul>
-                </div>
-              </section>
-
-              <section>
-                <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">4. Ticket Authenticity</h2>
+                <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">৩. Verification Process</h2>
                 <p className="font-sans text-base leading-relaxed font-bold text-muted-foreground">
-                  Selling fraudulent, modified, or otherwise invalid tickets is strictly prohibited and will result in immediate account termination. JatriSwap reserves the right to hold escrow funds if a dispute regarding authenticity arises.
+                  প্রতারণা কমানোর উদ্দেশ্যে JatriSwap ticket এর PNR এবং সংশ্লিষ্ট তথ্য যাচাই করার চেষ্টা করে। তবে railway system, ticket status বা পরবর্তী কোনো পরিবর্তনের জন্য JatriSwap দায়ী থাকবে না। Verification মানে শুধুমাত্র প্রদত্ত তথ্য অনুযায়ী ticket টি system এ বিদ্যমান কিনা তা যাচাই করা।
                 </p>
               </section>
 
               <section>
-                <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">5. Fees and Payments</h2>
+                <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">৪. Payment Handling</h2>
                 <p className="font-sans text-base leading-relaxed font-bold text-muted-foreground">
-                  Currently, our platform charges a 0% fee on transactions. All payments are processed securely through our verified escrow partners. JatriSwap holds the funds until the buyer successfully utilizes the ticket or confirms its transfer.
+                  Buyer এবং seller এর নিরাপত্তার জন্য payment সাময়িকভাবে JatriSwap এর মাধ্যমে process হতে পারে। এটি শুধুমাত্র নিরাপদ transaction নিশ্চিত করার উদ্দেশ্যে করা হয়। JatriSwap কোনো financial institution বা escrow service নয়।
+                </p>
+              </section>
+
+              <section>
+                <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">৫. Third Party Transaction</h2>
+                <p className="font-sans text-base leading-relaxed font-bold text-muted-foreground">
+                  টিকিটের প্রকৃত transaction buyer এবং seller এর মধ্যেই সম্পন্ন হয়। JatriSwap কোনো ticket transfer, railway policy violation বা user এর ব্যক্তিগত কার্যকলাপের জন্য দায়ী নয়।
+                </p>
+              </section>
+
+              <section>
+                <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">৬. Railway Policy Compliance</h2>
+                <p className="font-sans text-base leading-relaxed font-bold text-muted-foreground">
+                  Users নিজ দায়িত্বে বাংলাদেশ রেলওয়ের সকল নীতিমালা মেনে চলবেন। কোনো ticket ব্যবহার, transfer বা cancellation সংক্রান্ত policy violation এর দায় সম্পূর্ণ user এর।
+                </p>
+              </section>
+
+              <section>
+                <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">৭. Fraud & Misuse</h2>
+                <p className="font-sans text-base leading-relaxed font-bold text-muted-foreground">
+                  কোনো ভুয়া তথ্য প্রদান, scam, fake payment, stolen account ব্যবহার বা প্রতারণামূলক কার্যকলাপ শনাক্ত হলে JatriSwap সংশ্লিষ্ট account suspend বা ban করার অধিকার সংরক্ষণ করে। প্রয়োজনে আইনশৃঙ্খলা বাহিনীর সাথে তথ্য শেয়ার করা হতে পারে।
+                </p>
+              </section>
+
+              <section>
+                <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">৮. Limitation of Liability</h2>
+                <p className="font-sans text-base leading-relaxed font-bold text-muted-foreground">
+                  JatriSwap কোনো যাত্রা বাতিল, train delay, railway server issue, ticket cancellation, user dispute বা indirect loss এর জন্য দায়ী থাকবে না। Users নিজেদের ঝুঁকিতে platform ব্যবহার করবেন।
+                </p>
+              </section>
+
+              <section>
+                <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">৯. Terms পরিবর্তনের অধিকার</h2>
+                <p className="font-sans text-base leading-relaxed font-bold text-muted-foreground">
+                  JatriSwap যেকোনো সময় পূর্ব নোটিশ ছাড়া এই Terms & Conditions পরিবর্তন, সংযোজন বা সংশোধন করার অধিকার সংরক্ষণ করে।
+                </p>
+              </section>
+
+              <section>
+                <h2 className="font-heading text-2xl font-black uppercase tracking-tighter mb-4 text-foreground">১০. Contact</h2>
+                <p className="font-sans text-base leading-relaxed font-bold text-muted-foreground">
+                  যেকোনো প্রশ্ন বা অভিযোগের জন্য আমাদের official platform এর মাধ্যমে যোগাযোগ করুন।
                 </p>
               </section>
             </div>

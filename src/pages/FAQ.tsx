@@ -83,7 +83,7 @@ const FAQ = () => {
                 সাহায্য <span className="text-primary">&</span> FAQ
               </h1>
               <p className="font-mono text-sm uppercase font-bold tracking-widest text-muted-foreground">
-                JatriSwap সম্পর্কে যা জানা দরকার।
+                Last updated: May 16, 2026
               </p>
            </div>
            <HelpCircle className="w-16 h-16 text-foreground hidden md:block" strokeWidth={1.5} />
@@ -115,12 +115,12 @@ const FAQ = () => {
            transition={{ duration: 0.5, delay: 0.2 }}
            className="mt-16 bg-primary text-primary-foreground border-4 border-foreground p-8 md:p-12 shadow-[8px_8px_0_0_rgba(0,0,0,1)] text-center flex flex-col items-center"
         >
-            <h3 className="font-heading text-3xl md:text-4xl font-black uppercase tracking-tighter mb-4">আরও প্রশ্ন আছে?</h3>
+            <h3 className="font-heading text-3xl md:text-4xl font-black uppercase tracking-tighter mb-4">Still have questions?</h3>
             <p className="font-mono text-sm uppercase font-bold tracking-widest mb-8 max-w-lg">
-              আমাদের সাপোর্ট টিম ২৪/৭ আপনার যেকোনো সমস্যা বা প্রশ্নে সাহায্য করতে প্রস্তুত।
+              Our support team is available 24/7 to help you with any issues or concerns.
             </p>
             <Button render={<Link to="/contact" />} size="lg" className="h-16 px-10 rounded-none font-mono text-sm uppercase tracking-widest font-black bg-foreground text-background border-2 border-foreground hover:bg-background hover:text-foreground shadow-[6px_6px_0_0_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-[2px_2px_0_0_rgba(0,0,0,1)] transition-all">
-               যোগাযোগ করুন <ArrowRight className="ml-2 w-5 h-5" />
+               Contact Support <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
         </motion.div>
 

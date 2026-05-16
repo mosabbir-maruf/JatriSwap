@@ -18,16 +18,6 @@ function upsertMetaByName(name: string, content: string) {
   el.setAttribute("content", content);
 }
 
-function upsertMetaByProperty(property: string, content: string) {
-  let el = document.querySelector(`meta[property="${property}"]`);
-  if (!el) {
-    el = document.createElement("meta");
-    el.setAttribute("property", property);
-    document.head.appendChild(el);
-  }
-  el.setAttribute("content", content);
-}
-
 function upsertLinkRel(rel: string, href: string) {
   let el = document.querySelector(`link[rel="${rel}"]`);
   if (!el) {
@@ -43,8 +33,8 @@ function removeMetaByName(name: string) {
 }
 
 /**
- * Updates document head for SPA SEO (title, description, canonical, Open Graph, Twitter).
- * Does not change on-screen UI.
+ * Updates document head for SPA SEO (title, description, canonical, robots).
+ * Open Graph and Twitter tags remain static in index.html for crawler consistency.
  */
 export function applyDocumentMeta(input: DocumentMetaInput) {
   const { title, description, canonicalUrl, robots } = input;
@@ -63,19 +53,6 @@ export function applyDocumentMeta(input: DocumentMetaInput) {
   } else {
     document.querySelector('link[rel="canonical"]')?.remove();
   }
-
-  upsertMetaByProperty("og:title", title);
-  upsertMetaByProperty("og:description", description);
-  upsertMetaByProperty("og:type", "website");
-  if (canonicalUrl) {
-    upsertMetaByProperty("og:url", canonicalUrl);
-  } else {
-    document.querySelector('meta[property="og:url"]')?.remove();
-  }
-
-  upsertMetaByName("twitter:card", "summary_large_image");
-  upsertMetaByName("twitter:title", title);
-  upsertMetaByName("twitter:description", description);
 
   trackGoogleAnalyticsPageView();
 }

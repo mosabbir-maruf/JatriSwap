@@ -1,6 +1,9 @@
 User-agent: facebookexternalhit
 Allow: /
 
+User-agent: Facebot
+Allow: /
+
 User-agent: Twitterbot
 Allow: /
 

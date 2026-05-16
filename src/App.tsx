@@ -341,7 +341,7 @@ const Footer = () => {
                   className="h-12 w-full rounded-none border-2 border-background font-mono text-xs uppercase font-bold tracking-widest bg-background text-foreground shadow-[4px_4px_0_0_rgba(0,0,0,0.35)] hover:translate-y-px hover:shadow-[2px_2px_0_0_rgba(0,0,0,0.35)] transition-all"
                 >
                   <FacebookGlyph className="h-5 w-5 shrink-0" />
-                  Join Facebook
+                  Join Facebook Group
                 </Button>
               ) : (
                 <p className="font-mono text-[11px] uppercase tracking-wider text-muted leading-relaxed border border-muted/30 px-4 py-3">

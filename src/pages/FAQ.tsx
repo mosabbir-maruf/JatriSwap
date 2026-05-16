@@ -80,7 +80,7 @@ const FAQ = () => {
         <div className="mb-12 text-center md:text-left flex flex-col md:flex-row items-center md:items-end justify-between gap-6 border-b-4 border-foreground pb-8">
            <div>
               <h1 className="font-heading text-5xl md:text-7xl font-black uppercase tracking-tighter text-foreground mb-4 drop-shadow-[4px_4px_0_rgba(0,0,0,1)]">
-                সাহায্য <span className="text-primary">&</span> FAQ
+                Help <span className="text-primary">&</span> FAQ
               </h1>
               <p className="font-mono text-sm uppercase font-bold tracking-widest text-muted-foreground">
                 Last updated: May 16, 2026

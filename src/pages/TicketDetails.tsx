@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Clock, Calendar, ShieldCheck, AlertCircle, ArrowLeft, Ticket, Flag, Train, Bus, Copy, Share2, Facebook, MessageCircle, Send, CheckCircle2 } from "lucide-react";
+import { Clock, Calendar, ShieldCheck, AlertCircle, AlertTriangle, ArrowLeft, Ticket, Flag, Train, Bus, Copy, Share2, Facebook, MessageCircle, Send, CheckCircle2 } from "lucide-react";
 import { BrutalistLoadingPlaceholder } from "@/src/components/common/AuthLoadingPlaceholder";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -418,12 +418,10 @@ const TicketDetails = () => {
                         <ShieldCheck className="w-4 h-4 text-emerald-600" /> Payment Secured Until Delivery
                      </div>
 
-                     <div className="mt-6 rounded-none border-2 border-foreground bg-muted p-4 shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
-                        <p className="font-bangla text-sm font-bold leading-relaxed text-foreground mb-1">
-                           JatriSwap কোনো টিকিট বিক্রি করে না। আমরা শুধু buyer ও seller এর মধ্যে নিরাপদ লেনদেন নিশ্চিত করি।
-                        </p>
-                        <p className="font-bangla text-sm leading-relaxed text-foreground/80">
-                           আমরা PNR ভেরিফাই করে টিকিটের সত্যতা নিশ্চিত করার পরই টিকিট ও পেমেন্ট রিলিজ করা হয়, যাতে প্রতারণার ঝুঁকি কমে।
+                     <div className="mt-6 flex items-start gap-3 rounded-none border-2 border-foreground bg-muted p-4 shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
+                        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-foreground" aria-hidden />
+                        <p className="font-bangla text-sm leading-relaxed text-foreground">
+                           JatriSwap কোনো টিকিট বিক্রি করে না। আমরা শুধু buyer ও seller এর মধ্যে নিরাপদ লেনদেন নিশ্চিত করি। আমরা PNR ভেরিফাই করে টিকিটের সত্যতা নিশ্চিত করার পরই টিকিট ও পেমেন্ট রিলিজ করা হয়, যাতে প্রতারণার ঝুঁকি কমে।
                         </p>
                      </div>
                      

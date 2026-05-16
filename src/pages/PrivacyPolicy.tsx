@@ -32,7 +32,7 @@ export default function PrivacyPolicy() {
                 <div className="bg-muted p-6 border-2 border-foreground shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
                   <h3 className="font-heading text-lg font-black uppercase tracking-tighter mb-2">We also collect:</h3>
                   <ul className="list-disc list-inside space-y-2 font-mono text-sm font-bold text-foreground">
-                    <li>Log information (IP address, browser type).</li>
+                    <li>Log information</li>
                     <li>Device information.</li>
                     <li>Location information.</li>
                     <li>Ticket transaction details.</li>

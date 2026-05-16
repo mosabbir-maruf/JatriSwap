@@ -83,9 +83,14 @@ function resolvePublicOrigin(root: string, mode: string): string {
   );
 }
 
+function normalizeSeoOrigin(origin: string): string {
+  return origin.startsWith('http://') ? origin.replace('http://', 'https://') : origin;
+}
+
 function buildSitemapXml(origin: string): string {
+  const normalizedOrigin = normalizeSeoOrigin(origin);
   const urlEntries = SITEMAP_PATHS.map((pathName, index) => {
-    const loc = `${origin}${pathName === '/' ? '/' : pathName}`;
+    const loc = `${normalizedOrigin}${pathName === '/' ? '/' : pathName}`;
     const priority = index === 0 ? '1.0' : '0.8';
     return `  <url>\n    <loc>${loc}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>${priority}</priority>\n  </url>`;
   }).join('\n');
@@ -93,7 +98,25 @@ function buildSitemapXml(origin: string): string {
 }
 
 function buildRobotsTxt(origin: string): string {
-  return `User-agent: *\nAllow: /\n\nDisallow: /admin\n\nSitemap: ${origin}/sitemap-main.xml\n`;
+  const normalizedOrigin = normalizeSeoOrigin(origin);
+  return [
+    'User-agent: facebookexternalhit',
+    'Allow: /',
+    '',
+    'User-agent: Twitterbot',
+    'Allow: /',
+    '',
+    'User-agent: LinkedInBot',
+    'Allow: /',
+    '',
+    'User-agent: *',
+    'Allow: /',
+    '',
+    'Disallow: /admin',
+    '',
+    `Sitemap: ${normalizedOrigin}/sitemap-main.xml`,
+    '',
+  ].join('\n');
 }
 
 /** Generate robots.txt and a single sitemap file from deployment origin. */

@@ -13,7 +13,7 @@ Marketplace web app for **buying and selling unused train and bus tickets**. Sel
 - Firebase Auth with email verification flow  
 - Firestore-backed tickets, users, notifications, ticket reports  
 - Navbar waits on auth initialization (no flash of **Log In / Register** while the session restores); admins see a slimmer account menu (no Alerts / edit-profile shortcuts in the dropdown)  
-- Footer **Stay in the loop**: optional **Join Telegram** button when `VITE_PUBLIC_TELEGRAM_URL` is set  
+- Footer **Stay in the loop**: optional **Join Facebook** button when `VITE_PUBLIC_FACEBOOK_URL` is set  
 - Optional public contact fields: platform WhatsApp and support phone via environment variables  
 - Heading font (**Space Grotesk**) bundled locally for smoother first paint on the home hero  
 
@@ -63,7 +63,7 @@ All **`VITE_*`** keys are inlined at **build time** by Vite. Set them in the env
 | `VITE_PUBLIC_WHATSAPP_NUMBER` | Recommended | Platform WhatsApp (any formatting); used on Contact and **Request to buy** prefilled messages |
 | `VITE_PUBLIC_SUPPORT_PHONE` | No | Optional phone line shown on Contact |
 | `VITE_PUBLIC_SITE_URL` | Recommended | Production site origin (no trailing slash); used for canonicals, `robots.txt`, and `sitemap-main.xml` at build time |
-| `VITE_PUBLIC_TELEGRAM_URL` | No | Full Telegram invite URL (e.g. `https://t.me/your_channel`); powers the footer **Join Telegram** button |
+| `VITE_PUBLIC_FACEBOOK_URL` | No | Full Facebook page/group URL (e.g. `https://facebook.com/yourpage`); powers the footer **Join Facebook** button |
 
 If `VITE_PUBLIC_WHATSAPP_NUMBER` is empty, **Request to buy** still opens WhatsApp only after you configure this value.
 

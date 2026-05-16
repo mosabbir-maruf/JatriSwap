@@ -414,11 +414,20 @@ const TicketDetails = () => {
                        </Button>
                     )}
   
-                    <div className="mt-5 flex items-center justify-center gap-2 font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground sm:mt-8">
-                       <ShieldCheck className="w-4 h-4 text-emerald-600" /> Payment Secured Until Delivery
-                    </div>
-                    
-                    <Separator className="my-4 border-b-2 border-dashed border-foreground/20 sm:my-6" />
+                     <div className="mt-5 flex items-center justify-center gap-2 font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground sm:mt-8">
+                        <ShieldCheck className="w-4 h-4 text-emerald-600" /> Payment Secured Until Delivery
+                     </div>
+
+                     <div className="mt-6 rounded-none border-2 border-foreground bg-muted p-4 shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
+                        <p className="font-bangla text-sm font-bold leading-relaxed text-foreground mb-1">
+                           JatriSwap কোনো টিকিট বিক্রি করে না। আমরা শুধু buyer ও seller এর মধ্যে নিরাপদ লেনদেন নিশ্চিত করি।
+                        </p>
+                        <p className="font-bangla text-sm leading-relaxed text-foreground/80">
+                           আমরা PNR ভেরিফাই করে টিকিটের সত্যতা নিশ্চিত করার পরই টিকিট ও পেমেন্ট রিলিজ করা হয়, যাতে প্রতারণার ঝুঁকি কমে।
+                        </p>
+                     </div>
+                     
+                     <Separator className="my-4 border-b-2 border-dashed border-foreground/20 sm:my-6" />
                     
                     <div className="flex justify-center">
                        <Button variant="ghost" onClick={() => setIsReportModalOpen(true)} className="text-muted-foreground hover:text-destructive font-mono text-[10px] uppercase tracking-widest font-bold">

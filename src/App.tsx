@@ -74,6 +74,23 @@ const NAV_DROPDOWN_ITEM_CLASS =
 const NAV_DROPDOWN_LOGOUT_ITEM_CLASS =
   "rounded-none px-4 py-3 font-mono text-[10px] xl:text-xs uppercase font-bold tracking-widest cursor-pointer text-destructive hover:bg-destructive hover:text-destructive-foreground focus:bg-destructive focus:text-destructive-foreground";
 const NAV_MOBILE_ACCOUNT_ROW_CLASS = "p-6 flex justify-between items-center hover:bg-muted";
+const HEADER_MARQUEE_TEXT = "সরাসরি WhatsApp করুন: +8801979565728";
+const HEADER_MARQUEE_GROUP_REPEAT_COUNT = 8;
+
+function HeaderMarqueeGroup({ ariaHidden = false }: { ariaHidden?: boolean }) {
+  return (
+    <span className="header-marquee-group" aria-hidden={ariaHidden || undefined}>
+      {Array.from({ length: HEADER_MARQUEE_GROUP_REPEAT_COUNT }, (_, index) => (
+        <span
+          key={index}
+          className="inline-flex shrink-0 items-center whitespace-nowrap px-4 py-1.5 font-bangla text-xs font-bold uppercase tracking-widest"
+        >
+          {HEADER_MARQUEE_TEXT}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 type AccountMenuLink = { to: string; label: string; Icon: LucideIcon };
 
@@ -117,6 +134,12 @@ const Navbar = () => {
   return (
     <>
     <header className="fixed top-0 w-full z-50 bg-background border-b border-border">
+      <div className="header-marquee-bar bg-black text-white border-b border-white/10">
+        <div className="header-marquee-track">
+          <HeaderMarqueeGroup />
+          <HeaderMarqueeGroup ariaHidden />
+        </div>
+      </div>
       <div className="page-shell-md">
         <div className="flex justify-between items-center h-16">
           
@@ -421,7 +444,7 @@ const AppLayout = () => {
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground font-sans">
       <Navbar />
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col pt-7">
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}

@@ -8,7 +8,8 @@ Concise long-term reference for **JatriSwap** (transit ticket marketplace). Full
 - **UI**: Tailwind CSS v4 (`@tailwindcss/vite`), shadcn-style primitives under `components/ui/` (Base UI–based where applicable), `@/` alias resolves to **repository root** (not `src/`).
 - **Motion / UX**: `motion`, `sonner`, lucide icons; route transitions and scroll-to-top in `App.tsx`.
 - **Fonts**: **Space Grotesk** (headings / `font-heading`) ships via **`@fontsource/space-grotesk/latin.css`** imported in [`src/main.tsx`](src/main.tsx) **before** [`src/index.css`](src/index.css). **Inter** and **JetBrains Mono** still load from the Google Fonts **`@import`** in `index.css` only — avoids late swap/reflow on the home hero. **`@fontsource-variable/geist`** remains in `package.json` but is not required for the shipped heading stack.
-- **Backend (Firebase)**: Client SDK for Auth, Firestore, Storage (`src/lib/firebase/firebase.ts`).
+- **Backend (Firebase)**: Client SDK for Auth, Firestore, Storage (`src/lib/firebase/firebase.ts`). App Check is bootstrapped lazily via `requestIdleCallback` in [`src/main.tsx`](src/main.tsx) — gated by `VITE_FIREBASE_APP_CHECK_SITE_KEY`.
+- **SEO**: [`src/lib/seo/`](src/lib/seo/) — runtime document meta via `useRouteDocumentMeta` hook, listing-specific meta for ticket detail pages, public origin resolver, and static route SEO descriptors.
 - **Backend (Vercel serverless `api/`)**:
   - **`/api/contact`** — Contact form → Telegram. Uses Firestore guard collections **`_svcContactDedupe`** / **`_svcContactRate`** (transactional dedupe + rate limit). Validation shared with the UI via **`shared/contactValidation.ts`**.
   - **`/api/admin-delete-auth-user`** — Admin-only POST that verifies a Firebase ID token (RS256 + JWKS) and deletes a target Firebase Authentication user via Identity Toolkit REST. Caller must be `admins/{uid}.role === 'admin'` (or fallback `users/{uid}.role === 'admin'`).
@@ -57,16 +58,79 @@ Concise long-term reference for **JatriSwap** (transit ticket marketplace). Full
 
 ## Reusable systems
 
-- **`src/lib/firebase/`**: `web-config`, `firebase` bootstrap, modular **`tickets`**, **`users`**, **`notifications`**, **`ticketReports`**, **`adminSettings`**, **`ticketAdminNotes`**, **`sellerTicketNotifications`**, **`adminDeleteTargetAuth`**, **`errors`**, **`authErrors`**, **`authVerification`**.
-- **`src/types/index.ts`**: Shared domain types (`User`, **`AdminUserRow`**, **`PendingAdminRow`**, `Ticket`, `Notification`, etc.) and `OperationType` / legacy **`FirestoreErrorInfo`**.
+- **`src/lib/firebase/`**: `web-config`, `firebase` bootstrap, modular **`tickets`**, **`users`**, **`notifications`**, **`purchaseRequests`**, **`ticketReports`**, **`adminSettings`**, **`ticketAdminNotes`**, **`sellerTicketNotifications`**, **`adminDeleteTargetAuth`**, **`userModeration`**, **`submitContactMessage`**, **`queryPageSlice`**, **`errors`**, **`authErrors`**, **`authVerification`**.
+- **`src/types/index.ts`**: Shared domain types (`User`, **`AdminUserRow`**, **`PendingAdminRow`**, `Ticket`, `Notification`, `PurchaseRequest`, `TicketReport`, `AdminLog`, `AdminSettings`, etc.) and `OperationType` / legacy **`FirestoreErrorInfo`**.
 - **`src/constants.ts`**: Bangladesh-focused `STATIONS` (166 stations/cities) + `TRAIN_NAMES` (69 trains) and `BUS_NAMES` (14 buses) — all frozen `as const`. Helper `transportNamesForMode(mode)` returns the right autocomplete list; `TRANSPORTS` is derived from the two name lists (`{ name, type, mode }`) so Sell / EditTicketDialog `mode` lookups still resolve for every autocomplete option. Also exports `TRAIN_SEAT_CLASSES` / `BUS_SEAT_CLASSES`.
 - **[`src/components/common/Autocomplete.tsx`](src/components/common/Autocomplete.tsx)**: Free-text typeahead used by Home / Browse / Sell / EditTicketDialog for both From/To (`station.from` / `station.to`) and transport name (`transport.train` / `transport.bus`). Suggestion rules — empty: scope's recent picks; 1–2 chars: matching recents only (catalog hidden); 3+ chars: startsWith → contains → recents-first. Recents persisted in `localStorage` under `jatriswap.recent.<scope>` (LRU, `RECENT_MAX = 5`); `lastSavedLcRef` skips redundant writes when commit + blur cover the same value. ARIA combobox + keyboard nav.
 - **[`src/lib/ticketExpiration.ts`](src/lib/ticketExpiration.ts)**: Single source of truth for **ticket auto-expiration** — derived, no Firestore writes. Pins all trip date/time math to **`Asia/Dhaka` (UTC+6, no DST)** so `date + departureTime` mean the same instant for every viewer. Exports **`ticketDepartureDhakaMs`**, **`isTicketExpired`** (honors stored `status === 'expired'`; **sold beats expired**), **`ticketDisplayStatus`** (badge label), **`isTicketPubliclyListed`** + **`filterPubliclyListedTickets`** (Home / Browse / discovery gate). Detail-page gate **`isTicketDetailHiddenFromPublicBuyer`** also routes through `isTicketExpired` so anonymous buyers never reach expired URLs; sellers + admins still see expired listings for management/history (Dashboard, AdminDashboard, AdminUserProfile, TicketDetails). **`Sell.tsx`** uses the same Dhaka math to block past-departure submissions; **`useTicketDetailListing`** skips the `views` bump on expired listings.
 - **[`src/lib/scheduledDeleteUndo.ts`](src/lib/scheduledDeleteUndo.ts)**: Single shared LRU-keyed delete-with-undo helper backing both ticket (10s) and admin-user (30s) flows. No duplicate timers / toast logic.
+- **[`src/lib/seo/`](src/lib/seo/)**: Module for **runtime document metadata** — `applyDocumentMeta` sets `<title>` & `<meta>`, `listingDocumentMeta` builds ticket-specific OG tags, `publicOrigin` resolves `VITE_PUBLIC_SITE_URL`, and `routeSeo` provides static route descriptors. Used by `useRouteDocumentMeta` hook in page components.
+- **[`src/lib/analytics/googleAnalytics.ts`](src/lib/analytics/googleAnalytics.ts)**: GA4 gtag snippet injection. `injectGoogleAnalytics` is called from `index.html` at build time if `VITE_PUBLIC_GA_MEASUREMENT_ID` is set. Not bundled in the JS app bundle.
+- **[`src/lib/avatar/`](src/lib/avatar/)**: Full avatar system — `catalog.ts` (public avatar path list), `pickRandomPublicAvatarPath`, `resolveDisplayAvatarUrl` (resolves public path or Firestore URL), `profileFirestore` (collection/ref helpers), `buildAvatarProfilePatch`, `persistProfileDisplayAvatar`, `googleSignupProfile` (Google SSO profile fields). Re-exported via barrel `index.ts`.
+- **[`src/lib/branding/`](src/lib/branding/)**: Branding utilities — `jatriSwapFaviconSvg` (SVG favicon data URI), `jatriSwapTicketMarkGeometry` (ticket icon SVG path).
+- **[`src/lib/runtime/`](src/lib/runtime/)**: `clientLogger` (DEV-only console suppression gate), `requestCache` (in-memory async request deduplication).
+- **[`src/lib/contact/contactForm.ts`](src/lib/contact/contactForm.ts)**: Client-side contact form submission via `submitContactMessage` — calls `/api/contact`.
+- **[`src/lib/initialsFromDisplayName.ts`](src/lib/initialsFromDisplayName.ts)**: Extracts initials from a display name for avatar fallback.
+- **[`src/lib/listingSaveFeedback.ts`](src/lib/listingSaveFeedback.ts)**: Toast/sonner helpers for save/publish actions.
+- **[`src/lib/listingWriteGuard.ts`](src/lib/listingWriteGuard.ts)**: Pre-submission validation for ticket listings (departure not in past).
+- **[`src/lib/moderationNotifications.ts`](src/lib/moderationNotifications.ts)**: Creates admin notifications for moderation events.
+- **[`src/lib/sellerListingControls.ts`](src/lib/sellerListingControls.ts)**: Seller-side mark-as-sold / delete ticket controls.
+- **[`src/lib/userAccountStatus.ts`](src/lib/userAccountStatus.ts)**: Derives user account status (verified, banned, etc.) from Firestore doc.
+- **[`src/lib/adminSearchText.ts`](src/lib/adminSearchText.ts)**: Full-text search builder for admin ticket/user queries.
+- **[`src/lib/adminTableUi.ts`](src/lib/adminTableUi.ts)**: Shared admin table pagination/UI state helpers.
+- **[`src/lib/adminDisplay.ts`](src/lib/adminDisplay.ts)**: Admin display formatters.
+- **[`src/lib/adminTicketReportSearch.ts`](src/lib/adminTicketReportSearch.ts)**: Admin ticket report search/sort logic.
+- **[`src/lib/adminUserSearch.ts`](src/lib/adminUserSearch.ts)**: Admin user search/filter helpers.
+- **[`src/lib/aggregateSellerTicketStats.ts`](src/lib/aggregateSellerTicketStats.ts)**: Aggregates ticket stats by seller for admin overview.
+- **[`src/lib/brutalistSingleDayCalendar.ts`](src/lib/brutalistSingleDayCalendar.ts)**: Single-day date picker using `react-day-picker` with neo-brutalist styling.
+- **[`src/lib/copyTextWithToast.ts`](src/lib/copyTextWithToast.ts)**: Clipboard copy with toast feedback.
+- **[`src/lib/formatAdminTripLine.ts`](src/lib/formatAdminTripLine.ts)**: Formats trip line for admin display (mode + route + time).
+- **[`src/lib/formatDepartureTime.ts`](src/lib/formatDepartureTime.ts)**: Formats departure time string for listing cards.
+- **[`src/lib/formatLocaleDateTime.ts`](src/lib/formatLocaleDateTime.ts)**: Locale-aware date/time formatting.
+- **[`src/lib/formatPurchaseRequest.ts`](src/lib/formatPurchaseRequest.ts)**: Formats purchase request data for display.
+- **[`src/lib/isAdminAppRoute.ts`](src/lib/isAdminAppRoute.ts)**: Route guard — checks if current path is under `/admin`.
+- **[`src/lib/ticketDetailAdminReturn.ts`](src/lib/ticketDetailAdminReturn.ts)**: Builds "Back to admin" return links for ticket detail pages.
+- **[`src/lib/ticketDetailVisibility.ts`](src/lib/ticketDetailVisibility.ts)**: Visibility gate logic for ticket detail page (public vs seller vs admin views).
+- **[`src/lib/ui/authShellClasses.ts`](src/lib/ui/authShellClasses.ts)**: Shared CSS class sets for auth pages (login, register, etc.).
 - **[`src/lib/vercelDeployApiUrl.ts`](src/lib/vercelDeployApiUrl.ts)**: Single resolver used by **`submitContactMessage`** and **`adminDeleteTargetAuth`** for `VITE_CONTACT_API_URL`-aware `/api/*` URLs.
 - **`ErrorBoundary`**: Class boundary around routes with fallback UI.
 - **[`FloatingWhatsAppHelp`](src/components/common/FloatingWhatsAppHelp.tsx)**: Fixed-position WhatsApp CTA mounted in `AppLayout`; honors `getPublicWhatsAppLink()` (renders nothing when env unset).
 - **`src/lib/adminDashboardTab.ts`**: Single source for admin UI tab ids (`overview`, `tickets`, `users`, `reports`, `logs`, `admins`), URL helpers **`adminDashboardPath`**, **`adminUserProfilePath`**, and query params **`tab`** (on `/admin`) / **`returnTab`** (on `/admin/users/:id` for **Back to dashboard**).
+
+## Hooks
+
+- **`useRouteDocumentMeta`**: Sets `<title>` and `<meta>` tags per route using `src/lib/seo/`. Used by page components.
+- **`useTicketDetailListing`**: Fetches a single ticket doc + optional admin note; increments views via `incrementTicketViews`; gates expired/hidden listings.
+- **`useTicketSellerPrivacy`**: Controls seller phone reveal on ticket detail page.
+- **`useTicketDetailAdminLinkState`**: Persists admin return-tab state for ticket detail back-links.
+- **`useAvatarPickerFromProfile`**: Avatar picker dialog state for profile editing.
+- **`useCalendarPopoverSelect`**: Calendar popover open/close + selection state for date pickers.
+- **`useSellerNotificationsSubscription`**: Realtime subscription to seller notifications (`notifications` collection filtered by userId).
+- **`useSignupAvatarDraft`**: Draft avatar selection state during signup.
+
+## Common components
+
+- **[`Autocomplete`](src/components/common/Autocomplete.tsx)**: Free-text typeahead for stations/transport, with `localStorage` recents (LRU, max 5) and ARIA combobox + keyboard nav.
+- **[`TicketCard`](src/components/common/TicketCard.tsx)**: Listing card for grid/feed views.
+- **[`EditTicketDialog`](src/components/common/EditTicketDialog.tsx)**: Dialog for editing a ticket listing.
+- **[`EditProfileDialog`](src/components/common/EditProfileDialog.tsx)**: Profile editing dialog with avatar picker.
+- **[`TimePicker`](src/components/common/TimePicker.tsx)**: Time selector input.
+- **[`FloatingWhatsAppHelp`](src/components/common/FloatingWhatsAppHelp.tsx)**: Fixed-position WhatsApp CTA.
+- **[`AuthLoadingPlaceholder`](src/components/common/AuthLoadingPlaceholder.tsx)**: Neo-brutalist session placeholder shown while auth initializes.
+- **[`AdminUserFirestoreAvatar`](src/components/common/AdminUserFirestoreAvatar.tsx)**: Admin UI avatar display using Firestore avatar URL.
+- **[`AvatarChoiceTrigger`](src/components/common/AvatarChoiceTrigger.tsx)**: Avatar selection trigger button.
+- **[`ProfileAvatarPickerDialog`](src/components/common/ProfileAvatarPickerDialog.tsx)**: Avatar picker dialog (public avatars + upload).
+- **[`BuyerPurchaseRequestCard`](src/components/common/BuyerPurchaseRequestCard.tsx)**: Admin card showing a purchase request.
+- **[`DashboardAlertRow`](src/components/common/DashboardAlertRow.tsx)**: Notification row for seller dashboard alerts.
+- **[`MarkAllNotificationsReadButton`](src/components/common/MarkAllNotificationsReadButton.tsx)**: Button to mark all notifications as read.
+- **[`JatriSwapLogo`](src/components/branding/JatriSwapLogo.tsx)**: Brand SVG logo component.
+- **`ErrorBoundary`**: Class boundary around routes with fallback UI.
+
+## Transit page ([`src/pages/Transit.tsx`](src/pages/Transit.tsx))
+
+- A **discovery hub** page (`/transit`) that presents an interactive directory of Bangladesh's train stations, trains, and bus services.
+- Features a manifest-card UI with search/filter by query, entity counts (stations/trains/buses), and links to Browse with pre-filled filters.
+- Uses `STATIONS`, `TRAIN_NAMES`, `BUS_NAMES` from `src/constants.ts`. No Firestore dependency.
 
 ## Admin dashboard (high level)
 
@@ -113,7 +177,7 @@ Concise long-term reference for **JatriSwap** (transit ticket marketplace). Full
 
 ## Hosting (Vercel)
 
-- **[`vercel.json`](vercel.json)**: SPA fallback rewrite (paths **not** under **`/api/*`**) → `index.html` so React Router handles paths client-side (fixes refresh **404** on `/browse`, `/admin`, etc.). Function entries register `maxDuration: 30` for both `api/contact.ts` and `api/admin-delete-auth-user.ts`. **No `memory` setting** (ignored on Active CPU billing). **No `includeFiles`** — both handlers ship only `node:*` + small handler-local imports; the heavy `firebase-admin` / `@google-cloud/firestore` / `google-gax` subtrees that used to need `includeFiles` for NFT tracing are gone.
+- **[`vercel.json`](vercel.json)**: SPA fallback rewrite (paths not under `/api/*`, `*.xml`, `robots.txt`) → `index.html` so React Router handles paths client-side (fixes refresh **404** on `/browse`, `/admin`, etc.). Function entries register `maxDuration: 30` for both `api/contact.ts` and `api/admin-delete-auth-user.ts`. Headers set `X-Robots-Tag: noindex, nofollow, noarchive` on `/admin/*` paths, and explicit `Content-Type`/`Cache-Control` for `/sitemap-main.xml` and `/robots.txt`. `buildCommand`: `npm run build`. `outputDirectory`: `dist`. **No `memory` setting** (ignored on Active CPU billing). **No `includeFiles`** — both handlers ship only `node:*` + small handler-local imports; the heavy `firebase-admin` / `@google-cloud/firestore` / `google-gax` subtrees that used to need `includeFiles` for NFT tracing are gone.
 - **`package.json`**: **no `engines.node`** — the Node version comes from **Vercel → Project → Settings** (use **24.x** LTS there). A pinned `engines` value was overriding the dashboard and triggered “Project Setting overridden by package.json.”
 - **Google Analytics (GA4)**: **`VITE_PUBLIC_GA_MEASUREMENT_ID`** must be set **before** `vite run build` (e.g. Vercel env for Production + **Redeploy**). Without it, gtag never loads. Built `index.html` includes `<!-- jatriswap-ga:… -->` (View Source) to confirm. Incognito does not change that.
 - That logic runs **only at the edge/router** when the browser requests a document — **not** in your JS bundle. It does **not** add components, listeners, or extra React reconciliation versus any other static host SPA setup.
@@ -124,5 +188,5 @@ Concise long-term reference for **JatriSwap** (transit ticket marketplace). Full
 - **Maturity**: Single frontend app with Firebase backend; admin flows and marketplace pages under `src/pages/`.
 - **Tooling**: `npm run lint` → `tsc --noEmit` only (no ESLint script in `package.json`).
 - **Product naming**: UI branding **JatriSwap**; [`index.html`](index.html) title **JatriSwap**.
-- **Dependencies**: **No** Google Gemini SDK (**`@google/genai`** was removed). **No** `firebase-admin`, **no** `@google-cloud/firestore` — server uses a custom Firestore REST client + native `node:crypto`. `npm audit` shows **0 vulnerabilities** with the **only** override being `uuid` (unrelated to security).
+- **Dependencies**: Firebase v12, React 19, React Router v7.14, Motion v12, Sonner v2, date-fns v4, Tailwind CSS v4, Base UI v1. **No** Google Gemini SDK (**`@google/genai`** was removed). **No** `firebase-admin`, **no** `@google-cloud/firestore` — server uses a custom Firestore REST client + native `node:crypto`. `npm audit` shows **0 vulnerabilities** with the **only** override being `uuid` (unrelated to security).
 - **Gaps**: Chat/messaging in rules but not in client; admin screen is a candidate for hook/component splits per `.agents/rules/react.mdc`.

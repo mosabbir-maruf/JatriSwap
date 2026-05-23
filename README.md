@@ -21,17 +21,19 @@ Marketplace web app for **buying and selling unused train and bus tickets**. Sel
 
 | Area | Choice |
 |------|--------|
-| UI | React 19, React Router 7, shadcn-style UI components |
+| UI | React 19, React Router 7, shadcn-style UI components (Base UI–based) |
 | Build | Vite 6 |
-| Styling | Tailwind CSS 4 |
+| Styling | Tailwind CSS 4 + `tw-animate-css` |
 | Fonts | Inter + JetBrains Mono (Google Fonts CSS); Space Grotesk (`@fontsource/space-grotesk`) for headings |
-| Backend | Firebase Auth, Firestore |
-| Hosting | Static deploy of `dist/` (Firebase Hosting or any CDN-friendly host) |
+| Motion | Motion (Framer Motion v12) |
+| Backend | Firebase Auth, Firestore, App Check |
+| Serverless API | Vercel Functions (`api/contact`, `api/admin-delete-auth-user`, `api/health`) |
+| Hosting | Vercel / any static host |
 
 ## Prerequisites
 
 - **Node.js** (LTS recommended, e.g. 20+)  
-- A **Firebase** project with **Authentication** (email/password) and **Firestore** enabled  
+- A **Firebase** project with **Authentication** (email/password), **Firestore**, and (optional) **App Check** enabled  
 - **Firebase CLI** (optional): `npm install -g firebase-tools` — for deploying rules and indexes  
 
 ## Environment setup
@@ -60,10 +62,13 @@ All **`VITE_*`** keys are inlined at **build time** by Vite. Set them in the env
 | `VITE_FIREBASE_APP_ID` | Yes | Firebase app ID |
 | `VITE_FIREBASE_FIRESTORE_DATABASE_ID` | Yes | Firestore database ID (use `(default)` only if that is your DB) |
 | `VITE_FIREBASE_MEASUREMENT_ID` | No | Google Analytics measurement ID (if enabled) |
+| `VITE_FIREBASE_APP_CHECK_SITE_KEY` | No | reCAPTCHA v3 site key for App Check (bootstrapped lazily via `requestIdleCallback`) |
 | `VITE_PUBLIC_WHATSAPP_NUMBER` | Recommended | Platform WhatsApp (any formatting); used on Contact and **Request to buy** prefilled messages |
 | `VITE_PUBLIC_SUPPORT_PHONE` | No | Optional phone line shown on Contact |
-| `VITE_PUBLIC_SITE_URL` | Recommended | Production site origin (no trailing slash); used for canonicals, `robots.txt`, and `sitemap-main.xml` at build time |
+| `VITE_PUBLIC_SITE_URL` | Recommended | Production site origin (no trailing slash); used for canonicals, `robots.txt`, and `sitemap-main.xml` |
+| `VITE_PUBLIC_GA_MEASUREMENT_ID` | No | Google Analytics 4 Measurement ID (injected at **build time** into `index.html`; missing tag shows a `<!-- jatriswap-ga:missing -->` comment) |
 | `VITE_PUBLIC_FACEBOOK_URL` | No | Full Facebook page/group URL (e.g. `https://facebook.com/yourpage`); powers the footer **Join Facebook** button |
+| `VITE_CONTACT_API_URL` | No | Override for `/api/*` URLs when frontend and API are deployed separately (e.g. local Vite with deployed API) |
 
 If `VITE_PUBLIC_WHATSAPP_NUMBER` is empty, **Request to buy** still opens WhatsApp only after you configure this value.
 
@@ -103,19 +108,41 @@ firebase deploy --only firestore
 
 Add a **hosting** target to `firebase.json` when you want Firebase Hosting to serve `dist/`, or deploy `dist/` elsewhere with production env vars set before `npm run build`.
 
+### Collections used
+
+`users`, `admins`, `tickets`, `notifications`, `purchaseRequests`, `ticketReports`, `adminSettings` (doc: `global`), `adminLogs`, `ticketAdminNotes`, `_svcContactDedupe`, `_svcContactRate`.
+
+### Serverless API endpoints
+
+- **`/api/contact`** — Contact form submission → Telegram notification. Dedup + rate-limit via Firestore guard collections.
+- **`/api/admin-delete-auth-user`** — Admin-only POST. Verifies Firebase ID token (RS256 + JWKS), deletes target Firebase Auth user via Identity Toolkit REST.
+- **`/api/health`** — Simple health check endpoint.
+
 ### Vercel
 
 Import the repo with **Vite** (build output **`dist/`**). Root [`vercel.json`](vercel.json) serves **`index.html`** when no static file matches the URL so **refresh** on client routes (e.g. `/browse`, `/admin`) does not return **404**. That happens **only on the CDN/router** for document requests — it does **not** slow down the client app or cause extra React rendering beyond a normal page load. Set the same **`VITE_*`** env vars in the Vercel project before deploy.
+
+Additional `vercel.json` behavior:
+- **`/admin/*`** pages get `X-Robots-Tag: noindex, nofollow, noarchive` headers.
+- **`/sitemap-main.xml`** and **`/robots.txt`** get explicit `Content-Type` and `Cache-Control` headers.
+- Serverless functions (`api/contact.ts`, `api/admin-delete-auth-user.ts`) have `maxDuration: 30`.
+- **`buildCommand`**: `npm run build`. **`outputDirectory`**: `dist`.
+
+Server-side env vars for Vercel (not `VITE_*`):
+- `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` — contact form → Telegram.
+- `FIRESTORE_DATABASE_ID` — same logical DB as `VITE_FIREBASE_FIRESTORE_DATABASE_ID`.
+- `FIREBASE_SERVICE_ACCOUNT_JSON` — full JSON string for server-side Firestore REST access.
+- `GOOGLE_APPLICATION_CREDENTIALS` — path to `.json` file (for local `vercel dev`).
 
 ## Scripts
 
 | Script | Description |
 |--------|-------------|
-| `npm run dev` | Vite dev server |
+| `npm run dev` | Vite dev server (port 3000, `--host=0.0.0.0`) |
 | `npm run build` | Production build → `dist/` |
 | `npm run preview` | Serve `dist/` locally |
 | `npm run clean` | Remove `dist/` |
-| `npm run lint` | TypeScript check only |
+| `npm run lint` | TypeScript check only (`tsc --noEmit`) |
 
 ## Repository structure
 
@@ -123,71 +150,154 @@ Paths below match what lives in this repo (excluding `node_modules/`, `dist/`, a
 
 ```
 JatriSwap/
-├── .env.example              # Template for Vite + Firebase env (copy → .env.local)
-├── .firebaserc               # Firebase CLI default project
+├── .env.example                 # Template for Vite + Firebase env (copy → .env.local)
+├── .env.local                   # Local env (gitignored — never commit)
+├── .firebaserc                  # Firebase CLI default project
 ├── .gitignore
+├── AGENTS.md                    # AI agent instructions
+├── MEMORY.md                    # Long-term project reference
 ├── README.md
-├── vercel.json               # SPA fallback rewrites for Vercel
-├── components.json           # shadcn-style UI config
-├── firebase.json               # Firestore rules + indexes targets
+├── vercel.json                  # Vercel config: SPA rewrites, headers, functions
+├── components.json              # shadcn-style UI config
+├── firebase.json                # Firestore rules + indexes targets
 ├── firestore.indexes.json
 ├── firestore.rules
-├── index.html                # Vite HTML shell
+├── index.html                   # Vite HTML shell with GA4 injection
 ├── lib/
-│   └── utils.ts              # Shared helpers (e.g. cn())
+│   └── utils.ts                 # Shared helpers (e.g. cn())
 ├── package.json
 ├── package-lock.json
-├── security_spec.md
 ├── tsconfig.json
 ├── vite.config.ts
+├── .agents/                     # AI agent rules and skills
+│   ├── plans/
+│   ├── rules/                   # codequality.mdc, react.mdc, typescript.mdc
+│   └── skills/                  # firebase, firebase-basics, api-design, seo, etc.
+├── api/                         # Vercel serverless functions
+│   ├── contact.ts               # Contact form → Telegram
+│   ├── admin-delete-auth-user.ts# Admin hard-delete Firebase Auth user
+│   ├── health.ts                # Health check endpoint
+│   └── lib/
+│       ├── firebaseAdmin.ts     # Server-side Firestore REST client (JWT → OAuth)
+│       ├── serverLogging.ts     # Server-side structured logging
+│       └── contact/             # Contact form server modules
+│           ├── firestoreRest.ts     # Hand-rolled Firestore REST surface
+│           ├── firestoreGuards.ts   # Dedupe + rate limit guards
+│           ├── guardsConstants.ts   # Guard collection config
+│           ├── httpError.ts
+│           ├── httpPost.ts
+│           ├── identity.ts
+│           ├── logUnexpectedContact.ts
+│           ├── sanitize.ts
+│           └── telegram.ts
+├── shared/
+│   └── contactValidation.ts     # Shared contact form validation
+├── public/
+│   ├── avatar/                  # ~80 public avatar PNGs
+│   ├── brand/                   # Brand assets
+│   ├── favicon.png
+│   ├── favicon.svg
+│   ├── meta-og.png              # Open Graph fallback image
+│   └── robots.txt
 ├── components/
-│   └── ui/                   # Reusable primitives (button, card, dialog, tabs, …)
+│   └── ui/                      # shadcn-style primitives (Base UI based)
+│       ├── accordion.tsx, avatar.tsx, badge.tsx, button.tsx
+│       ├── calendar.tsx, card.tsx, dialog.tsx, dropdown-menu.tsx
+│       ├── input.tsx, label.tsx, popover.tsx, scroll-area.tsx
+│       ├── select.tsx, separator.tsx, sheet.tsx, skeleton.tsx
+│       ├── slider.tsx, sonner.tsx, spinner.tsx, switch.tsx
+│       ├── tabs.tsx, textarea.tsx
 └── src/
-    ├── main.tsx              # App bootstrap
-    ├── App.tsx               # Router shell, layout, footer
-    ├── index.css             # Global styles / Tailwind
-    ├── vite-env.d.ts         # Vite + ImportMetaEnv typings
-    ├── constants.ts          # Shared constants (stations, etc.)
+    ├── main.tsx                 # App bootstrap + lazy App Check init
+    ├── App.tsx                  # Router shell, layout, footer, Navbar
+    ├── index.css                # Global styles / Tailwind / scrollbar-gutter
+    ├── vite-env.d.ts            # Vite + ImportMetaEnv typings
+    ├── constants.ts             # Shared constants (STATIONS, TRAIN_NAMES, BUS_NAMES, seat classes)
     ├── contexts/
-    │   └── AuthContext.tsx   # Firebase auth + user profile
+    │   └── AuthContext.tsx      # Firebase auth + user/admin profile listeners
     ├── hooks/
+    │   ├── useAvatarPickerFromProfile.ts
+    │   ├── useCalendarPopoverSelect.ts
+    │   ├── useRouteDocumentMeta.ts
+    │   ├── useSellerNotificationsSubscription.ts
+    │   ├── useSignupAvatarDraft.ts
+    │   ├── useTicketDetailAdminLinkState.ts
     │   ├── useTicketDetailListing.ts
     │   └── useTicketSellerPrivacy.ts
     ├── components/
     │   ├── ErrorBoundary.tsx
-    │   └── common/           # TicketCard, EditTicketDialog, EditProfileDialog, TimePicker
+    │   ├── branding/
+    │   │   └── JatriSwapLogo.tsx
+    │   └── common/
+    │       ├── AdminUserFirestoreAvatar.tsx
+    │       ├── AuthLoadingPlaceholder.tsx
+    │       ├── Autocomplete.tsx
+    │       ├── AvatarChoiceTrigger.tsx
+    │       ├── BuyerPurchaseRequestCard.tsx
+    │       ├── DashboardAlertRow.tsx
+    │       ├── EditProfileDialog.tsx
+    │       ├── EditTicketDialog.tsx
+    │       ├── FloatingWhatsAppHelp.tsx
+    │       ├── MarkAllNotificationsReadButton.tsx
+    │       ├── ProfileAvatarPickerDialog.tsx
+    │       ├── TicketCard.tsx
+    │       └── TimePicker.tsx
     ├── lib/
-    │   ├── adminDashboardTab.ts   # Admin URL tab ids + path helpers (?tab=, ?returnTab=)
+    │   ├── adminDashboardTab.ts       # Admin URL tab ids & path helpers
+    │   ├── adminDisplay.ts            # Admin display formatters
+    │   ├── adminSearchText.ts         # Full-text search builder
+    │   ├── adminTableUi.ts            # Admin table pagination/UI state
+    │   ├── adminTicketReportSearch.ts # Report search/sort
+    │   ├── adminUserSearch.ts         # User search/filter
+    │   ├── aggregateSellerTicketStats.ts
+    │   ├── analytics/
+    │   │   └── googleAnalytics.ts     # GA4 gtag snippet injection
+    │   ├── avatar/                    # Full avatar system (catalog, picker, upload, resolve)
+    │   ├── branding/                  # Brand utilities (favicon, ticket mark SVG)
+    │   ├── brutalistSingleDayCalendar.ts
+    │   ├── contact/
+    │   │   └── contactForm.ts         # Client-side contact submission
+    │   ├── copyTextWithToast.ts
     │   ├── env/
-    │   │   └── publicContact.ts   # WhatsApp / support phone from env
-    │   ├── firebase/         # Auth, Firestore services (tickets, users, notifications, …)
-    │   ├── sellDraft.ts
-    │   ├── ticketBuyRequest.ts    # Prefilled WhatsApp purchase message
-    │   └── ticketPrivacy.ts       # Seller phone redaction for listings
-    ├── pages/                # Route-level screens
-    │   ├── Home.tsx
-    │   ├── Browse.tsx
-    │   ├── Sell.tsx
-    │   ├── TicketDetails.tsx
-    │   ├── Dashboard.tsx
-    │   ├── Alerts.tsx
-    │   ├── Contact.tsx
-    │   ├── Login.tsx
-    │   ├── Register.tsx
-    │   ├── VerifyEmail.tsx
-    │   ├── ForgotPassword.tsx
-    │   ├── AdminLogin.tsx
-    │   ├── AdminRegister.tsx
-    │   ├── AdminDashboard.tsx
-    │   ├── AdminUserProfile.tsx
-    │   ├── FAQ.tsx
-    │   ├── TermsOfService.tsx
-    │   ├── PrivacyPolicy.tsx
-    │   ├── CookiePolicy.tsx
-    │   ├── NotFound.tsx
-    │   └── Unauthorized.tsx
+    │   │   └── publicContact.ts       # WhatsApp / support phone from env
+    │   ├── firebase/                  # All Firestore services
+    │   │   ├── adminDeleteTargetAuth.ts, adminSettings.ts
+    │   │   ├── authErrors.ts, authVerification.ts
+    │   │   ├── errors.ts, firebase.ts, web-config.ts
+    │   │   ├── notifications.ts, purchaseRequests.ts
+    │   │   ├── queryPageSlice.ts, sellerTicketNotifications.ts
+    │   │   ├── submitContactMessage.ts, ticketAdminNotes.ts
+    │   │   ├── ticketReports.ts, tickets.ts
+    │   │   ├── userModeration.ts, users.ts
+    │   ├── formatAdminTripLine.ts, formatDepartureTime.ts
+    │   ├── formatLocaleDateTime.ts, formatPurchaseRequest.ts
+    │   ├── initialsFromDisplayName.ts, isAdminAppRoute.ts
+    │   ├── listingSaveFeedback.ts, listingWriteGuard.ts
+    │   ├── moderationNotifications.ts, scheduledDeleteUndo.ts
+    │   ├── runtime/
+    │   │   ├── clientLogger.ts        # DEV-only console suppression
+    │   │   └── requestCache.ts        # Async request dedup
+    │   ├── sellDraft.ts, sellerListingControls.ts
+    │   ├── seo/                       # Runtime meta, OG tags, canonicals
+    │   ├── ticketBuyRequest.ts        # Prefilled WhatsApp purchase message
+    │   ├── ticketDetailAdminReturn.ts # Admin back-link helpers
+    │   ├── ticketDetailVisibility.ts  # Detail page visibility gates
+    │   ├── ticketExpiration.ts        # Dhaka-time derived expiry
+    │   ├── ticketPrivacy.ts           # Seller phone redaction
+    │   ├── ui/
+    │   │   └── authShellClasses.ts    # Auth page CSS classes
+    │   ├── userAccountStatus.ts
+    │   └── vercelDeployApiUrl.ts      # API URL resolver
+    ├── pages/
+    │   ├── AdminDashboard.tsx, AdminLogin.tsx, AdminRegister.tsx
+    │   ├── AdminUserProfile.tsx, Alerts.tsx, Browse.tsx
+    │   ├── Contact.tsx, CookiePolicy.tsx, Dashboard.tsx
+    │   ├── FAQ.tsx, ForgotPassword.tsx, Home.tsx, Login.tsx
+    │   ├── NotFound.tsx, PrivacyPolicy.tsx, Register.tsx
+    │   ├── Sell.tsx, TermsOfService.tsx, TicketDetails.tsx
+    │   ├── Transit.tsx, Unauthorized.tsx, VerifyEmail.tsx
     └── types/
-        └── index.ts          # Shared TypeScript types
+        └── index.ts                   # Shared TypeScript types
 ```
 
 ---

@@ -301,5 +301,3 @@ JatriSwap/
 ```
 
 ---
-
-JatriSwap is **private** in `package.json`. Adjust licensing or repo visibility as needed.
